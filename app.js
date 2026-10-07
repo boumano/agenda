@@ -55,7 +55,7 @@ var idleSec = 120;                       /* réglable : 0 (jamais), 60, 120, 600
 var veilEl = $('#veil'), veilOn = false, lastTouch = Date.now(), swallowClick = false;
 var toastEl = $('#toast'), toastTimer = null, undoFn = null;
 var showArch = false, query = '';
-var ctx = { pid: null, person: null, mode: 'sem', jours: [], du: '', au: '', dates: {}, dm: { y: 0, m: 0 }, leaving: false, noted: 0, planned: 0 };
+var ctx = { sig: null, pid: null, person: null, mode: 'sem', jours: [], du: '', au: '', dates: {}, dm: { y: 0, m: 0 }, leaving: false, noted: 0, planned: 0 };
 var confirmCtx = null;
 
 function toast(text, undo, ms) {
@@ -194,23 +194,26 @@ function openFiche(id) {
   ctx.du = s.from || ''; ctx.au = s.to || ''; ctx.dates = {}; (s.dates || []).forEach(function (d) { ctx.dates[d] = true; });
   var t = today(); ctx.dm = { y: t.getFullYear(), m: t.getMonth() };
   AG.countRides(id).then(function (c) { ctx.noted = c.noted; ctx.planned = c.planned; }, function () { ctx.noted = 0; ctx.planned = 0; }).then(function () {
-    history.pushState({ app: 1 }, ''); renderFiche(); go('fiche'); $('#s-fiche .content').scrollTop = 0;
+    history.pushState({ app: 1 }, ''); renderFiche(); ctx.sig = ficheSig(); go('fiche'); $('#s-fiche .content').scrollTop = 0;
   });
 }
 function openNew() {
   var t = today();
   ctx.pid = null; ctx.person = null; ctx.jours = []; ctx.mode = 'sem'; ctx.du = iso(t); ctx.au = ''; ctx.dates = {}; ctx.dm = { y: t.getFullYear(), m: t.getMonth() }; ctx.noted = 0; ctx.planned = 0;
-  history.pushState({ app: 1 }, ''); renderFiche(); go('fiche'); $('#s-fiche .content').scrollTop = 0;
+  history.pushState({ app: 1 }, ''); renderFiche(); ctx.sig = ficheSig(); go('fiche'); $('#s-fiche .content').scrollTop = 0;
 }
 function readFiche() {
   var g = function (i) { return document.getElementById(i).value.trim(); };
   return { nom: g('f-nom'), pre: g('f-pre'), rue: g('f-rue'), cp: g('f-cp'), ville: g('f-ville'), lieu: g('f-lieu'), lrue: g('f-lrue'), lcp: g('f-lcp'), lville: g('f-lville'), tel: g('f-tel'), heure: g('f-heure'), heureD: g('f-heured'), du: g('f-du'), au: g('f-au'), prix: g('f-prix'), km: g('f-km') };
 }
 /* « Quitter sans enregistrer ? » : seulement pour une nouvelle personne dont on a déjà rempli quelque chose (comme la maquette) */
+/* « signature » de la fiche : tout ce qui peut être modifié. Elle est notée à l'ouverture ; si elle a changé, on demande avant de quitter. */
+function ficheSig() {
+  return JSON.stringify({ v: readFiche(), mode: ctx.mode, jours: ctx.jours.slice().sort(), dates: Object.keys(ctx.dates).filter(function (d) { return ctx.dates[d]; }).sort() });
+}
 function ficheDirty() {
-  if (cur !== 'fiche' || ctx.pid || ctx.leaving || !document.getElementById('f-nom')) return false;
-  var v = readFiche(); for (var k in v) if (v[k] && !(k === 'du' && v[k] === todayISO())) return true;
-  return ctx.jours.length > 0 || Object.keys(ctx.dates).some(function (d) { return ctx.dates[d]; });
+  if (cur !== 'fiche' || ctx.leaving || !document.getElementById('f-nom') || ctx.sig == null) return false;
+  return ficheSig() !== ctx.sig;
 }
 function dupMsg() {
   var n = norm(document.getElementById('f-nom').value.trim()), r = norm(document.getElementById('f-pre').value.trim()), hit = null;
@@ -369,12 +372,23 @@ function startWorker() {
     watchWorker(reg); reg.update().catch(function () {});
   }).catch(function () {});
   navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (userAsked && !reloading) { reloading = true; location.reload(); }   /* seulement après « Mettre à jour » */
+    /* le nouveau service worker vient de prendre la main : on attend qu'il soit « activé » (voir applyUpdate) ; filet de sécurité de 3 s */
+    if (userAsked && !reloading) setTimeout(reloadOnce, 3000);
   });
 }
+/* Un seul rechargement, jamais de boucle, et seulement après « Mettre à jour » ET quand le nouveau service worker est actif.
+   Avant de recharger, la page LÂCHE sa connexion à la base : sinon elle pourrait bloquer la mise à niveau de la page suivante. */
+function reloadOnce() {
+  if (reloading || !userAsked) return;
+  reloading = true;
+  AG.closeDb();
+  setTimeout(function () { location.reload(); }, 150);
+}
 function applyUpdate() {
-  if (!(swReg && swReg.waiting)) return;
-  userAsked = true; swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+  var w = swReg && swReg.waiting; if (!w) return;
+  userAsked = true;
+  w.addEventListener('statechange', function () { if (w.state === 'activated') reloadOnce(); });
+  w.postMessage({ type: 'SKIP_WAITING' });
 }
 function checkUpdate() {
   if (!swReg) { toast('Mise à jour impossible ici'); return; }
@@ -502,9 +516,19 @@ function fatal(title, text) {
 AG.onClosed = function () {
   fatal('Agenda a été mis à jour dans une autre fenêtre', 'Ferme cette fenêtre et rouvre Agenda. Rien n’a été effacé.');
 };
+/* Mise à niveau des données retenue par une ancienne page encore ouverte : message simple au lieu d'un écran muet.
+   Il disparaît tout seul si le blocage se lève. */
+var blockedShown = false, isReady = false;
+function showBlocked() {
+  if (isReady || blockedShown) return;
+  blockedShown = true;
+  fatal('Fermez et rouvrez l’appli pour finir la mise à jour', 'Rien n’a été effacé. Si ce message reste, fermez complètement Agenda (balayez-le dans les applis récentes), puis rouvrez-le.');
+}
+function hideBlocked() { if (blockedShown) { blockedShown = false; $('#fatal').classList.remove('on'); } }
+setTimeout(showBlocked, 5000);                /* base pas prête après 5 secondes : même message, pas d'écran figé */
 
 /* ========= démarrage ========= */
-var ready = AG.init().then(function () {
+var ready = AG.init({ onBlocked: showBlocked }).then(function () {
   return AG.getMeta('schema_version').then(function (v) { schemaVersion = v; });
 }).then(function () {
   return AG.getSetting('idle_sec');
@@ -514,7 +538,8 @@ var ready = AG.init().then(function () {
 }).then(function (list) {
   people = list; renderPers();
   return firstLaunchStorage();
-}).then(function () { refreshReglages(); }, function (er) {
+}).then(function () { isReady = true; hideBlocked(); refreshReglages(); }, function (er) {
+  isReady = true; hideBlocked();
   if (er && er.code === 'newer') fatal('Données plus récentes que l’appli', 'Les données de ce téléphone ont été écrites par une version plus récente d’Agenda. Rien n’a été effacé. Ferme l’appli, rouvre-la avec internet pour la mettre à jour, puis réessaie.');
   else fatal('Stockage indisponible', 'Agenda ne peut pas ouvrir son stockage sur ce téléphone. Rien n’a été effacé. Ferme et rouvre l’appli ; si le message revient, ne saisis rien et préviens celui qui t’aide.');
 });

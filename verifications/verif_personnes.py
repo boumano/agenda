@@ -189,7 +189,33 @@ with sync_playwright() as p:
     save()
     ok(tag + " fiche existante sans nom : « Indique au moins un nom »", toast_msg() == "Indique au moins un nom" and db_all("persons")[0]["last_name"] == "Essai")
     tap('[data-a="back"]')
-    ok(tag + " fiche existante modifiée puis « Retour » : pas de question (comme la maquette), rien enregistré", cur() == "personnes" and pg.locator("#confirm.on").count() == 0 and db_all("persons")[0]["last_name"] == "Essai")
+    ok(tag + " fiche existante MODIFIÉE puis « Retour » : « Quitter sans enregistrer ? » (comme pour une nouvelle fiche)", pg.locator("#confirm.on").count() == 1 and pg.locator("#confirm-title").inner_text() == "Quitter sans enregistrer ?" and cur() == "fiche")
+    tap("#confirm-cancel")
+    ok(tag + " « Rester » : la fiche et les modifications sont toujours là", cur() == "fiche" and pg.input_value("#f-cp") == "123" and pg.input_value("#f-nom") == "")
+    tap('[data-a="back"]'); tap("#confirm-ok")
+    ok(tag + " « Quitter » : retour à la liste, RIEN n'a été enregistré (la fiche garde son nom d'origine)", cur() == "personnes" and db_all("persons")[0]["last_name"] == "Essai" and db_all("persons")[0]["pickup_zip"] == "12345", db_all("persons")[0]["pickup_zip"])
+    # --- fiche existante : demander seulement si quelque chose a changé
+    open_fiche("Essai"); tap('[data-a="back"]')
+    ok(tag + " fiche existante NON modifiée puis « Retour » : aucune question", cur() == "personnes" and pg.locator("#confirm.on").count() == 0)
+    open_fiche("Essai"); fill(ville="Changeville"); tap('[data-a="back"]')
+    ok(tag + " fiche existante : ville changée puis « Retour » : la question est posée", pg.locator("#confirm.on").count() == 1 and cur() == "fiche")
+    tap("#confirm-cancel"); fill(ville=db_all("persons")[0]["pickup_city"]); tap('[data-a="back"]')
+    ok(tag + " … si on remet la valeur d'origine, plus de question (rien n'a changé)", cur() == "personnes" and pg.locator("#confirm.on").count() == 0)
+    for label, action in [("un jour de la semaine (lettre)", lambda: tap('[data-a="jour"][data-j="6"]')), ("l'heure habituelle", lambda: fill(heure="22:22")), ("le mode « Dates choisies »", lambda: tap('[data-a="fmode"][data-m="dat"]')), ("le téléphone", lambda: fill(tel="0102030405")), ("une date « Au »", lambda: fill(au="2099-01-01"))]:
+        open_fiche("Essai"); action(); tap('[data-a="back"]')
+        ok(tag + " fiche existante : changer %s puis « Retour » : la question est posée" % label, pg.locator("#confirm.on").count() == 1 and cur() == "fiche")
+        tap("#confirm-ok")
+    open_fiche("Essai"); fill(ville="Changeville"); goto("bilan")
+    ok(tag + " fiche existante modifiée puis un onglet de la barre du bas : même question", pg.locator("#confirm.on").count() == 1 and cur() == "fiche")
+    tap("#confirm-ok")
+    ok(tag + " … « Quitter » : on arrive sur le Bilan, rien n'est enregistré", cur() == "bilan" and db_all("persons")[0]["pickup_city"] != "Changeville")
+    open_fiche("Essai"); fill(ville="Changeville")
+    pg.evaluate("history.back()"); w()
+    ok(tag + " fiche existante modifiée puis touche Retour d'Android : même question", pg.locator("#confirm.on").count() == 1 and cur() == "fiche")
+    tap("#confirm-ok")
+    open_fiche("Essai"); fill(ville="Changeville"); save(); tap('[data-a="back"]') if cur() == "fiche" else None
+    ok(tag + " après « Enregistrer », plus de question (la fiche est enregistrée)", cur() == "personnes" and pg.locator("#confirm.on").count() == 0 and db_all("persons")[0]["pickup_city"] == "Changeville")
+    open_fiche("Essai"); fill(ville="Autreville"); save()
 
     # ================= 6. « Quand » : dates choisies =================
     y, m = TODAY.year, TODAY.month
@@ -401,7 +427,7 @@ with sync_playwright() as p:
     pg.evaluate("document.querySelector('#s-fiche .content').scrollTop=99999"); pg.wait_for_timeout(200)
     pg.screenshot(path=SHOTS + "/personnes_fiche_bas_%dx%d_%s.png" % (W, H, SCHEME))
     ok(tag + " « Enregistrer » et « Gérer cette fiche » atteignables en bas de la fiche, au-dessus de la barre", pg.evaluate("(()=>{const b=document.querySelector('[data-a=archiveask]').getBoundingClientRect(),n=document.querySelector('.nav').getBoundingClientRect();return b.bottom<=n.top+.5&&b.height>=44})()"))
-    tap('[data-a="back"]')
+    tap('[data-a="back"]'); tap("#confirm-ok")      # on a changé le mode pour le contrôle : « Quitter sans enregistrer ? » est posée
     goto("personnes"); tap('[data-a="archshow"]'); z = pg.evaluate(AUD)
     ok(tag + " liste archivée : zones de 44 px", not z, z); tap('[data-a="archhide"]')
 
@@ -410,7 +436,7 @@ with sync_playwright() as p:
         goto(t); ok(tag + " « %s » : toujours seulement son titre" % title, pg.locator(".screen.on").inner_text().strip() == title)
     goto("bilan"); ok(tag + " « Bilan » : toujours son titre et la ligne « Réglages »", pg.locator(".screen.on").inner_text().strip() == "Bilan\nRéglages")
     tap('[data-a="reglages"]')
-    ok(tag + " Réglages : version 0.2.0 et structure n° 2", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == "0.2.0" and pg.locator("#rg-schema").inner_text() == "2")
+    ok(tag + " Réglages : version 0.2.1 et structure n° 2", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == "0.2.1" and pg.locator("#rg-schema").inner_text() == "2")
 
     # ================= 15. migration 1 → 2 =================
     mig = pg.evaluate("""async()=>{ const name='agenda-essai-v1v2';

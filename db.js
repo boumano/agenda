@@ -28,7 +28,7 @@ var MIGRATIONS = [
 function latest(migrations) { return migrations[migrations.length - 1].version; }
 
 /* Ouvre (et met à niveau si besoin) une base. `migrations` est paramétrable pour pouvoir essayer le mécanisme sur une base jetable. */
-function openDatabase(name, migrations) {
+function openDatabase(name, migrations, hooks) {
   return new Promise(function (resolve, reject) {
     var target = latest(migrations), req;
     try { req = indexedDB.open(name, target); } catch (e) { reject({ code: 'error', error: e }); return; }
@@ -39,18 +39,24 @@ function openDatabase(name, migrations) {
     };
     req.onsuccess = function () { resolve(req.result); };
     req.onerror = function () { var er = req.error; reject({ code: er && er.name === 'VersionError' ? 'newer' : 'error', error: er }); };
-    req.onblocked = function () { /* un autre onglet garde l'ancienne structure ouverte : on attend */ };
+    /* « bloqué » : une autre page (ancienne version) garde sa connexion ouverte. L'ouverture reste en attente et se termine toute seule
+       dès que cette connexion se ferme ; en attendant, la page prévient (hooks.onBlocked) au lieu de rester muette. */
+    req.onblocked = function () { if (hooks && hooks.onBlocked) hooks.onBlocked(); };
   });
 }
 
 var db = null, onClosed = null;
-function init() {
-  return openDatabase(DB_NAME, MIGRATIONS).then(function (d) {
+function init(hooks) {
+  return openDatabase(DB_NAME, MIGRATIONS, hooks).then(function (d) {
     db = d;
-    d.onversionchange = function () { d.close(); db = null; if (onClosed) onClosed(); };   /* une autre fenêtre met la structure à niveau */
+    /* une autre page demande une nouvelle structure : on lâche NOTRE connexion tout de suite, sinon elle bloquerait la mise à niveau */
+    d.onversionchange = function () { d.close(); db = null; if (onClosed) onClosed(); };
     return d;
   });
 }
+
+/* Referme la connexion (avant un rechargement voulu, pour ne jamais bloquer la page suivante). */
+function closeDb() { if (db) { db.close(); db = null; } }
 
 /* ----- petits outils sur une base ouverte ----- */
 function dbGet(d, store, key) {
@@ -127,7 +133,7 @@ function restoreDeleted(out) {
 }
 
 self.AG = {
-  DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init,
+  DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init, closeDb: closeDb,
   dbGet: dbGet, dbPut: dbPut, getMeta: getMeta, putMeta: putMeta, getSetting: getSetting, putSetting: putSetting,
   uuid: uuid, allPersons: allPersons, putPerson: putPerson, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
   get db() { return db; }, set onClosed(f) { onClosed = f; }, get schemaTarget() { return latest(MIGRATIONS); }
