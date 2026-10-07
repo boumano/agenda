@@ -1,7 +1,7 @@
-# Agenda : notes (étapes 1 à 4, correctifs 0.4.1)
+# Agenda : notes (étapes 1 à 5)
 
-État au 7 octobre 2026 : **version 0.4.1, structure des données n° 3** (inchangée). Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
-Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 4.
+État au 7 octobre 2026 : **version 0.5.0, structure des données n° 4**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 5.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
 ## Ce qui est construit
@@ -13,8 +13,9 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `app.js` | Écrans et comportements : Personnes, Fiche, œil et masquage automatique, Réglages, message de mise à jour. |
 | `db.js` | **Un seul endroit** qui lit et écrit dans IndexedDB : ouverture, migrations, personnes, courses, journal de mise à jour, suppression sûre. |
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
+| `fuel.js` | La **logique des pleins d'essence**, sans écran ni stockage : calcul du troisième chiffre, lecture « virgule ou point », 0 refusé, conversion en entiers (millilitres, millièmes d'euro, centimes), totaux du mois (valeurs inconnues comptées à part). |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.4.1`). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.5.0`). |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
 | `verifications/verif_personnes.py` | Contrôles de l'étape 2 (140) : personnes, fiche, « Quand », « Quitter sans enregistrer ? », archivage, suppression, migration 1 → 2, masquage. |
@@ -23,6 +24,8 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `verifications/verif_calendrier.py` | Calendrier d'une personne (68) : lien dans la fiche, résumé du mois, états des jours, panneau d'un jour, « Pas de course », corbeille, suppression d'une personne, masquage. |
 | `verifications/verif_maj030.py` | Mise à jour **réelle** 0.2.1 → version actuelle (fichiers de l'ancienne version tirés de git, structure 2 → 3, 2e page ouverte) et journal de mise à jour (28). |
 | `verifications/verif_bilan.py` | Étape 4, Bilan (75) : noms complets, personne touchable → calendrier, retour selon l'origine, totaux par mois et par personne, prix ou km inconnus, corbeille, « pas fait », cartes jamais touchées, jour par jour, archivée, « changé », 25 octobre 2026, masquage, hors connexion, 6 048 courses fictives (lecture par l'index, temps d'affichage), rien pour le père. |
+| `verifications/verif_essence.py` | Étape 5, page Essence : ajout, modification, corbeille + « Annuler », calculs, « inconnu » et totaux partiels, changement de mois, virgule / point, 0 refusé, quitter sans enregistrer, masquage (formulaire ouvert compris), persistance, hors connexion, 24-25-26 octobre 2026. |
+| `verifications/verif_maj050.py` | Mise à jour **réelle** 0.4.1 → 0.5.0 (fichiers de l'ancienne version tirés de git, commit 886bcbd, structure 3 → 4, 2e page ouverte) et contenu du « Journal de mise à jour ». |
 | `verifications/verif_publication.py` | À lancer après une publication : vérifie que le site répond et sert les bons fichiers (dont `version.js`). |
 
 Règles respectées : JavaScript simple, aucune bibliothèque, aucun outil de construction, **aucune ressource chargée depuis internet**. Le seul trafic réseau est le téléchargement des fichiers de l'appli.
@@ -77,7 +80,7 @@ Voir les étapes numérotées du rapport de l'étape 2.
 - Beaucoup de personnes (centaines), très longs noms, très longues adresses : non essayés.
 - Le sélecteur de date natif (« Du » / « Au ») : montré selon la langue de Chrome (jj-mm-aaaa) ; la valeur rangée est toujours `AAAA-MM-JJ`.
 - Un échec isolé et **non reproduit** a été vu deux fois dans `verif_coquille` (un toucher sur un élément « non visible » juste après une modification des fichiers, puis la détection de mise à jour une fois) ; relances suivantes toutes à 0 échec. Le délai d'attente de ce contrôle a été allongé.
-- Écrans Bilan (hors Réglages) et Essence : toujours vides, seulement leur titre (étapes suivantes).
+- (Étape 5 faite : la page Essence est complète ; voir plus bas.)
 
 ## Écarts par rapport au plan et à la maquette
 - Pas de glissement gauche / droite entre les écrans et pas de transition animée (la maquette les avait).
@@ -170,3 +173,32 @@ Voir les étapes numérotées du rapport de l'étape 2.
 - **Résumé du mois en haut du calendrier** (aussi quand on arrive par la fiche) : courses faites, montant (**masqué** par « •••• € » tant qu'on ne touche pas, comme dans le Bilan), km. Mêmes règles que « Totaux » : seules les courses faites comptent ; un prix ou des km inconnus ne sont jamais comptés comme 0 (« + N courses sans prix / sans km (total partiel) », « inconnu » si tout est inconnu ; « 0,00 € » / « 0 km » seulement quand aucune course n'a été faite). Le résumé **suit le mois** quand on change de mois dans le calendrier ; le montant se recache à chaque changement de mois, au masquage et en quittant le calendrier.
 - **« Retour » selon l'origine** : depuis le Bilan → retour au **Bilan, vue « Totaux », même mois** (les changements de mois faits dans le calendrier ne déplacent pas le Bilan) ; depuis la fiche → retour à la **fiche**. La touche Retour d'Android fait pareil.
 - Pas de changement de structure des données. Ces changements sont dans `app.js`, `style.css` et `version.js`.
+
+## Étape 5 : Essence et « jours sans note » du calendrier (0.5.0, structure n° 4)
+
+### Correction du calendrier d'une personne
+- La ligne « N jours sans note » ne compte plus que les jours **passés** où une course était **prévue** pour cette personne (habituelle ou ajoutée) et où **rien n'a été noté**. Jamais aujourd'hui, jamais un jour à venir, jamais un jour sans course prévue. Même règle que le Bilan (`AGR.state` = « pas noté »).
+- Vérifié des deux côtés : `verif_calendrier` (modèle indépendant) et `verif_bilan` (une personne seule, un mois : « jours sans note » du Bilan = celui de son calendrier, y compris une course ajoutée un week-end et une course à la corbeille).
+
+### Données (migration 3 → 4)
+- Nouveau magasin `fuel` (clé `id`, index `date`). Rien d'autre ne change : personnes, courses, réglages et journal sont gardés.
+- Un plein : `id`, `date` (texte AAAA-MM-JJ, donc rien ne bouge au changement d'heure), `liters_ml` (millilitres), `price_milli` (millièmes d'euro par litre), `total_cents` (centimes), `calc` (`price` / `liters` / `total` : le chiffre qui a été calculé, ou rien), `created_at`, `updated_at`, `deleted_at` (corbeille). Valeur vide = `null` = inconnu, **jamais 0**. Jamais effacé pour de bon.
+
+### Page Essence (même présentation et mêmes règles que la maquette)
+- Titre, œil, mois avec deux chevrons ; calendrier du mois (pompe sur les jours avec plein) ; « Total du mois » (pleins, litres, montant) ; « Pleins du mois » du plus récent au plus ancien. Un jour à venir est refusé (« Ce jour n’est pas encore arrivé »).
+- Toucher un jour : liste des pleins du jour avec « Ajouter un plein » / « Fermer » (ou directement le formulaire s'il n'y en a pas). Formulaire : prix au litre, litres, montant ; **deux remplis → le troisième se calcule** (repère « calculé ») ; si Pascal retape un chiffre calculé, il reprend la main. Virgule **et** point acceptés, clavier décimal, lettres retirées à la frappe.
+- Refus avec message simple : 0 (« Un zéro n’est pas possible : laisse la case vide si tu ne sais pas. »), format, un seul chiffre, trois chiffres qui ne correspondent pas (tolérance 1 centime).
+- Supprimer : confirmation « Supprimer ce plein ? », puis message « Plein supprimé » avec « Annuler » pendant 5 secondes (le plein reste en corbeille dans la base).
+- Totaux : jamais de 0 inventé. Litres ou montant inconnus : « + N pleins sans litres / sans montant (total partiel) » ; si **aucun** plein du mois n'a la valeur, « inconnu ».
+- **Quitter sans enregistrer** : même question « Quitter sans enregistrer ? » (Rester / Quitter) que les fiches, pour « Annuler » du formulaire, « Fermer » et la touche Retour d'Android.
+- **Masquage** : œil ou masquage automatique pendant que la page ou un formulaire est ouvert → la page Essence est **vidée** (aucun texte, aucun chiffre) et le formulaire en cours est abandonné ; au retour la page se redessine.
+
+### Écarts
+- Pas de champ « km du compteur » : la maquette n'en a pas (seulement prix, litres, montant).
+- Un plein enregistré par l'écran a toujours au moins deux chiffres connus (règle de la maquette) ; les totaux savent pourtant gérer des pleins incomplets (testé avec des données posées directement dans la base).
+- Les montants de la page Essence ne sont pas masqués par défaut (comme la maquette) ; ils le sont dès que l'écran est masqué.
+- Mise à jour 0.4.1 → 0.5.0 : changement de structure 3 → 4, vérifié sans blocage avec une 2e page ouverte (`verif_maj050.py`) et vu dans le journal.
+
+### Ce qui n'est PAS testé (étape 5)
+- Les touchers réels sur le Galaxy A12 (clavier numérique réel, virgule du clavier du téléphone).
+- La mise à jour 0.4.1 → 0.5.0 sur le vrai téléphone (simulée sur le PC).

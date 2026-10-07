@@ -27,6 +27,11 @@ var MIGRATIONS = [
   { version: 3, up: function (db, tx) {
     /* courses : on ajoute l'index par date (les personnes, les réglages et les courses déjà là ne bougent pas) */
     tx.objectStore('rides').createIndex('date', 'date', { unique: false });
+  } },
+  { version: 4, up: function (db, tx) {
+    /* pleins d'essence : litres en millilitres, prix au litre en millièmes d'euro, montant en centimes (null = inconnu) ; index par date */
+    var f = db.createObjectStore('fuel', { keyPath: 'id' });
+    f.createIndex('date', 'date', { unique: false });
   } }
 ];
 function latest(migrations) { return migrations[migrations.length - 1].version; }
@@ -109,6 +114,11 @@ function putPerson(p) {
    Une course n'est JAMAIS effacée pour de bon : « supprimer » = la mettre à la corbeille (champ deleted_at). */
 function ridesOf(personId) { return req2p(db.transaction('rides').objectStore('rides').index('person_id').getAll(personId)); }
 function allRides() { return req2p(db.transaction('rides').objectStore('rides').getAll()); }
+/* ----- pleins d'essence : jamais effacés (corbeille = champ deleted_at) ----- */
+function fuelInRange(from, to) { return req2p(db.transaction('fuel').objectStore('fuel').index('date').getAll(IDBKeyRange.bound(from, to))); }
+function allFuel() { return req2p(db.transaction('fuel').objectStore('fuel').getAll()); }
+function putFuel(f) { var tx = db.transaction('fuel', 'readwrite'); tx.objectStore('fuel').put(f); return done(tx); }
+
 /* Les courses d'une période, lues par l'INDEX des dates (on ne relit pas tout). */
 var lastRange = 0;
 function ridesInRange(from, to) {
@@ -169,7 +179,7 @@ function appendLogOn(d, entries) {
 self.AG = {
   DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init, closeDb: closeDb,
   dbGet: dbGet, dbPut: dbPut, getMeta: getMeta, putMeta: putMeta, getSetting: getSetting, putSetting: putSetting,
-  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
+  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allFuel: allFuel, fuelInRange: fuelInRange, putFuel: putFuel, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
   get db() { return db; }, set onClosed(f) { onClosed = f; }, get schemaTarget() { return latest(MIGRATIONS); }
 };
 })();

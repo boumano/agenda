@@ -4,7 +4,7 @@
 importScripts('version.js');
 
 var CACHE = 'agenda-' + self.APP_VERSION;
-var FILES = ['./', 'index.html', 'db.js', 'rides.js', 'app.js', 'style.css', 'version.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+var FILES = ['./', 'index.html', 'db.js', 'rides.js', 'fuel.js', 'app.js', 'style.css', 'version.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
   /* cache:'reload' = on prend les fichiers frais sur le site, pas ceux que le navigateur aurait gardés */

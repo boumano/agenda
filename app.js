@@ -7,7 +7,7 @@
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
 var APP_VERSION = self.APP_VERSION || '?';
-var AG = self.AG, AGR = self.AGR;
+var AG = self.AG, AGR = self.AGR, AGF = self.AGF;
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function I(n, c) { return '<svg class="i ' + (c || '') + '" aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
 function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -84,6 +84,7 @@ function go(id) {
   if (id === 'aujourdhui') { if (prev !== 'aujourdhui') openKey = null; renderAuj(); }
   if (prev === 'bilan' && id !== 'bilan') bil.reveal = false;          /* les montants se recachent en quittant le Bilan */
   if (id === 'bilan') renderBilan();
+  if (id === 'essence') renderEssence();
 }
 
 /* ========= Personnes : liste, recherche, archivées sur la même page ========= */
@@ -307,6 +308,8 @@ function setArchived(p, flag) {
 }
 function confirmOk() {
   var cc = confirmCtx; closeConfirm(); if (!cc) return;
+  if (cc.kind === 'fuel') { fuelDelete(cc.id); return; }
+  if (cc.kind === 'leave' && cc.target && cc.target.fuel) { if (cc.target.fuel === 'back') fuelBack(); else sheetClose(); return; }
   if (cc.kind === 'leave') { ctx.leaving = true; if (cc.target && cc.target.cal) openCalendar(cc.target.cal, 'fiche'); else if (cc.target) go(cc.target); else go('personnes'); ctx.leaving = false; return; }
   var p = ctx.person; if (!p) return;
   if (cc.kind === 'archive') {
@@ -482,7 +485,7 @@ function setStatus(key, v) {
 /* ========= petit panneau d'un jour (Aujourd'hui et calendrier d'une personne) ========= */
 var dsh = null;    /* {pid, iso, mode: 'menu'|'form'|'pick', add: bool, direct: bool} */
 function sheetOpen(o) { dsh = o; renderSheet(); $('#daysheet').classList.add('on'); }
-function sheetClose() { dsh = null; $('#daysheet').classList.remove('on'); }
+function sheetClose() { dsh = null; fsh = null; $('#daysheet').classList.remove('on'); }
 function sheetHTML() {
   var is = dsh.iso, title = cap(fmtDay.format(parseISO(is))), T = todayISO(), h;
   if (dsh.mode === 'pick') {
@@ -592,7 +595,7 @@ function renderCal() {
   for (var i = 0; i < off; i++) cells += '<div class="blank"></div>';
   for (var d = 1; d <= n; d++) {
     var is = y + '-' + pad(m + 1) + '-' + pad(d), v = AGR.state(p, rides, is, T);
-    if (v === 't') cnt.t++; else if (v === 'p') cnt.p++; else if (v === 'a') cnt.a++; else cnt.b++;
+    if (v === 't') cnt.t++; else if (v === 'p') cnt.p++; else if (v === 'a') cnt.a++; else if (v === 'n') cnt.b++;     /* « sans note » : seulement un jour PASSÉ prévu (ou avec une course) où rien n'a été noté ; jamais un jour sans course */
     cells += '<button class="cell ' + v + (is === T ? ' today' : '') + '" data-a="calday" data-iso="' + is + '" aria-label="' + esc(cap(fmtDay.format(parseISO(is)))) + ' : ' + (v === 't' ? 'transportée' : (v === 'p' ? 'pas transportée' : (v === 'a' ? 'à faire' : (v === 'n' ? 'pas noté' : 'pas de course')))) + '"><span>' + d + '</span>' + (v === 't' ? I('check') : (v === 'p' ? I('x') : (v === 'a' ? I('ring') : ''))) + '</button>';
   }
   var h = '<header class="top"><div class="backrow"><button class="back" data-a="back">' + I('left') + 'Retour</button>' + tools() + '</div><h1 style="margin-top:6px">Calendrier et courses</h1><div class="sub">' + esc(fullName(p)) + '</div>' +
@@ -689,6 +692,142 @@ function renderBilan() {
   }, function () { /* base fermée : rien à calculer */ });
 }
 
+/* ========= Essence : les pleins d'essence (même présentation et mêmes règles que la maquette) =========
+   Un plein = prix au litre, litres, montant : Pascal en remplit DEUX, le troisième se calcule (repère « calculé »).
+   Valeurs rangées en entiers (millilitres, millièmes d'euro, centimes) ; vide = inconnu, jamais 0 ; « supprimer » = corbeille. */
+var fuelM = { y: today().getFullYear(), m: today().getMonth() }, fsh = null, fuelList = [], fuelTok = 0;
+var fmtShortD = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+function pleinsSans(n, what) { return n + ' ' + (n > 1 ? 'pleins' : 'plein') + ' sans ' + what; }
+function fuelOfDay(is) { return fuelList.filter(function (x) { return x.date === is; }); }
+function fuelDesc(x) {   /* « 38,5 L, 68,88 € » (valeurs inconnues dites comme telles) */
+  return (x.liters_ml == null ? 'litres inconnus' : AGF.fmtL(x.liters_ml) + ' L') + ', ' + (x.total_cents == null ? 'montant inconnu' : fmtEuros(x.total_cents));
+}
+function renderEssence() {
+  var tok = ++fuelTok, y = fuelM.y, m = fuelM.m, from = y + '-' + pad(m + 1) + '-01', to = y + '-' + pad(m + 1) + '-' + pad(new Date(y, m + 1, 0).getDate());
+  (AG.db ? AG.fuelInRange(from, to) : Promise.resolve([])).then(function (list) {
+    if (tok !== fuelTok || cur !== 'essence') return;
+    fuelList = list.filter(function (x) { return !x.deleted_at; });
+    mountEssence(y, m);
+  }, function () { /* base fermée */ });
+}
+function mountEssence(y, m) {
+  var first = new Date(y, m, 1), n = new Date(y, m + 1, 0).getDate(), off = wd(first) - 1, L = ['L', 'M', 'M', 'J', 'V', 'S', 'D'], T = todayISO(), days = {};
+  fuelList.forEach(function (x) { days[x.date] = (days[x.date] || 0) + 1; });
+  var t = AGF.totals(fuelList);
+  var h = '<header class="top"><div class="hrow"><div><h1>Essence</h1><div class="sub">Pleins du mois</div></div>' + tools() + '</div>' +
+    '<div class="monthnav"><button class="chev" data-a="emonth" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl" id="fu-month">' + esc(cap(fmtMonth.format(first))) + '</div><button class="chev" data-a="emonth" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div></header>' +
+    '<div class="content"><div class="card" style="padding:4px"><div class="calgrid">' + L.map(function (l) { return '<div class="dow">' + l + '</div>'; }).join('');
+  for (var i = 0; i < off; i++) h += '<div class="blank"></div>';
+  for (var d = 1; d <= n; d++) {
+    var is = y + '-' + pad(m + 1) + '-' + pad(d), c = days[is] || 0;
+    h += '<button class="cell' + (c ? ' f' : '') + (is === T ? ' today' : '') + '" data-a="eday" data-iso="' + is + '" aria-label="' + esc(cap(fmtDay.format(parseISO(is)))) + ' : ' + (c ? plural(c, 'plein', 'pleins') : 'pas de plein') + '"><span>' + d + '</span>' + (c ? I('fuel') : '') + '</button>';
+  }
+  var lit = (t.count > 0 && t.noLiters === t.count) ? 'inconnu' : AGF.fmtLtot(t.ml), eur = (t.count > 0 && t.noAmount === t.count) ? 'inconnu' : fmtEuros(t.cents), notes = [];
+  if (t.noLiters > 0) notes.push('+ ' + pleinsSans(t.noLiters, 'litres') + ' (total partiel)');
+  if (t.noAmount > 0) notes.push('+ ' + pleinsSans(t.noAmount, 'montant') + ' (total partiel)');
+  h += '</div></div><h2>Total du mois</h2><div class="card fuelsum" id="fu-total"><div><div class="v" id="fu-count">' + t.count + '</div><div class="l">' + (t.count > 1 ? 'pleins' : 'plein') + '</div></div>' +
+    '<div><div class="v" id="fu-lit">' + esc(lit) + '</div><div class="l">litres</div></div><div><div class="v" id="fu-eur">' + esc(eur) + '</div><div class="l">montant</div></div></div>' +
+    (notes.length ? '<p class="note" id="fu-notes">' + esc(notes.join(' · ')) + '</p>' : '') +
+    '<h2>Pleins du mois</h2><div class="card" style="padding-top:2px;padding-bottom:2px" id="fu-list">';
+  if (!fuelList.length) h += '<div class="empty">Aucun plein noté ce mois-ci.</div>';
+  fuelList.slice().sort(function (a, b) { return a.date < b.date ? 1 : (a.date > b.date ? -1 : (a.created_at < b.created_at ? 1 : (a.created_at > b.created_at ? -1 : 0))); }).forEach(function (x) {
+    var dd = parseISO(x.date);
+    h += '<button class="fuelrow" data-a="eedit" data-id="' + esc(x.id) + '"><span class="d">' + esc(JJ[dd.getDay()] + ' ' + dd.getDate()) + '</span><span class="q">' + esc(x.liters_ml == null ? 'litres inconnus' : AGF.fmtL(x.liters_ml) + ' L') + '</span><span class="a">' + esc(x.total_cents == null ? 'montant inconnu' : fmtEuros(x.total_cents)) + '</span></button>';
+  });
+  h += '</div></div>';
+  mount('s-essence', h);
+}
+/* panneau d'un jour (même feuille du bas que le calendrier d'une personne) */
+function fuelSheetHTML() {
+  var is = fsh.iso, title = cap(fmtDay.format(parseISO(is))), h;
+  if (fsh.mode === 'list') {
+    h = '<p class="t" id="ds-title">' + esc(title) + '</p>';
+    fuelOfDay(is).forEach(function (x) {
+      h += '<button class="fuelrow" data-a="eedit" data-id="' + esc(x.id) + '"><span class="q">' + esc(x.liters_ml == null ? 'litres inconnus' : AGF.fmtL(x.liters_ml) + ' L') + (x.price_milli == null ? '' : ' · ' + esc(AGF.fmtP(x.price_milli)) + ' €/L') + '</span><span class="a">' + esc(x.total_cents == null ? 'montant inconnu' : fmtEuros(x.total_cents)) + '</span></button>';
+    });
+    return h + '<button class="btn line full" data-a="eadd">Ajouter un plein</button><button class="btn line full" data-a="dsclose">Fermer</button>';
+  }
+  var fs = fsh.fs, ed = !!fsh.id, tag = function (k) { return '<span class="hab" id="fu-tag-' + k + '"' + (fs.calc === k ? '' : ' hidden') + '>calculé</span>'; };
+  return '<p class="t" id="ds-title">' + (ed ? 'Modifier ce plein' : 'Ajouter un plein') + '</p><p class="note" style="padding:0">' + esc(title) + ' · remplis deux chiffres, le troisième se calcule</p>' +
+    '<div class="field"><label for="fu-p">Prix au litre (€/L)' + tag('p') + '</label><input class="input" id="fu-p" inputmode="decimal" value="' + esc(fs.p) + '" autocomplete="off"></div>' +
+    '<div class="field"><label for="fu-l">Litres' + tag('l') + '</label><input class="input" id="fu-l" inputmode="decimal" value="' + esc(fs.l) + '" autocomplete="off"></div>' +
+    '<div class="field"><label for="fu-m">Montant (€)' + tag('m') + '</label><input class="input" id="fu-m" inputmode="decimal" value="' + esc(fs.m) + '" autocomplete="off"></div>' +
+    '<div class="warnbox" id="fu-err" role="alert" hidden></div>' +
+    '<button class="btn strong full" data-a="esave">Enregistrer</button>' +
+    (ed ? '<button class="btn line full" data-a="edelask">Supprimer ce plein</button>' : '') +
+    '<button class="btn line full" data-a="eback">Annuler</button>';
+}
+function renderFuelSheet() { $('#ds-panel').innerHTML = fuelSheetHTML(); }
+function openFuelSheet(is) {
+  if (is > todayISO()) { toast('Ce jour n’est pas encore arrivé'); return; }
+  dsh = null; fsh = { iso: is, mode: 'list', id: null, fs: { p: '', l: '', m: '', calc: null }, sig: '' };
+  if (!fuelOfDay(is).length) { fsh.mode = 'form'; fsh.sig = JSON.stringify(['', '', '']); }
+  renderFuelSheet(); $('#daysheet').classList.add('on');
+}
+function fuelForm(id) {
+  var x = null; fuelList.forEach(function (o) { if (o.id === id) x = o; });
+  fsh.mode = 'form'; fsh.id = id || null; fsh.fs = x ? AGF.toForm(x) : { p: '', l: '', m: '', calc: null };
+  fsh.sig = JSON.stringify([fsh.fs.p, fsh.fs.l, fsh.fs.m]); renderFuelSheet();
+}
+/* le formulaire a-t-il changé depuis son ouverture ? (pour « Quitter sans enregistrer ? ») */
+function fuelDirty() { return !!(fsh && fsh.mode === 'form' && JSON.stringify([fsh.fs.p, fsh.fs.l, fsh.fs.m]) !== fsh.sig); }
+function fuelBack() {
+  if (!fsh) return;
+  if (fuelOfDay(fsh.iso).length) { fsh.mode = 'list'; fsh.id = null; renderFuelSheet(); } else sheetClose();
+}
+function fuelRecalc(changed) {   /* après une frappe : si deux chiffres sont remplis par Pascal, le troisième se calcule */
+  var fs = fsh.fs, F = ['p', 'l', 'm'], users, third;
+  if (fs.calc === changed) fs.calc = null;                                   /* Pascal reprend la main sur ce champ */
+  users = F.filter(function (f) { return fs[f] !== '' && f !== fs.calc; });
+  if (fs.calc && users.length !== 2) { fs[fs.calc] = ''; fs.calc = null; users = F.filter(function (f) { return fs[f] !== ''; }); }
+  if (users.length === 2) {
+    third = F.filter(function (f) { return users.indexOf(f) < 0; })[0];
+    var v = AGF.calc(fs, third); fs[third] = v; fs.calc = v ? third : null;
+  }
+  F.forEach(function (f) {
+    var i = document.getElementById('fu-' + f), t = document.getElementById('fu-tag-' + f);
+    if (i && (f !== changed || fs.calc === f)) i.value = fs[f];
+    if (t) t.hidden = fs.calc !== f;
+  });
+}
+function fuelErr(msg, focusId) { var e = document.getElementById('fu-err'); e.textContent = msg; e.hidden = false; if (focusId) { var i = document.getElementById(focusId); i.setAttribute('aria-invalid', 'true'); i.focus(); } }
+function fuelSave() {
+  var fs = fsh.fs, F = [['p', 'fu-p', 3, 'Prix au litre', '1,789'], ['l', 'fu-l', 2, 'Litres', '38,5'], ['m', 'fu-m', 2, 'Montant', '68,87']], out = {}, bad = false;
+  document.getElementById('fu-err').hidden = true; F.forEach(function (x) { document.getElementById(x[1]).removeAttribute('aria-invalid'); });
+  F.forEach(function (x) {
+    if (bad) return; var r = AGF.parse(fs[x[0]], x[2]);
+    if (r.err === 'zero') { fuelErr('Un zéro n’est pas possible : laisse la case vide si tu ne sais pas.', x[1]); bad = true; }
+    else if (r.err) { fuelErr(x[3] + ' : écris un nombre comme ' + x[4] + ', ou laisse vide.', x[1]); bad = true; }
+    else out[x[0]] = r.v;
+  });
+  if (bad) return;
+  var filled = F.filter(function (x) { return out[x[0]] !== ''; }).length;
+  if (filled < 2) { fuelErr('Remplis deux des trois chiffres : le troisième se calcule.'); return; }
+  var nl = parseFloat(out.l.replace(',', '.')), np = parseFloat(out.p.replace(',', '.')), nm = parseFloat(out.m.replace(',', '.'));
+  if (filled === 3 && Math.abs(Math.round((nl * np + 1e-9) * 100) / 100 - nm) > 0.01 + 1e-9) { fuelErr('Les trois chiffres ne correspondent pas. Garde-en deux.'); return; }   /* rien n'est enregistré */
+  var rec = AGF.toRecord(out), now = nowIso(), o = null;
+  fuelList.forEach(function (x) { if (x.id === fsh.id) o = x; });
+  o = o ? Object.assign({}, o) : { id: AG.uuid(), date: fsh.iso, created_at: now, deleted_at: null };
+  Object.assign(o, rec, { calc: AGF.calcName(fs.calc), updated_at: now });
+  var add = !fsh.id;
+  AG.putFuel(o).then(function () { sheetClose(); renderEssence(); toast(add ? 'Plein ajouté' : 'Plein modifié'); }, function () { toast('Enregistrement impossible : réessaie'); });
+}
+function openConfirmFuel(id) {
+  var o = null; fuelList.forEach(function (x) { if (x.id === id) o = x; }); if (!o) return;
+  confirmCtx = { kind: 'fuel', id: id };
+  $('#confirm-title').textContent = 'Supprimer ce plein ?'; $('#confirm-text').textContent = 'Plein du ' + fmtShortD.format(parseISO(o.date)) + ' : ' + fuelDesc(o) + '.';
+  $('#confirm-ok').textContent = 'Supprimer'; $('#confirm-cancel').textContent = 'Annuler'; $('#confirm').classList.add('on');
+}
+/* « supprimer » = corbeille (jamais effacé pour de bon) ; « Annuler » pendant 5 secondes */
+function fuelDelete(id) {
+  var o = null; fuelList.forEach(function (x) { if (x.id === id) o = x; }); if (!o) return;
+  var gone = Object.assign({}, o, { deleted_at: nowIso(), updated_at: nowIso() });
+  AG.putFuel(gone).then(function () {
+    sheetClose(); renderEssence();
+    toast('Plein supprimé', function () { AG.putFuel(Object.assign({}, gone, { deleted_at: null, updated_at: nowIso() })).then(function () { if (cur === 'essence') renderEssence(); }); });
+  }, function () { toast('Suppression impossible : réessaie'); });
+}
+
 /* ========= Réglages ========= */
 function refreshReglages() {
   $('#rg-version').textContent = APP_VERSION;
@@ -781,12 +920,14 @@ function mask() {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();      /* valide un champ en cours de saisie */
   ctx.calReveal = false; if (cur === 'calendrier') renderCal();
   bil.reveal = false; if (cur === 'bilan') renderBilan();                                        /* les montants se recachent */
+  if (fsh) { sheetClose(); $('#ds-panel').innerHTML = ''; }                                                                         /* un plein en cours de saisie est abandonné : rien de lisible derrière l'écran neutre */
+  if (cur === 'essence') { fuelTok++; fuelList = []; $('#s-essence').innerHTML = ''; }          /* page Essence vidée, remise au retour */
   openKey = null; if (cur === 'aujourdhui') renderAuj();                                          /* au retour, les cartes sont repliées : montants et adresses retirés de l'écran */
   veilEl.innerHTML = '<span class="vword">Agenda</span>';
   veilEl.setAttribute('role', 'button'); veilEl.setAttribute('tabindex', '0'); veilEl.setAttribute('aria-label', 'Agenda masqué. Toucher pour rouvrir');
   veilOn = true; veilEl.classList.add('on'); setInert(true);
 }
-function unmask() { veilOn = false; veilEl.classList.remove('on'); veilEl.innerHTML = ''; setInert(false); lastTouch = Date.now(); }
+function unmask() { if (cur === 'essence') renderEssence(); veilOn = false; veilEl.classList.remove('on'); veilEl.innerHTML = ''; setInert(false); lastTouch = Date.now(); }
 /* minuit passé : « Aujourd'hui » suit le calendrier (si on regardait le jour courant, on passe au nouveau jour) */
 var lastToday = todayISO();
 function dayRollover() {
@@ -880,7 +1021,17 @@ document.addEventListener('click', function (e) {
     case 'calreveal': ctx.calReveal = !ctx.calReveal; renderCal(); break;
     case 'month': var mm = new Date(ctx.calY, ctx.calM + (+b.dataset.d), 1); ctx.calY = mm.getFullYear(); ctx.calM = mm.getMonth(); ctx.calReveal = false; renderCal(); break;
     case 'calday': sheetOpen({ pid: ctx.calPid, iso: b.dataset.iso, mode: 'menu', direct: false }); break;
-    case 'dsclose': sheetClose(); break;
+    case 'dsclose': if (fsh && fuelDirty()) { openConfirm('leave', null, { fuel: 'close' }); break; } sheetClose(); break;
+    case 'emonth': fuelM = new Date(fuelM.y, fuelM.m + (+b.dataset.d), 1); fuelM = { y: fuelM.getFullYear(), m: fuelM.getMonth() }; renderEssence(); break;
+    case 'eday': openFuelSheet(b.dataset.iso); break;
+    case 'eedit':
+      var ex = null; fuelList.forEach(function (x) { if (x.id === id) ex = x; }); if (!ex) break;
+      if (!fsh) { dsh = null; fsh = { iso: ex.date, mode: 'list', id: null, fs: { p: '', l: '', m: '', calc: null }, sig: '' }; $('#daysheet').classList.add('on'); }
+      fuelForm(id); break;
+    case 'eadd': if (fsh) fuelForm(null); break;
+    case 'eback': if (!fsh) break; if (fuelDirty()) { openConfirm('leave', null, { fuel: 'back' }); break; } fuelBack(); break;
+    case 'esave': if (fsh) fuelSave(); break;
+    case 'edelask': if (fsh && fsh.id) openConfirmFuel(fsh.id); break;
     case 'dspick': if (dsh) { dsh = { pid: id, iso: dsh.iso, mode: 'form', add: true, direct: true }; renderSheet(); } break;
     case 'dschg': case 'dsdel': case 'dsadd': case 'dsback': case 'dssave': case 'dscomme': case 'dspas': case 'dsfait':
       if (!dsh) {      /* depuis la carte ouverte d'Aujourd'hui */
@@ -900,7 +1051,8 @@ document.addEventListener('click', function (e) {
 });
 $('#q').addEventListener('input', function () { query = this.value; renderPers(); });
 document.addEventListener('input', function (e) {
-  var t = e.target, id = t.id, v;
+  var t = e.target, id = t.id, v, fm = /^fu-([plm])$/.exec(t.id);
+  if (fm && fsh) { v = t.value.replace(/[^0-9.,]/g, ''); if (v !== t.value) t.value = v; fsh.fs[fm[1]] = v; fuelRecalc(fm[1]); return; }
   if (/^(m|ds)-(montant|km)$/.test(id)) { v = t.value.replace(/[^0-9.,]/g, ''); if (v !== t.value) t.value = v; }
   if (id === 'ds-cp') { v = t.value.replace(/\D/g, '').slice(0, 5); if (v !== t.value) t.value = v; }
   if (id === 'ds-heure') { v = t.value.replace(/[^0-9h:]/gi, '').slice(0, 5); if (v !== t.value) t.value = v; }
@@ -922,7 +1074,7 @@ try {
   window.addEventListener('popstate', function () {
     if (veilOn) { history.pushState({ app: 1 }, ''); return; }
     if ($('#confirm').classList.contains('on')) { closeConfirm(); history.pushState({ app: 1 }, ''); return; }
-    if (dsh) { sheetClose(); history.pushState({ app: 1 }, ''); return; }
+    if (dsh || fsh) { if (fsh && fuelDirty()) openConfirm('leave', null, { fuel: 'close' }); else sheetClose(); history.pushState({ app: 1 }, ''); return; }
     if (cur === 'fiche' || cur === 'calendrier') { back(); history.pushState({ app: 1 }, ''); }
     else if (cur === 'reglages') { go('bilan'); history.pushState({ app: 1 }, ''); }
     else if (tab !== 'aujourdhui') { go('aujourdhui'); history.pushState({ app: 1 }, ''); }
@@ -987,7 +1139,7 @@ startWorker();
 /* lecture seule, pour les contrôles automatiques */
 window.__ag = {
   get cur() { return cur; }, get tab() { return tab; }, get masked() { return veilOn; }, get idle() { return idleSec; },
-  get ready() { return ready; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
+  get ready() { return ready; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get fuelMonth() { return fuelM.y + '-' + pad(fuelM.m + 1); }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
   version: APP_VERSION, dbName: AG.DB_NAME, openDatabase: AG.openDatabase, dbGet: AG.dbGet, dbPut: AG.dbPut,
   migrations: AG.MIGRATIONS, schemaTarget: AG.schemaTarget
 };

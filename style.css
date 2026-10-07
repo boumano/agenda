@@ -265,6 +265,16 @@ mark{background:transparent;color:var(--accent);font-weight:700;text-decoration:
 .jjp.p{font-weight:700}
 .jjp.p .i{color:var(--red);width:20px;height:20px;stroke-width:3}
 .jjring{display:block;width:14px;height:14px;border-radius:50%;border:1.5px solid var(--text2);box-sizing:border-box;flex:none}
+.calgrid .cell.f{border:2px solid var(--accent)}
+.calgrid .cell.f .i{color:var(--accent)}
+.fuelsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.fuelsum .v{font-size:22px;font-weight:700;line-height:1.15;overflow-wrap:anywhere}
+.fuelsum .l{color:var(--text2);font-size:14px;margin-top:2px}
+.fuelrow{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:8px 0;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;font:inherit;text-align:left}
+.fuelrow:last-child{border-bottom:0}
+.fuelrow .d{flex:none;width:58px;font-weight:700;color:var(--text2)}
+.fuelrow .q{flex:1;min-width:0}
+.fuelrow .a{font-weight:700;white-space:nowrap}
 #daysheet .fuelrow .d{width:auto}
 .calgrid{display:grid;grid-template-columns:repeat(7,minmax(44px,1fr));gap:2px}
 .calgrid .dow{text-align:center;font-size:14px;font-weight:700;color:var(--text2);padding:2px 0}

@@ -78,7 +78,7 @@ def day_state(dt):
     return ""
 def expected_cells(first): return [[dt.isoformat(), day_state(dt)] for dt in month_days(first)]
 def expected_summary(first):
-    s = [day_state(dt) for dt in month_days(first)]; t, p_, a = s.count("t"), s.count("p"), s.count("a"); b = len(s) - t - p_ - a
+    s = [day_state(dt) for dt in month_days(first)]; t, p_, a = s.count("t"), s.count("p"), s.count("a"); b = s.count("n")      # « sans note » = seulement les jours PASSÉS où une course était prévue (habituelle ou ajoutée) et où rien n'est noté ; jamais aujourd'hui, l'avenir ni un jour sans course
     return "%d transportée, %d pas transportée, %s%d %s sans note" % (t, p_, ("%d à faire, " % a) if a else "", b, "jours" if b > 1 else "jour")
 
 

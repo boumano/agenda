@@ -345,6 +345,31 @@ with sync_playwright() as p:
     bilan("tot", PM); tap('[data-a="reveal"]')
     ok(tag + " MODE AVION : le Bilan se calcule (total %s)" % euros(tot[1]), txt("#bil-count") == str(tot[0]) and txt("#bil-eur") == euros(tot[1]))
     cx.set_offline(False)
+    # ================= 9. UNE personne seule : « jours sans note » du Bilan = celui de son calendrier (même règle, même mois) =================
+    cxs = b.new_context(viewport={"width": W, "height": H}, has_touch=True, is_mobile=True, color_scheme=SCHEME, service_workers="allow")
+    cxs.add_init_script(INIT)
+    ps = cxs.new_page(); ps.goto(BASE); ps.wait_for_function("window.__ag && window.__ag.ready"); ps.evaluate("window.__ag.ready"); ps.wait_for_timeout(250)
+    SOLO = person(1, "Solo", "Un", [1, 2, 3, 4, 5], "09:00")
+    SR = [ride(SOLO["id"], md(PM, 5), DONE, 1250, 8500), ride(SOLO["id"], md(PM, 6), NOT, 1250, 8500)]
+    SR += [ride(SOLO["id"], md(PM, 15), None, 1250, 8500), ride(SOLO["id"], md(PM, 16), None, 1250, 8500, deleted="2026-02-01T00:00:00.000Z")]
+    wk = [dt for dt in month_days(PM) if dt.isoweekday() > 5][0]
+    ar = ride(SOLO["id"], wk, None, 1250, 8500); ar["added"] = True; SR.append(ar)          # course AJOUTÉE un jour de week-end, rien noté : elle compte
+    ps.evaluate("""async([p,rs])=>{ await AG.putPerson(p); await new Promise(f=>{const t=AG.db.transaction('rides','readwrite');rs.forEach(r=>t.objectStore('rides').put(r));t.oncomplete=f}) }""", [SOLO, SR])
+    ps.reload(); ps.wait_for_function("window.__ag && window.__ag.ready"); ps.evaluate("window.__ag.ready"); ps.wait_for_timeout(350)
+    def stap(sel): ps.locator(sel).first.tap(); ps.wait_for_timeout(350)
+    stap('.nav button.t[data-t="bilan"]'); stap('[data-a="bview"][data-v="jj"]')
+    for _ in range(30):
+        if ps.locator("#bil-month").inner_text().strip().lower() == "%s %d" % (MOIS[PM.month - 1], PM.year): break
+        stap('[data-a="bmonth"][data-d="-1"]')
+    bil_txt = ps.locator("#jj-sum").inner_text().strip()
+    exp_n = model_days(SR, PM, TODAY, [SOLO])[1]
+    stap('[data-a="bview"][data-v="tot"]'); stap('#bil-persons .pp')
+    cal_txt = ps.locator("#cal-summary").inner_text().strip()
+    m_ = re.search(r"(\d+) jours? sans note", cal_txt)
+    ok(tag + " une seule personne, mois précédent : « jours sans note » du Bilan (%s) = celui de son calendrier (%s) = %d (jours passés prévus, rien noté)" % (bil_txt, cal_txt, exp_n), m_ is not None and bil_txt == "%d %s sans note" % (exp_n, "jours" if exp_n > 1 else "jour") and int(m_.group(1)) == exp_n, (bil_txt, cal_txt, exp_n))
+    plan = {dt for dt in month_days(PM) if dt.isoweekday() <= 5} | {wk}; noted = {md(PM, 5), md(PM, 6)}
+    ok(tag + " calcul indépendant : jours prévus (semaine + course ajoutée un week-end) moins les jours notés = %d ; la course à la corbeille ne change rien" % len(plan - noted), exp_n == len(plan - noted), (exp_n, len(plan - noted)))
+    cxs.close()
     ok(tag + " aucune erreur JavaScript", not errs, errs)
     outside = [u for u in reqs if not u.startswith(BASE) and not u.startswith("data:") and not u.startswith("blob:")]
     ok(tag + " aucune requête hors de l'appli (%d requêtes)" % len(reqs), not outside, outside)
