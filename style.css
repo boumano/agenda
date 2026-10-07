@@ -1,4 +1,4 @@
-/* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons).
+/* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
    PALETTE SOBRE UNIQUE : la seule liste de couleurs du fichier.
@@ -82,6 +82,7 @@ button{cursor:pointer;text-align:inherit}
 input,textarea{user-select:text;-webkit-user-select:text}
 .top{padding:10px 12px;background:var(--band);color:var(--band-title);border-bottom:1px solid var(--band-line);flex:none}
 .top h1{margin:0;font-size:20px;font-weight:700;overflow-wrap:anywhere}
+.top h1 .pre{font-size:16px;font-weight:400;color:var(--band-sub)}
 .top .sub{font-size:14px;margin-top:2px;color:var(--band-sub)}
 .back{display:inline-flex;align-items:center;gap:4px;height:44px;min-width:44px;margin:0 0 0 -7px;padding:0 12px 0 0;border:0;border-radius:0;background:none;color:var(--accent);font-size:15px;font-weight:600}
 .back .i{width:20px;height:20px}
@@ -90,11 +91,22 @@ input,textarea{user-select:text;-webkit-user-select:text}
 .chev{width:44px;height:44px;padding:0;border:0;border-radius:0;background:none;color:var(--accent);display:grid;place-items:center;flex:none}
 .chev .i{width:22px;height:22px}
 .top .back,.top .chev{color:var(--band-link)}
+.top .monthnav{margin:6px -10px 0}
+.monthnav{display:flex;align-items:center;gap:8px;margin-top:6px}
+.monthnav .lbl{flex:1;text-align:center;font-weight:600;font-size:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;min-width:0}
+.name{line-height:1.25;overflow-wrap:anywhere}
+.name .nom{font-size:18px;font-weight:700;color:var(--text)}
+.name .pre{font-size:16px;font-weight:400;color:var(--text2)}
+.warnbox{border-radius:12px;padding:10px 12px;background:var(--block);border:1px solid var(--line);color:var(--text);font-weight:600}
+.warnbox[hidden]{display:none}
+.call-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
 .btn{min-height:48px;border-radius:14px;border:0;font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;white-space:nowrap;min-width:0;text-align:center}
 .btn.full{width:100%}
 .btn.main{background:var(--accent);color:var(--on-accent)}
+.btn.soft{background:var(--block);color:var(--accent);border:1px solid var(--line)}
 .btn.line{background:transparent;border:1px solid var(--line);color:var(--text)}
+.btn.quiet{background:transparent;border:1px solid var(--line);color:var(--accent)}
 .btn.strong{background:var(--pill);border:1px solid var(--accent);color:var(--text)}
 .hrow{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .hrow>div:first-child{min-width:0}
@@ -108,7 +120,11 @@ input,textarea{user-select:text;-webkit-user-select:text}
 #veil .vword{font-size:24px;font-weight:600;color:var(--text2)}
 .seg.two{grid-template-columns:1fr 1fr}
 .seg.two button{white-space:normal;line-height:1.15;padding:4px;font-size:15px}
+.archline{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;min-height:44px;border:0;background:none;color:var(--text2);font-size:14px;font-weight:400}
+.archline .i{width:14px;height:14px}
+#s-personnes.arch .search,#s-personnes.arch #qnote,#s-personnes.arch #newp{display:none}
 .list-item .btn.quiet{min-height:44px;flex:none}
+.btn.wrap{white-space:normal;padding-top:6px;padding-bottom:6px}
 .empty{text-align:center;color:var(--text2);padding:24px 8px}
 h2{margin:4px 2px 0;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
 .note{font-size:14px;color:var(--text2);padding:0 4px;margin:0}
@@ -122,11 +138,27 @@ h2{margin:4px 2px 0;font-size:14px;text-transform:uppercase;letter-spacing:.05em
 .nav button.t .i{width:24px;height:24px}
 .nav button.t.on{color:var(--accent)}
 .nav button.t.on::before{background:var(--pill)}
+#confirm{position:absolute;inset:0;z-index:40;display:none}
+#confirm.on{display:block}
+#confirm .scrim{position:absolute;inset:0;background:var(--scrim);border:0;width:100%}
+#confirm .panel{position:absolute;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:16px 12px calc(16px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+#confirm .panel p{margin:0}
+#confirm .panel .t{font-weight:700;font-size:18px}
 .field{display:flex;flex-direction:column;gap:6px}
 .field label{font-size:14px;font-weight:700;color:var(--text2)}
+.input{min-height:48px;border-radius:12px;border:1px solid var(--line);background:var(--block);padding:0 12px;font-size:16px;width:100%;min-width:0}
+.search{position:relative}
+.search .i{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text2);pointer-events:none}
+.search .input{padding-left:46px}
+.zip-city{display:grid;grid-template-columns:1fr 2fr;gap:8px}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--block);border:1px solid var(--line);padding:4px;border-radius:14px}
 .seg button{min-height:48px;border-radius:11px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:4px;font-weight:700;font-size:16px;color:var(--text2);white-space:nowrap;text-align:center}
 .seg button.sel{background:var(--accent);color:var(--on-accent)}
+.days{display:grid;grid-template-columns:repeat(7,minmax(44px,1fr));gap:2px}
+.daycard{padding-left:4px;padding-right:4px}
+.daycard label{padding-left:8px}
+.days button{min-height:48px;border-radius:12px;border:1px solid var(--line);background:none;display:grid;place-items:center;font-weight:700;color:var(--text2);text-align:center}
+.days button.on{background:var(--pill);border:2px solid var(--accent);color:var(--accent)}
 .list-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border:0;border-bottom:1px solid var(--line);background:none;min-height:52px;width:100%;color:inherit}
 .list-item:last-child{border-bottom:0}
 .list-item>.name,.list-item>span:first-child{min-width:0}
@@ -134,11 +166,20 @@ h2{margin:4px 2px 0;font-size:14px;text-transform:uppercase;letter-spacing:.05em
 .list-item small{display:block;color:var(--text2);font-size:14px;font-weight:400}
 .list-item:disabled{color:var(--text2)}
 .list-item .i{color:var(--text2)}
+mark{background:transparent;color:var(--accent);font-weight:700;text-decoration:underline}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(44px,1fr));gap:2px}
+.calgrid .dow{text-align:center;font-size:14px;font-weight:700;color:var(--text2);padding:2px 0}
+.calgrid .cell{min-height:52px;border-radius:10px;border:1px solid var(--line);background:var(--block);padding:2px 0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;font-size:14px;color:var(--text);text-align:center}
+.calgrid .cell.today{outline:2px dashed var(--text2);outline-offset:1px}
+.calgrid .blank{min-height:52px}
+.calgrid .cell.sel{background:var(--pill);border:2px solid var(--accent);color:var(--accent);font-weight:700}
+.calgrid .cell:disabled{background:none;border-color:transparent;color:var(--text2);cursor:default}
 
 /* ---------- ajouts propres à Agenda ---------- */
 [hidden]{display:none !important}  /* l'attribut « hidden » doit toujours cacher, même sur un bouton de liste */
-.val{color:var(--text2);text-align:right}
 .card.nobtn .list-item{border-bottom:0}   /* le bouton caché ne doit pas laisser un trait en bas de la carte */
+input[type=date]{color-scheme:light dark}   /* l'icône du calendrier du champ date reste visible en mode sombre */
+.val{color:var(--text2);text-align:right}
 .list-item .val{flex:none}
 #update{border:1px solid var(--accent)}
 #fatal{position:absolute;inset:0;z-index:70;display:none;flex-direction:column;justify-content:center;gap:12px;padding:24px;background:var(--page);color:var(--text)}

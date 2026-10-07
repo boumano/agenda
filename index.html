@@ -21,6 +21,9 @@
   <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
   <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
 </svg>
 
 <div id="app">
@@ -30,8 +33,15 @@
       <div class="content"></div>
     </section>
     <section class="screen" id="s-personnes">
-      <header class="top"><div class="hrow"><div><h1>Personnes</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
-      <div class="content"></div>
+      <header class="top"><div class="hrow"><div><h1>Personnes</h1><div class="sub" id="pcount"></div></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
+      <div class="content">
+        <div class="search"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+          <input class="input" id="q" type="search" placeholder="Nom ou prénom" aria-label="Rechercher par nom ou prénom" autocomplete="off"></div>
+        <p class="note" id="qnote"></p>
+        <div id="plist"></div>
+        <button class="btn main full" id="newp" data-a="newperson"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Nouvelle personne</button>
+        <div id="archwrap"></div>
+      </div>
     </section>
     <section class="screen" id="s-bilan">
       <header class="top"><div class="hrow"><div><h1>Bilan</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
@@ -45,6 +55,7 @@
       <header class="top"><div class="hrow"><div><h1>Essence</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
       <div class="content"></div>
     </section>
+    <section class="screen" id="s-fiche"></section>
     <section class="screen" id="s-reglages">
       <header class="top"><div class="backrow"><button class="back" data-a="back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg>Retour</button><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div><h1 style="margin-top:6px">Réglages</h1></header>
       <div class="content">
@@ -81,11 +92,21 @@
     <div class="tab"><button class="t" data-a="tab" data-t="bilan"><svg class="i" aria-hidden="true"><use href="#i-chart"/></svg>Bilan</button></div>
     <div class="tab"><button class="t" data-a="tab" data-t="essence"><svg class="i" aria-hidden="true"><use href="#i-fuel"/></svg>Essence</button></div>
   </nav>
+  <div id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <button class="scrim" data-a="confirmcancel" aria-label="Fermer"></button>
+    <div class="panel">
+      <p class="t" id="confirm-title"></p>
+      <p class="note" id="confirm-text" style="padding:0"></p>
+      <button class="btn strong full" id="confirm-ok" data-a="confirmok"></button>
+      <button class="btn line full" id="confirm-cancel" data-a="confirmcancel">Annuler</button>
+    </div>
+  </div>
   <div id="veil"></div>
   <div id="fatal" role="alert"><p class="t" id="fatal-title"></p><p id="fatal-text"></p></div>
 </div>
 
 <script src="version.js"></script>
+<script src="db.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
