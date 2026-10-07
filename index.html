@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#D6E4F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#123A5E" media="(prefers-color-scheme: dark)">
+<title>Agenda</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-calcheck" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4M9.5 15l2 2 3.5-3.5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.5 14.2c2.4 0 3.9 1.5 4.4 4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+  <symbol id="i-fuel" viewBox="0 0 24 24"><rect x="4.5" y="4" width="9.5" height="16" rx="1.5"/><path d="M4.5 10h9.5M14 8.5h2.2a1.8 1.8 0 0 1 1.8 1.8v5.2a1.5 1.5 0 0 0 3 0V9l-2.5-2.5M3 20h12.5"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/><path d="M4 4l16 16"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</svg>
+
+<div id="app">
+  <div id="views">
+    <section class="screen" id="s-aujourdhui">
+      <header class="top"><div class="hrow"><div><h1>Aujourd’hui</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
+      <div class="content"></div>
+    </section>
+    <section class="screen" id="s-personnes">
+      <header class="top"><div class="hrow"><div><h1>Personnes</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
+      <div class="content"></div>
+    </section>
+    <section class="screen" id="s-bilan">
+      <header class="top"><div class="hrow"><div><h1>Bilan</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
+      <div class="content">
+        <div class="card" style="padding-top:2px;padding-bottom:2px">
+          <button class="list-item" data-a="reglages"><span>Réglages</span><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
+        </div>
+      </div>
+    </section>
+    <section class="screen" id="s-essence">
+      <header class="top"><div class="hrow"><div><h1>Essence</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
+      <div class="content"></div>
+    </section>
+    <section class="screen" id="s-reglages">
+      <header class="top"><div class="backrow"><button class="back" data-a="back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg>Retour</button><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div><h1 style="margin-top:6px">Réglages</h1></header>
+      <div class="content">
+        <h2>Version</h2>
+        <div class="card" style="padding-top:2px;padding-bottom:2px">
+          <div class="list-item"><span>Version de l’appli</span><span class="val" id="rg-version"></span></div>
+          <div class="list-item"><span>Structure des données</span><span class="val" id="rg-schema"></span></div>
+          <div class="list-item"><span id="rg-update-txt">Cette version est la plus récente.</span></div>
+          <button class="list-item" data-a="checkupdate"><span>Chercher une mise à jour</span></button>
+        </div>
+        <h2>Stockage</h2>
+        <div class="card" id="rg-card-stock" style="padding-top:2px;padding-bottom:2px">
+          <div class="list-item"><span>Stockage persistant</span><span class="val" id="rg-persist">…</span></div>
+          <button class="list-item" data-a="persist" id="rg-persist-btn" hidden><span>Redemander à Chrome</span></button>
+        </div>
+        <p class="note">« Persistant » veut dire : Chrome ne vide pas la réserve de l’appli quand le téléphone manque de place. Ce n’est pas garanti : l’export vers le PC reste l’assurance.</p>
+        <h2>Masquage automatique</h2>
+        <div class="card"><div class="field"><label id="rg-idle-label">Masquer l’écran après…</label>
+          <div class="seg two" role="group" aria-labelledby="rg-idle-label">
+            <button data-a="idle" data-n="0" aria-pressed="false">Jamais</button>
+            <button data-a="idle" data-n="60" aria-pressed="false">1 minute</button>
+            <button data-a="idle" data-n="120" aria-pressed="false">2 minutes</button>
+            <button data-a="idle" data-n="600" aria-pressed="false">10 minutes</button>
+          </div></div>
+          <p class="note" style="padding:0;margin-top:8px">Sans toucher l’appli pendant ce temps, l’écran « Agenda » s’affiche tout seul. Un toucher le rouvre, sans code.</p></div>
+      </div>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="toast" id="update" role="status" aria-live="polite" hidden><span>Nouvelle version disponible</span><button data-a="applyupdate">Mettre à jour</button></div>
+  <nav class="nav" aria-label="Navigation">
+    <div class="tab"><button class="t" data-a="tab" data-t="aujourdhui"><svg class="i" aria-hidden="true"><use href="#i-calcheck"/></svg>Aujourd’hui</button></div>
+    <div class="tab"><button class="t" data-a="tab" data-t="personnes"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg>Personnes</button></div>
+    <div class="tab"><button class="t" data-a="tab" data-t="bilan"><svg class="i" aria-hidden="true"><use href="#i-chart"/></svg>Bilan</button></div>
+    <div class="tab"><button class="t" data-a="tab" data-t="essence"><svg class="i" aria-hidden="true"><use href="#i-fuel"/></svg>Essence</button></div>
+  </nav>
+  <div id="veil"></div>
+  <div id="fatal" role="alert"><p class="t" id="fatal-title"></p><p id="fatal-text"></p></div>
+</div>
+
+<script src="version.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

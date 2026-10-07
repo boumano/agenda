@@ -1,0 +1,16 @@
+{
+  "name": "Agenda",
+  "short_name": "Agenda",
+  "description": "Agenda personnel, sur le téléphone, sans internet.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F1217",
+  "theme_color": "#123A5E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

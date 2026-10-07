@@ -1,0 +1,148 @@
+/* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons).
+   Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
+/* ============================================================
+   PALETTE SOBRE UNIQUE : la seule liste de couleurs du fichier.
+   Gris presque neutres + UN SEUL bleu d'accent. Aucune couleur n'est écrite ailleurs.
+   Rouge doux : seulement le rond « pas fait » et les croix « pas fait ».
+   Orange et vert : réservés à la ligne « Dernier export ».
+   ============================================================ */
+:root{
+  --page:#F4F6F9;       /* fond de page et bandeaux */
+  --card:#FFFFFF;       /* cartes et listes */
+  --block:#EEF1F5;      /* blocs d'adresse, champs de saisie */
+  --line:#D5DAE2;       /* contours fins et traits de séparation */
+  --text:#1B2330;       /* texte principal */
+  --text2:#5B6574;      /* texte secondaire */
+  --addr:#3F4A5A;       /* texte d'adresse dans les blocs */
+  --accent:#1A69AE;     /* l'unique bleu */
+  --on-accent:#FFFFFF;  /* texte sur fond bleu */
+  --pill:#E3EAF7;       /* pastille de l'onglet actif */
+  --red:#C04A4A;        /* « pas fait » */
+  --orange:#8A4F00;     /* dernier export (rappel) */
+  --green:#1F6B40;      /* dernier export (réservé) */
+  --scrim:rgba(27,35,48,.35);
+  /* bandeau de titre : version plus claire / plus sombre du bleu d'accent (même teinte, environ 208 degrés) */
+  --band:#D6E4F2;       /* fond du bandeau */
+  --band-line:#B5CCE3;  /* trait de séparation et contour des boutons du bandeau */
+  --band-title:#123A5E; /* titre */
+  --band-sub:#3E5F80;   /* sous-titre */
+  --band-btn:#FFFFFF;   /* fond des boutons flèches du bandeau */
+  --band-link:#155F9F;  /* « Retour » et chevrons de mois dans le bandeau : le bleu d'accent, ajusté pour 4,5 : 1 sur le bandeau */
+  --tool:#3E5F80;       /* icônes discrètes œil / cadenas du bandeau (même gris-bleu que le sous-titre) */
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --page:#0F1217;
+    --card:#1A1F27;
+    --block:#12161C;
+    --line:#2A313C;
+    --text:#F2F4F8;
+    --text2:#9AA4B2;
+    --addr:#C9D0DB;
+    --accent:#4DA3E8;
+    --on-accent:#0F1217;
+    --pill:#26303D;
+    --red:#E08A8A;
+    --orange:#E0A458;
+    --green:#7CC49A;
+    --scrim:rgba(0,0,0,.55);
+    --band:#123A5E;
+    --band-line:#22527E;
+    --band-title:#F2F4F8;
+    --band-sub:#D0E2F2;
+    --band-btn:#0F1217;
+    --band-link:#6DB4EE;
+    --tool:#9FB6CC;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+html{font-size:16px}
+body{margin:0;background:var(--page);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.3;overflow:hidden}
+a{color:inherit;text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;text-align:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.input:focus-visible{outline-offset:0}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- icônes (SVG en traits, couleur du texte) ---------- */
+.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.i.s{width:16px;height:16px}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+
+/* ---------- coque de l'appli : zone d'écrans | message | barre du bas ---------- */
+#app{position:relative;height:100dvh;max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:var(--page);overflow:hidden;overflow:clip}
+@media (min-width:431px){ #app{border-left:1px solid var(--line);border-right:1px solid var(--line)} }
+#views{position:relative;flex:1;min-height:0;overflow:hidden;overflow:clip;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--page);will-change:transform}
+.screen.on{display:flex}
+.content{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:10px 12px 16px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}
+.content>*{flex:none}
+input,textarea{user-select:text;-webkit-user-select:text}
+.top{padding:10px 12px;background:var(--band);color:var(--band-title);border-bottom:1px solid var(--band-line);flex:none}
+.top h1{margin:0;font-size:20px;font-weight:700;overflow-wrap:anywhere}
+.top .sub{font-size:14px;margin-top:2px;color:var(--band-sub)}
+.back{display:inline-flex;align-items:center;gap:4px;height:44px;min-width:44px;margin:0 0 0 -7px;padding:0 12px 0 0;border:0;border-radius:0;background:none;color:var(--accent);font-size:15px;font-weight:600}
+.back .i{width:20px;height:20px}
+.back:active,.chev:active{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.backrow{display:flex;align-items:center;justify-content:space-between;gap:8px;height:36px}
+.chev{width:44px;height:44px;padding:0;border:0;border-radius:0;background:none;color:var(--accent);display:grid;place-items:center;flex:none}
+.chev .i{width:22px;height:22px}
+.top .back,.top .chev{color:var(--band-link)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;min-width:0}
+.btn{min-height:48px;border-radius:14px;border:0;font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 12px;white-space:nowrap;min-width:0;text-align:center}
+.btn.full{width:100%}
+.btn.main{background:var(--accent);color:var(--on-accent)}
+.btn.line{background:transparent;border:1px solid var(--line);color:var(--text)}
+.btn.strong{background:var(--pill);border:1px solid var(--accent);color:var(--text)}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.hrow>div:first-child{min-width:0}
+.tools{display:flex;gap:0;flex:none}
+.hrow,.backrow{margin-right:-8px}
+.tool{width:44px;height:44px;padding:0;border:0;border-radius:8px;background:none;color:var(--tool);display:grid;place-items:center;flex:none}
+.tool .i{width:16px;height:16px}
+.tool:active{background:color-mix(in srgb,currentColor 16%,transparent)}
+#veil{position:absolute;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;background:var(--page);color:var(--text2)}
+#veil.on{display:flex}
+#veil .vword{font-size:24px;font-weight:600;color:var(--text2)}
+.seg.two{grid-template-columns:1fr 1fr}
+.seg.two button{white-space:normal;line-height:1.15;padding:4px;font-size:15px}
+.list-item .btn.quiet{min-height:44px;flex:none}
+.empty{text-align:center;color:var(--text2);padding:24px 8px}
+h2{margin:4px 2px 0;font-size:14px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2)}
+.note{font-size:14px;color:var(--text2);padding:0 4px;margin:0}
+.toast{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 12px 8px;min-height:48px;padding:0 4px 0 16px;border-radius:14px;background:var(--text);color:var(--page)}
+.toast[hidden]{display:none}
+.toast button{border:0;background:none;color:var(--page);font-weight:700;text-decoration:underline;min-height:48px;padding:0 14px}
+.nav{flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border-top:1px solid var(--line);padding:4px 0 calc(4px + env(safe-area-inset-bottom));z-index:5}
+.nav .tab{position:relative;display:block}
+.nav button.t{position:relative;isolation:isolate;width:100%;height:100%;min-height:56px;border:0;border-radius:14px;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:14px;font-weight:600;color:var(--text2);text-align:center}
+.nav button.t::before{content:"";position:absolute;inset:2px 8px;border-radius:14px;background:transparent;z-index:-1}
+.nav button.t .i{width:24px;height:24px}
+.nav button.t.on{color:var(--accent)}
+.nav button.t.on::before{background:var(--pill)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;font-weight:700;color:var(--text2)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--block);border:1px solid var(--line);padding:4px;border-radius:14px}
+.seg button{min-height:48px;border-radius:11px;border:0;background:none;display:flex;align-items:center;justify-content:center;gap:4px;font-weight:700;font-size:16px;color:var(--text2);white-space:nowrap;text-align:center}
+.seg button.sel{background:var(--accent);color:var(--on-accent)}
+.list-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border:0;border-bottom:1px solid var(--line);background:none;min-height:52px;width:100%;color:inherit}
+.list-item:last-child{border-bottom:0}
+.list-item>.name,.list-item>span:first-child{min-width:0}
+.list-item{text-align:left}
+.list-item small{display:block;color:var(--text2);font-size:14px;font-weight:400}
+.list-item:disabled{color:var(--text2)}
+.list-item .i{color:var(--text2)}
+
+/* ---------- ajouts propres à Agenda ---------- */
+[hidden]{display:none !important}  /* l'attribut « hidden » doit toujours cacher, même sur un bouton de liste */
+.val{color:var(--text2);text-align:right}
+.card.nobtn .list-item{border-bottom:0}   /* le bouton caché ne doit pas laisser un trait en bas de la carte */
+.list-item .val{flex:none}
+#update{border:1px solid var(--accent)}
+#fatal{position:absolute;inset:0;z-index:70;display:none;flex-direction:column;justify-content:center;gap:12px;padding:24px;background:var(--page);color:var(--text)}
+#fatal.on{display:flex}
+#fatal p{margin:0}
+#fatal .t{font-size:20px;font-weight:700}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
