@@ -153,6 +153,9 @@ with sync_playwright() as p:
         exp = "Bilan\nRéglages" if t == "bilan" else title
         if t == "aujourdhui":
             ok(tag + " page « Aujourd’hui » : titre, jour, flèches, « Aucune course prévue ce jour. », « Ajouter une course »", cur() == t and pg.locator(".screen.on h1").text_content() == title and "Aucune course prévue ce jour." in txt and "Ajouter une course" in txt and pg.locator('[data-a="day"]').count() == 2, repr(txt))
+        elif t == "bilan":
+            pg.wait_for_timeout(300)
+            ok(tag + " page « Bilan » : titre, choix « Totaux » / « Jour par jour », mois, ligne « Réglages »", cur() == t and pg.locator(".screen.on h1").inner_text() == title and [x.strip() for x in pg.locator('[data-a="bview"]').all_inner_texts()] == ["Totaux", "Jour par jour"] and pg.locator('[data-a="reglages"]').count() == 1 and pg.locator('[data-a="bmonth"]').count() == 2, repr(txt))
         elif t == "personnes":
             ok(tag + " page « Personnes » : titre, recherche, liste vide (« Aucune personne pour l’instant »), « Nouvelle personne »", cur() == t and pg.locator(".screen.on h1").inner_text() == title and "Aucune personne pour l’instant" in txt and "Nouvelle personne" in txt and pg.locator("#q").count() == 1, repr(txt))
         else:

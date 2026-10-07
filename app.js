@@ -82,6 +82,8 @@ function go(id) {
   if (id === 'reglages') { refreshReglages(); refreshLog(); }
   if (id === 'personnes') renderPers();
   if (id === 'aujourdhui') { if (prev !== 'aujourdhui') openKey = null; renderAuj(); }
+  if (prev === 'bilan' && id !== 'bilan') bil.reveal = false;          /* les montants se recachent en quittant le Bilan */
+  if (id === 'bilan') renderBilan();
 }
 
 /* ========= Personnes : liste, recherche, archivées sur la même page ========= */
@@ -608,6 +610,74 @@ function refreshLog() {
   });
 }
 
+/* ========= Bilan : « Totaux » et « Jour par jour » =========
+   Le père ne reçoit RIEN de l'appli (ni bouton de copie, ni envoi, ni partage) : Pascal lit l'écran à voix haute.
+   Le mois choisi est calculé à partir de l'INDEX des courses par date (on ne relit pas tout). */
+var JJ = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+var bil = { view: 'tot', ref: new Date(today().getFullYear(), today().getMonth(), 1), reveal: false, ms: 0 }, bilTok = 0;
+function fmtEuros(c) { return Math.floor(c / 100) + ',' + pad(c % 100) + ' €'; }
+/* kilomètres d'un total : au plus 2 décimales (8400 m = « 8,4 »), plus facile à lire à voix haute */
+function fmtKm2(m) { return (Math.floor(m / 10 + 0.5) / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ','); }
+function coursesSans(n, what) { return n + ' ' + (n > 1 ? 'courses' : 'course') + ' sans ' + what; }
+/* total d'une colonne : jamais un 0 inventé. Si TOUTES les courses faites ont cette valeur inconnue : « inconnu ». */
+function totalTxt(sum, unknown, count, fmt) { return (count > 0 && unknown === count) ? 'inconnu' : fmt(sum); }
+function bilanHeader() {
+  return '<header class="top"><div class="hrow"><div><h1>Bilan</h1></div>' + tools() + '</div></header>';
+}
+function bilanControls() {
+  var ref = bil.ref;
+  return '<div class="toggle" role="group" aria-label="Vue du Bilan"><button data-a="bview" data-v="tot" class="' + (bil.view === 'tot' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'tot') + '">Totaux</button><button data-a="bview" data-v="jj" class="' + (bil.view === 'jj' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'jj') + '">Jour par jour</button></div>' +
+    '<div class="period"><button class="chev" data-a="bmonth" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl" id="bil-month">' + esc(cap(fmtMonth.format(ref))) + '</div><button class="chev" data-a="bmonth" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div>';
+}
+function bilanTotauxHTML(rs) {
+  var T = AGR.totals(people, rs), t = T.total, h;
+  var eur = bil.reveal ? totalTxt(t.cents, t.noPrice, t.count, fmtEuros) : '•••• €';
+  var eurNote = t.noPrice > 0 ? '+ ' + coursesSans(t.noPrice, 'prix') + ' (total partiel)' : 'total du mois';
+  var kmv = totalTxt(t.meters, t.noKm, t.count, function (m) { return fmtKm2(m) + ' km'; });
+  var kmNote = t.noKm > 0 ? '+ ' + coursesSans(t.noKm, 'km') + ' (total partiel)' : 'total du mois';
+  h = '<div class="card tile"><div class="v" id="bil-count">' + t.count + '</div><div class="l">' + (t.count > 1 ? 'courses faites' : 'course faite') + '</div></div>' +
+    '<button class="card tile" data-a="reveal" aria-label="Afficher ou masquer les montants"><div class="v" id="bil-eur">' + eur + '</div><div class="l" id="bil-eur-note">' + esc(eurNote) + '</div><div class="hint">' + I('eye') + (bil.reveal ? 'Toucher pour masquer' : 'Toucher pour afficher') + '</div></button>' +
+    '<div class="card tile"><div class="v" id="bil-km">' + esc(kmv) + '</div><div class="l" id="bil-km-note">' + esc(kmNote) + '</div></div>' +
+    '<h2>Par personne</h2><div class="card" style="padding-top:2px;padding-bottom:2px" id="bil-persons">';
+  if (!T.persons.length) h += '<div class="empty">Rien de fait ce mois-ci.</div>';
+  T.persons.forEach(function (q) {
+    var pe = bil.reveal ? totalTxt(q.cents, q.noPrice, q.count, fmtEuros) : '•••• €', pk = totalTxt(q.meters, q.noKm, q.count, function (m) { return fmtKm2(m) + ' km'; });
+    var notes = [];
+    if (q.noPrice > 0) notes.push('+ ' + coursesSans(q.noPrice, 'prix'));
+    if (q.noKm > 0) notes.push('+ ' + coursesSans(q.noKm, 'km'));
+    h += '<div class="pp" data-pid="' + esc(q.p.id) + '"><span class="head"><span class="name">' + nameHTML(q.p) + '<small>' + plural(q.count, 'course faite', 'courses faites') + '</small></span><span class="amount">' + esc(pe) + '</span></span>' +
+      '<span class="l3">' + esc(pk) + (notes.length ? ' · ' + esc(notes.join(' · ')) : '') + '</span></div>';
+  });
+  return h + '</div>';
+}
+function bilanJourHTML(rs, y, m) {
+  var O = AGR.overview(people, rs, y, m, todayISO()), T = todayISO(), first = {};
+  O.days.forEach(function (d) { d.items.forEach(function (it) { (first[norm(it.p.first_name || it.p.last_name)] = first[norm(it.p.first_name || it.p.last_name)] || {})[it.p.id] = 1; }); });
+  var h = '<p class="jjsum" id="jj-sum">' + plural(O.noNote, 'jour', 'jours') + ' sans note</p><div class="card jjcard" style="padding-top:2px;padding-bottom:2px" id="jj-list">';
+  if (!O.days.length) h += '<div class="empty">Rien à afficher ce mois-ci.</div>';
+  O.days.forEach(function (d) {
+    var dt = parseISO(d.iso);
+    h += '<button class="jjrow" data-a="bday" data-iso="' + d.iso + '" aria-label="Ouvrir le ' + esc(fmtDay.format(dt)) + ' dans Aujourd’hui"><span class="jjday">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="jjppl">' +
+      d.items.map(function (it) {
+        var nm = it.p.first_name || it.p.last_name, dup = Object.keys(first[norm(nm)] || {}).length > 1;
+        if (dup) nm += ' ' + (it.p.last_name || '').charAt(0) + '.';
+        var st = it.status === 'done' ? 't' : (it.status === 'not_done' ? 'p' : 'n'), word = st === 't' ? 'oui' : (st === 'p' ? 'non' : (d.iso === T ? 'à faire' : 'pas noté'));
+        return '<span class="jjp ' + st + '"><span>' + esc(nm) + '</span> <span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span>';
+      }).join('') + '</span></button>';
+  });
+  return h + '</div>';
+}
+function renderBilan() {
+  var tok = ++bilTok, t0 = performance.now(), y = bil.ref.getFullYear(), m = bil.ref.getMonth();
+  var from = y + '-' + pad(m + 1) + '-01', to = y + '-' + pad(m + 1) + '-' + pad(new Date(y, m + 1, 0).getDate());
+  (AG.db ? AG.ridesInRange(from, to) : Promise.resolve([])).then(function (rs) {
+    if (tok !== bilTok || cur !== 'bilan') return;
+    mount('s-bilan', bilanHeader() + '<div class="content">' + bilanControls() + (bil.view === 'tot' ? bilanTotauxHTML(rs) : bilanJourHTML(rs, y, m)) +
+      '<div class="card" style="padding-top:2px;padding-bottom:2px"><button class="list-item" data-a="reglages"><span>Réglages</span>' + I('right') + '</button></div></div>');
+    bil.ms = Math.round(performance.now() - t0);
+  }, function () { /* base fermée : rien à calculer */ });
+}
+
 /* ========= Réglages ========= */
 function refreshReglages() {
   $('#rg-version').textContent = APP_VERSION;
@@ -698,6 +768,7 @@ function mask() {
   if (veilOn) return;
   clearTimeout(toastTimer); toastEl.hidden = true; undoFn = null;      /* un message ne doit rien montrer sous l'écran neutre */
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();      /* valide un champ en cours de saisie */
+  bil.reveal = false; if (cur === 'bilan') renderBilan();                                        /* les montants se recachent */
   openKey = null; if (cur === 'aujourdhui') renderAuj();                                          /* au retour, les cartes sont repliées : montants et adresses retirés de l'écran */
   veilEl.innerHTML = '<span class="vword">Agenda</span>';
   veilEl.setAttribute('role', 'button'); veilEl.setAttribute('tabindex', '0'); veilEl.setAttribute('aria-label', 'Agenda masqué. Toucher pour rouvrir');
@@ -805,6 +876,10 @@ document.addEventListener('click', function (e) {
         break;
       }
       sheetAction(a); break;
+    case 'bview': bil.view = b.dataset.v; bil.reveal = false; renderBilan(); break;
+    case 'bmonth': bil.ref = new Date(bil.ref.getFullYear(), bil.ref.getMonth() + (+b.dataset.d), 1); bil.reveal = false; renderBilan(); break;
+    case 'reveal': bil.reveal = !bil.reveal; renderBilan(); break;
+    case 'bday': day = parseISO(b.dataset.iso); openKey = null; go('aujourdhui'); break;       /* ouvre ce jour dans Aujourd'hui */
     case 'confirmcancel': closeConfirm(); break;
     case 'confirmok': confirmOk(); break;
   }
@@ -898,7 +973,7 @@ startWorker();
 /* lecture seule, pour les contrôles automatiques */
 window.__ag = {
   get cur() { return cur; }, get tab() { return tab; }, get masked() { return veilOn; }, get idle() { return idleSec; },
-  get ready() { return ready; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); },
+  get ready() { return ready; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
   version: APP_VERSION, dbName: AG.DB_NAME, openDatabase: AG.openDatabase, dbGet: AG.dbGet, dbPut: AG.dbPut,
   migrations: AG.MIGRATIONS, schemaTarget: AG.schemaTarget
 };

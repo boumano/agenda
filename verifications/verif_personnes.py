@@ -441,9 +441,9 @@ with sync_playwright() as p:
     # ================= 14. les autres écrans n'ont pas bougé =================
     for t, title in [("aujourdhui", "Aujourd’hui"), ("essence", "Essence")]:
         goto(t); ok(tag + " « %s » : %s" % (title, "écran de l'étape 3 (jour, flèches)" if t == "aujourdhui" else "toujours seulement son titre"), (pg.locator(".screen.on h1").text_content() == title and pg.locator("[data-a=day]").count() == 2) if t == "aujourdhui" else pg.locator(".screen.on").inner_text().strip() == title)
-    goto("bilan"); ok(tag + " « Bilan » : toujours son titre et la ligne « Réglages »", pg.locator(".screen.on").inner_text().strip() == "Bilan\nRéglages")
+    goto("bilan"); pg.wait_for_timeout(300); ok(tag + " « Bilan » : écran de l'étape 4 (Totaux / Jour par jour) et la ligne « Réglages »", pg.locator(".screen.on h1").inner_text() == "Bilan" and pg.locator('[data-a="bview"]').count() == 2 and pg.locator('[data-a="reglages"]').count() == 1)
     tap('[data-a="reglages"]')
-    ok(tag + " Réglages : version 0.3.0 et structure n° 3", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == "0.3.0" and pg.locator("#rg-schema").inner_text() == "3")
+    ok(tag + " Réglages : version 0.4.0 et structure n° 3", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == "0.4.0" and pg.locator("#rg-schema").inner_text() == "3")
 
     # ================= 15. migration 1 → 2 =================
     mig = pg.evaluate("""async()=>{ const name='agenda-essai-v1v2';

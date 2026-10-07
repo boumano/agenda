@@ -1,7 +1,7 @@
-# Agenda : notes (étapes 1 à 3)
+# Agenda : notes (étapes 1 à 4)
 
-État au 7 octobre 2026 : **version 0.3.0, structure des données n° 3**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
-Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 3.
+État au 7 octobre 2026 : **version 0.4.0, structure des données n° 3** (inchangée). Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 4.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
 ## Ce qui est construit
@@ -12,16 +12,17 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `style.css` | Styles repris de la maquette (palette sombre / claire automatiques, bandeau, barre du bas, œil, boutons, fiche, calendrier). Toutes les couleurs sont définies une seule fois, en haut. |
 | `app.js` | Écrans et comportements : Personnes, Fiche, œil et masquage automatique, Réglages, message de mise à jour. |
 | `db.js` | **Un seul endroit** qui lit et écrit dans IndexedDB : ouverture, migrations, personnes, courses, journal de mise à jour, suppression sûre. |
-| `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour. |
+| `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.3.0`). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.4.0`). |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
 | `verifications/verif_personnes.py` | Contrôles de l'étape 2 (140) : personnes, fiche, « Quand », « Quitter sans enregistrer ? », archivage, suppression, migration 1 → 2, masquage. |
 | `verifications/verif_miseajour.py` | Contrôles du correctif 0.2.1 (19) : ancienne page qui garde la base ouverte pendant une mise à niveau, message de blocage, base pas prête après 5 s, lâcher de connexion (versionchange), vraie mise à jour avec migration 3 → 4 sur une copie d'essai, un seul rechargement. |
 | `verifications/verif_courses.py` | Étape 3, écran Aujourd'hui (71) : cartes prévues, création à la première action, fait / pas fait / annuler, changer ce jour, ajouter une course, montant et km, fiche qui ne réécrit rien, archivage, persistance, hors connexion, masquage, changement d'heure du 25 octobre 2026. |
 | `verifications/verif_calendrier.py` | Étape 3, calendrier d'une personne (64) : lien dans la fiche, états des jours, panneau d'un jour, « Pas de course », corbeille, suppression d'une personne, masquage. |
-| `verifications/verif_maj030.py` | Mise à jour **réelle** 0.2.1 → 0.3.0 (fichiers de l'ancienne version tirés de git, structure 2 → 3, 2e page ouverte) et journal de mise à jour (28). |
+| `verifications/verif_maj030.py` | Mise à jour **réelle** 0.2.1 → version actuelle (fichiers de l'ancienne version tirés de git, structure 2 → 3, 2e page ouverte) et journal de mise à jour (28). |
+| `verifications/verif_bilan.py` | Étape 4, Bilan (57) : totaux par mois et par personne, prix ou km inconnus, corbeille, « pas fait », cartes jamais touchées, jour par jour, archivée, « changé », 25 octobre 2026, masquage, hors connexion, 6 048 courses fictives (lecture par l'index, temps d'affichage), rien pour le père. |
 | `verifications/verif_publication.py` | À lancer après une publication : vérifie que le site répond et sert les bons fichiers (dont `version.js`). |
 
 Règles respectées : JavaScript simple, aucune bibliothèque, aucun outil de construction, **aucune ressource chargée depuis internet**. Le seul trafic réseau est le téléchargement des fichiers de l'appli.
@@ -136,3 +137,28 @@ Voir les étapes numérotées du rapport de l'étape 2.
 - **Courses à la corbeille** : aucun écran pour les revoir pour l'instant (seulement « Annuler » pendant 5 secondes ; visible dans Réglages à l'étape 6 selon le plan).
 - « Annuler » d'une action qui a créé la course : la course va à la corbeille (elle reste dans la base), plutôt que d'être effacée.
 - **Le message « Impossible : N courses déjà notées. »** compte aussi les courses créées mais pas encore notées (règle demandée : toute course non supprimée empêche).
+
+## Étape 4 : Bilan (0.4.0, structure inchangée n° 3)
+
+**Le père ne reçoit RIEN de l'appli** : ni bouton de copie, ni envoi, ni partage (vérifié : aucun de ces mots ni appel dans le code du Bilan). Pascal lit l'écran à voix haute.
+
+### Écran
+- **Choix du mois** en haut (chevrons « Mois précédent / suivant », mois en cours au départ) et **deux vues** : « Totaux » | « Jour par jour ». Le mois et la vue sont gardés en revenant de Réglages. La ligne « Réglages » reste en bas, telle quelle.
+- **Totaux** (mois choisi) : « N courses faites », total en **euros**, total en **km**, puis « Par personne » (courses faites, euros, km), ordre alphabétique des noms. **Seules** les courses « fait » non supprimées comptent. Les courses « pas fait », celles de la corbeille et les **cartes prévues jamais touchées** ne comptent jamais.
+- **Inconnu ≠ 0** : une course « faite » sans prix (ou sans km) est comptée comme faite mais **pas comme 0** : « + N courses sans prix (total partiel) » / « + N courses sans km (total partiel) » (visibles même quand les montants sont masqués). Si **toutes** les courses du mois ont l'info inconnue, le total affiche « **inconnu** » (jamais « 0,00 € » ni « 0 km »).
+- **Montants masqués** (« •••• € ») tant qu'on ne touche pas la tuile (comme la maquette) ; ils se recachent au changement de mois, de vue, en quittant le Bilan et au masquage. Les km ne sont pas masqués.
+- Affichage : euros « 12,50 € », km avec 2 décimales au plus (« 8,4 km », « 17,73 km »).
+- **Jour par jour** : une ligne par jour du mois **jusqu'à aujourd'hui** avec au moins une personne concernée (course enregistrée ou carte prévue), « mar 6 » puis, pour chaque personne, le **prénom + un mot** : « oui » (fait, coche), « non » (pas fait, croix rouge), « pas noté » (jour passé, rien noté), « à faire » (aujourd'hui). Deux prénoms identiques : initiale du nom (« Un A. », « Un Z. »). Ligne « **N jours sans note** » = jours **passés** où une course était prévue (ou créée) et où **rien n'a été noté** (aujourd'hui jamais compté). Les jours sans personne concernée n'ont pas de ligne. **Toucher un jour ouvre ce jour dans Aujourd'hui.**
+- **Personne archivée** : ses courses passées restent dans les totaux et dans « Jour par jour ». Les courses « changées » comptent avec **leurs valeurs propres**.
+- **Masquage** (œil ou masquage automatique) : « Agenda » seul, aucun nom ni montant lisible, Totaux comme Jour par jour.
+
+### Données et performance
+- **Aucun changement de structure** : le Bilan lit les courses existantes. Le mois choisi est lu par l'**index des courses par date** (`ridesInRange`, borne de dates) : seules les courses du mois sont lues, jamais toute la base (vérifié : le nombre de courses lues = celles du mois). Avec **6 048 courses fictives** sur 24 mois : l'appli s'ouvre en moins d'une seconde et un mois s'affiche en moins de 25 ms (limite fixée : 500 ms).
+- Dates en texte : le **changement d'heure du 25 octobre 2026** ne décale rien (jours 24, 25 et 26 chacun une fois, avec leurs courses).
+
+### Écarts par rapport à la maquette
+- **Plus de choix « Semaine / Mois »** : seulement le mois, comme demandé.
+- La maquette cachait le prix et affichait des km « fictifs » ; ici les chiffres viennent des vraies courses.
+- Les lignes « Par personne » ne s'ouvrent pas sur le calendrier (non demandé).
+- « Jour par jour » affiche **aussi** « pas noté » / « à faire » pour les personnes d'un jour partiellement noté (la maquette n'affichait que fait / pas fait / pas noté dans un seul résumé).
+- Le résumé « Pas faits / Pas notés » de la maquette est remplacé par « N jours sans note » (définition ci-dessus).

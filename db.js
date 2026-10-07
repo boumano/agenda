@@ -109,6 +109,11 @@ function putPerson(p) {
    Une course n'est JAMAIS effacée pour de bon : « supprimer » = la mettre à la corbeille (champ deleted_at). */
 function ridesOf(personId) { return req2p(db.transaction('rides').objectStore('rides').index('person_id').getAll(personId)); }
 function allRides() { return req2p(db.transaction('rides').objectStore('rides').getAll()); }
+/* Les courses d'une période, lues par l'INDEX des dates (on ne relit pas tout). */
+var lastRange = 0;
+function ridesInRange(from, to) {
+  return req2p(db.transaction('rides').objectStore('rides').index('date').getAll(IDBKeyRange.bound(from, to))).then(function (list) { lastRange = list.length; return list; });
+}
 function putRide(r) { var tx = db.transaction('rides', 'readwrite'); tx.objectStore('rides').put(r); return done(tx); }
 /* courses non supprimées d'une personne (faites, pas faites, ou créées mais pas notées) : elles empêchent de supprimer la fiche */
 function countRides(personId) {
@@ -164,7 +169,7 @@ function appendLogOn(d, entries) {
 self.AG = {
   DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init, closeDb: closeDb,
   dbGet: dbGet, dbPut: dbPut, getMeta: getMeta, putMeta: putMeta, getSetting: getSetting, putSetting: putSetting,
-  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allRides: allRides, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
+  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
   get db() { return db; }, set onClosed(f) { onClosed = f; }, get schemaTarget() { return latest(MIGRATIONS); }
 };
 })();
