@@ -43,16 +43,16 @@ def version_in_file(root):
 
 
 # ================= 1. fichiers (sans navigateur) =================
-EXPECTED = {"app.js", "db.js", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "manifest.json", "style.css", "sw.js", "version.js", "NOTES_AGENDA.md", ".gitignore"}
+EXPECTED = {"app.js", "db.js", "rides.js", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "manifest.json", "style.css", "sw.js", "version.js", "NOTES_AGENDA.md", ".gitignore"}
 present = {p.name for p in ROOT.iterdir() if p.is_file()}
-ok(tag + " fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)", present <= EXPECTED and {"index.html", "app.js", "db.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"} <= present, sorted(present ^ EXPECTED))
-code = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("index.html", "app.js", "db.js", "style.css", "sw.js", "manifest.json", "version.js", "icon.svg")}
+ok(tag + " fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)", present <= EXPECTED and {"index.html", "app.js", "db.js", "rides.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"} <= present, sorted(present ^ EXPECTED))
+code = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("index.html", "app.js", "db.js", "rides.js", "style.css", "sw.js", "manifest.json", "version.js", "icon.svg")}
 ext = [(n, u) for n, t in code.items() for u in re.findall(r"https?://[^\s\"')<>]+", t) if u != "http://www.w3.org/2000/svg"]
 ok(tag + " aucune adresse internet dans les fichiers (ni police, ni script, ni image externes)", not ext, ext)
 ok(tag + " aucun outil de construction ni bibliothèque : pas de package.json, pas de node_modules", not (ROOT / "package.json").exists() and not (ROOT / "node_modules").exists())
-ok(tag + " aucun import, require, fetch vers l'extérieur dans app.js et db.js (JavaScript simple)", not re.search(r"\bimport\s|require\(|importScripts\(['\"]https?", code["app.js"] + code["db.js"]))
+ok(tag + " aucun import, require, fetch vers l'extérieur dans app.js, db.js et rides.js (JavaScript simple)", not re.search(r"\bimport\s|require\(|importScripts\(['\"]https?", code["app.js"] + code["db.js"] + code["rides.js"]))
 V = version_in_file(ROOT)
-others = [n for n in ("index.html", "app.js", "db.js", "style.css", "sw.js", "manifest.json", "icon.svg") if re.search(r"\b" + re.escape(V) + r"\b", code[n])]
+others = [n for n in ("index.html", "app.js", "db.js", "rides.js", "style.css", "sw.js", "manifest.json", "icon.svg") if re.search(r"\b" + re.escape(V) + r"\b", code[n])]
 ok(tag + " numéro de version (%s) écrit à UN seul endroit : version.js" % V, not others and code["version.js"].count(V) == 1, others)
 names = []
 mq = ROOT.parent / "chauffeur" / "maquette.html"
@@ -116,7 +116,7 @@ with sync_playwright() as p:
     pc1 = pg.evaluate("window.__pc")
     ok(tag + " premier lancement : le stockage persistant est demandé exactement une fois", pc1 == 1, pc1)
     ok(tag + " premier lancement : pas de message « Nouvelle version disponible »", pg.locator("#update").is_hidden())
-    pg.wait_for_function("navigator.serviceWorker.getRegistration().then(r=>!!(r&&r.active))")
+    pg.wait_for_function("!!navigator.serviceWorker.controller")
     reg = pg.evaluate("navigator.serviceWorker.getRegistration().then(r=>({scope:r.scope,state:r.active.state,url:r.active.scriptURL}))")
     ok(tag + " service worker enregistré et actif (sw.js, portée = l'appli)", reg["state"] == "activated" and reg["url"] == BASE + "sw.js" and reg["scope"] == BASE, reg)
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready"); pg.evaluate("window.__ag.ready"); pg.wait_for_timeout(400)
@@ -131,7 +131,7 @@ with sync_playwright() as p:
     # --- IndexedDB
     dbinfo = pg.evaluate("""async()=>{const d=await __ag.openDatabase(__ag.dbName,[{version:__ag.schemaTarget,up(){}}]);
       const o={v:d.version,stores:[...d.objectStoreNames].sort(),sv:await __ag.dbGet(d,'meta','schema_version'),created:await __ag.dbGet(d,'meta','created_at'),asked:await __ag.dbGet(d,'meta','persist_asked')};d.close();return o}""")
-    ok(tag + " IndexedDB « agenda » : structure n° 2, magasins « meta », « persons », « rides » et « settings », numéro noté dans la base", dbinfo["v"] == 2 and dbinfo["stores"] == ["meta", "persons", "rides", "settings"] and dbinfo["sv"] == 2 and dbinfo["created"] and dbinfo["asked"], dbinfo)
+    ok(tag + " IndexedDB « agenda » : structure n° 3, magasins « meta », « persons », « rides » et « settings », numéro noté dans la base", dbinfo["v"] == 3 and dbinfo["stores"] == ["meta", "persons", "rides", "settings"] and dbinfo["sv"] == 3 and dbinfo["created"] and dbinfo["asked"], dbinfo)
     mig = pg.evaluate("""async()=>{ const name='agenda-essai-migration';
       const del=()=>new Promise(r=>{const q=indexedDB.deleteDatabase(name);q.onsuccess=q.onerror=q.onblocked=()=>r()}); await del();
       const m1={version:1,up:(db,tx)=>{db.createObjectStore('meta',{keyPath:'key'});db.createObjectStore('a',{keyPath:'k'})}};
@@ -151,7 +151,9 @@ with sync_playwright() as p:
         goto(t)
         txt = pg.locator(".screen.on").inner_text().strip()
         exp = "Bilan\nRéglages" if t == "bilan" else title
-        if t == "personnes":
+        if t == "aujourdhui":
+            ok(tag + " page « Aujourd’hui » : titre, jour, flèches, « Aucune course prévue ce jour. », « Ajouter une course »", cur() == t and pg.locator(".screen.on h1").text_content() == title and "Aucune course prévue ce jour." in txt and "Ajouter une course" in txt and pg.locator('[data-a="day"]').count() == 2, repr(txt))
+        elif t == "personnes":
             ok(tag + " page « Personnes » : titre, recherche, liste vide (« Aucune personne pour l’instant »), « Nouvelle personne »", cur() == t and pg.locator(".screen.on h1").inner_text() == title and "Aucune personne pour l’instant" in txt and "Nouvelle personne" in txt and pg.locator("#q").count() == 1, repr(txt))
         else:
             ok(tag + " page « %s » : seulement son titre%s" % (title, " et la ligne « Réglages »" if t == "bilan" else ""), cur() == t and txt == exp and pg.locator(".screen.on h1").inner_text() == title, repr(txt))
@@ -163,7 +165,7 @@ with sync_playwright() as p:
     ok(tag + " barre du bas : Aujourd’hui, Personnes, Bilan, Essence, avec les icônes de la maquette", [x["lbl"] for x in nav] == ["Aujourd’hui", "Personnes", "Bilan", "Essence"] and [x["use"] for x in nav] == ["#i-calcheck", "#i-users", "#i-chart", "#i-fuel"], nav)
     ok(tag + " 4 boutons : au moins 44 px de large et de haut, même largeur, mots entiers, dans l'écran", all(x["w"] >= 44 and x["h"] >= 44 and not x["clip"] and x["tin"] and x["inapp"] for x in nav) and max(x["w"] for x in nav) - min(x["w"] for x in nav) < 1, nav)
     tools = pg.evaluate("""()=>[...document.querySelectorAll('.screen .tool')].map(e=>{const r=e.getBoundingClientRect();return [r.width,r.height,e.closest('.screen').id]}).filter(x=>x[0]>0)""")
-    ok(tag + " œil : un par écran, 44 x 44 px minimum, étiquette « Masquer l’écran »", pg.locator('.screen [data-a="hide"]').count() == 5 and pg.locator('[data-a="lock"]').count() == 0 and all(x[0] >= 43.5 and x[1] >= 43.5 for x in tools) and pg.locator('[aria-label="Masquer l’écran"]').count() == 5, tools)
+    ok(tag + " œil : un par écran, 44 x 44 px minimum (44 x 28 sur Aujourd’hui, comme la maquette), étiquette « Masquer l’écran »", pg.locator('.screen [data-a="hide"]').count() == 5 and pg.locator('[data-a="lock"]').count() == 0 and all(x[0] >= 43.5 and x[1] >= (27.5 if x[2] == "s-aujourdhui" else 43.5) for x in tools) and pg.locator('[aria-label="Masquer l’écran"]').count() == 5, tools)
     ok(tag + " aucun cadenas, aucun champ de code dans la page", pg.locator("#v-code, #v-form, [data-a=lock]").count() == 0 and "cadenas" not in code["index.html"].lower() and "code" not in pg.evaluate("document.body.innerText").lower())
     pal_now = pg.evaluate("""()=>{const s=getComputedStyle(document.documentElement);return ['--page','--card','--accent','--band','--text'].map(k=>s.getPropertyValue(k).trim().toUpperCase())}""")
     expc = [pal[k][1 if SCHEME == "dark" else 0] for k in ("--page", "--card", "--accent", "--band", "--text")]
@@ -173,7 +175,7 @@ with sync_playwright() as p:
     goto("bilan"); tap('[data-a="reglages"]')
     ok(tag + " Bilan → « Réglages » : l'écran s'ouvre et l'onglet Bilan reste allumé", cur() == "reglages" and pg.locator('.nav button.t[aria-current="page"]').inner_text().strip() == "Bilan")
     ok(tag + " Réglages : numéro de version affiché = celui de version.js (%s)" % V, pg.locator("#rg-version").inner_text() == V)
-    ok(tag + " Réglages : structure des données n° 2", pg.locator("#rg-schema").inner_text() == "2")
+    ok(tag + " Réglages : structure des données n° 3", pg.locator("#rg-schema").inner_text() == "3")
     ok(tag + " Réglages : stockage persistant « accordé » (réponse simulée de Chrome)", pg.locator("#rg-persist").inner_text() == "accordé" and pg.locator("#rg-persist-btn").is_hidden(), pg.locator("#rg-persist").inner_text())
     ok(tag + " Réglages : masquage automatique 2 minutes par défaut, quatre choix", pg.locator('[data-a="idle"]').count() == 4 and pg.locator('[data-a="idle"][data-n="120"][aria-pressed="true"]').count() == 1 and [x.strip() for x in pg.locator('[data-a="idle"]').all_inner_texts()] == ["Jamais", "1 minute", "2 minutes", "10 minutes"])
     pg.screenshot(path=SHOTS + "/coquille_reglages_%dx%d_%s.png" % (W, H, SCHEME))
@@ -242,7 +244,7 @@ with sync_playwright() as p:
 
     # --- hors connexion
     caches = pg.evaluate("caches.keys().then(async ks=>({ks, n: ks.length? (await (await caches.open(ks[0])).keys()).length : 0}))")
-    ok(tag + " réserve du service worker « agenda-%s » : 9 fichiers gardés" % V, caches["ks"] == ["agenda-" + V] and caches["n"] == 9, caches)
+    ok(tag + " réserve du service worker « agenda-%s » : 10 fichiers gardés" % V, caches["ks"] == ["agenda-" + V] and caches["n"] == 10, caches)
     cx.set_offline(True)
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready", timeout=15000); pg.evaluate("window.__ag.ready"); pg.wait_for_timeout(300)
     ok(tag + " MODE AVION : l'appli s'ouvre (titre « Aujourd’hui », barre du bas)", pg.locator("#s-aujourdhui.on h1").inner_text() == "Aujourd’hui" and pg.locator(".nav button.t").count() == 4)
@@ -281,13 +283,13 @@ with sync_playwright() as p:
 
     # --- mise à jour proposée, jamais imposée
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="agenda_maj_"))
-    for n in ("index.html", "app.js", "db.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"): shutil.copy(ROOT / n, tmp / n)
+    for n in ("index.html", "app.js", "db.js", "rides.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"): shutil.copy(ROOT / n, tmp / n)
     srv2, B2 = serve(tmp)
     b4, cx4 = new_context(p, SCHEME)
     pu = cx4.new_page(); uerrs = []
     pu.on("pageerror", lambda e: uerrs.append(str(e)))
     pu.goto(B2); pu.wait_for_function("window.__ag && window.__ag.ready"); pu.evaluate("window.__ag.ready")
-    pu.wait_for_function("navigator.serviceWorker.getRegistration().then(r=>!!(r&&r.active))"); pu.reload(); pu.wait_for_function("window.__ag && window.__ag.ready"); pu.wait_for_timeout(400)
+    pu.wait_for_function("!!navigator.serviceWorker.controller"); pu.reload(); pu.wait_for_function("window.__ag && window.__ag.ready"); pu.wait_for_timeout(400)
     pu.evaluate("window.__marqueur=1")
     pu.locator('.nav button.t[data-t="bilan"]').tap(); pu.wait_for_timeout(250); pu.locator('[data-a="reglages"]').tap(); pu.wait_for_timeout(250)
     (tmp / "version.js").write_text("self.APP_VERSION = '9.9.9';\n", encoding="utf-8")        # « publication » d'une nouvelle version
@@ -310,7 +312,7 @@ with sync_playwright() as p:
     pu.locator('.nav button.t[data-t="bilan"]').tap(); pu.wait_for_timeout(250); pu.locator('[data-a="reglages"]').tap(); pu.wait_for_timeout(250)
     ks = pu.evaluate("caches.keys()")
     ok(tag + " « Mettre à jour » : l'appli se recharge et affiche la version 9.9.9, le message a disparu, l'ancienne réserve est effacée", pu.locator("#rg-version").inner_text() == "9.9.9" and pu.locator("#update").is_hidden() and ks == ["agenda-9.9.9"], (pu.locator("#rg-version").inner_text(), ks))
-    ok(tag + " les données restent après la mise à jour (même base, numéro de structure 2)", pu.locator("#rg-schema").inner_text() == "2")
+    ok(tag + " les données restent après la mise à jour (même base, numéro de structure 3)", pu.locator("#rg-schema").inner_text() == "3")
     ok(tag + " aucune erreur JavaScript pendant la mise à jour", not uerrs, uerrs)
     b4.close(); srv2.shutdown(); shutil.rmtree(tmp, ignore_errors=True)
 print("TOTAL", total, "ECHECS", fails)

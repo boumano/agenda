@@ -146,7 +146,7 @@ with sync_playwright() as p:
     ok(tag + " fiche d'une personne : titre « Essai Un », champs relus (prix « 12,50 », km « 8,5 », heure « 09:30 »)", pg.locator("#s-fiche h1").inner_text().replace("\n", " ").strip() == "Essai Un" and pg.input_value("#f-prix") == "12,50" and pg.input_value("#f-km") == "8,5" and pg.input_value("#f-heure") == "09:30" and pg.input_value("#f-rue") == "1 rue Test" and pg.input_value("#f-lieu") == "Lieu Test" and pg.input_value("#f-tel") == "01 23 45 67 89", pg.input_value("#f-prix"))
     ok(tag + " jours L et J allumés, « Du » conservé, « Au » vide", pg.locator('[data-a="jour"][aria-pressed="true"]').count() == 2 and pg.input_value("#f-du") == TISO and pg.input_value("#f-au") == "")
     ok(tag + " « Appeler » : lien téléphone avec les chiffres seulement", pg.locator("#f-call").get_attribute("href") == "tel:0123456789", pg.locator("#f-call").get_attribute("href"))
-    ok(tag + " « Gérer cette fiche » : « Archiver cette personne » et « Supprimer cette fiche » (active : aucune course)", pg.locator("#s-fiche h2").inner_text().lower() == "gérer cette fiche" and pg.locator('[data-a="archiveask"]').count() == 1 and pg.locator('[data-a="deleteask"]').count() == 1)
+    ok(tag + " « Gérer cette fiche » : « Archiver cette personne » et « Supprimer cette fiche » (active : aucune course)", [x.lower() for x in pg.locator("#s-fiche h2").all_inner_texts()] == ["courses de un", "gérer cette fiche"] and pg.locator('[data-a="archiveask"]').count() == 1 and pg.locator('[data-a="deleteask"]').count() == 1)
     fill(ville="Autreville", prix="15.75", km="9,25"); save()
     ok(tag + " modifier (prix « 15.75 » avec un POINT, km « 9,25 » avec une virgule) : « Fiche enregistrée » sans « Annuler »", toast_msg() == "Fiche enregistrée" and not has_undo() and cur() == "personnes")
     rec = db_all("persons")
@@ -324,11 +324,12 @@ with sync_playwright() as p:
 
     # ================= 10. supprimer =================
     seed([person(21, "Jours", "Seul", schedule={"mode": "weekly", "weekdays": [1], "time_weekly": None, "from": None, "to": None, "dates": [], "time_dates": None}), person(22, "Vide", "Totalement"),
-          person(23, "Notee", "Une"), person(24, "Notee", "Deux"), person(25, "Prevue", "Seule")],
+          person(23, "Notee", "Une"), person(24, "Notee", "Deux"), person(25, "Prevue", "Seule"), person(26, "Corbeille", "Seule")],
          [{"id": "r1", "person_id": "00000000-0000-4000-8000-000000000023", "date": "2026-01-05", "status": "done"},
           {"id": "r2", "person_id": "00000000-0000-4000-8000-000000000024", "date": "2026-01-05", "status": "done"},
           {"id": "r3", "person_id": "00000000-0000-4000-8000-000000000024", "date": "2026-01-06", "status": "not_done"},
-          {"id": "r4", "person_id": "00000000-0000-4000-8000-000000000025", "date": "2999-01-05", "status": None}])
+          {"id": "r4", "person_id": "00000000-0000-4000-8000-000000000025", "date": "2999-01-05", "status": None, "deleted_at": None},
+          {"id": "r5", "person_id": "00000000-0000-4000-8000-000000000026", "date": "2026-01-05", "status": "done", "deleted_at": "2026-01-06T00:00:00.000Z"}])
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready"); pg.evaluate("window.__ag.ready"); w()
     open_fiche("Vide")
     tap('[data-a="deleteask"]')
@@ -347,12 +348,18 @@ with sync_playwright() as p:
     ok(tag + " personne avec jours habituels : « Ses jours habituels seront supprimés. »", pg.locator("#confirm-text").inner_text() == "Ses jours habituels seront supprimés.", pg.locator("#confirm-text").inner_text())
     tap("#confirm-cancel"); tap('[data-a="back"]')
     open_fiche("Prevue")
+    dis2 = pg.locator("#s-fiche .list-item[disabled]")
+    ok(tag + " personne avec une course créée mais pas notée (non supprimée) : « Supprimer cette fiche » grisée, « Impossible : 1 course déjà notée. » (règle de l'étape 3 : toute course non supprimée empêche)", dis2.count() == 1 and "Impossible : 1 course déjà notée." in dis2.inner_text() and pg.locator('[data-a="deleteask"]').count() == 0, dis2.inner_text() if dis2.count() else "")
+    refus2 = pg.evaluate("AG.deletePerson('00000000-0000-4000-8000-000000000025')")
+    ok(tag + " … refusée aussi par le code (refused = 1), la course est intacte", refus2 == {"refused": 1} and [r for r in db_all("rides") if r["id"] == "r4"] and not [r for r in db_all("rides") if r["id"] == "r4"][0].get("deleted_at"), refus2)
+    tap('[data-a="back"]')
+    open_fiche("Corbeille")
     tap('[data-a="deleteask"]')
-    ok(tag + " personne avec une course prévue (pas notée) : « Sa course prévue sera supprimée. »", pg.locator("#confirm-text").inner_text() == "Sa course prévue sera supprimée.", pg.locator("#confirm-text").inner_text())
+    ok(tag + " personne dont les seules courses sont à la corbeille : suppression permise", pg.locator("#confirm-title").inner_text() == "Supprimer Corbeille Seule ?", pg.locator("#confirm-title").inner_text())
     tap("#confirm-ok")
-    ok(tag + " … la fiche ET sa course prévue sont effacées de la base", not [x for x in db_all("persons") if x["last_name"] == "Prevue"] and not [r for r in db_all("rides") if r["id"] == "r4"])
+    ok(tag + " … la fiche est effacée MAIS la course de la corbeille n'est jamais effacée pour de bon (toujours dans la base)", not [x for x in db_all("persons") if x["last_name"] == "Corbeille"] and [r for r in db_all("rides") if r["id"] == "r5"] and [r for r in db_all("rides") if r["id"] == "r5"][0]["deleted_at"])
     tap('#toast [data-a="undo"]')
-    ok(tag + " « Annuler » rend la fiche et sa course prévue", [x for x in db_all("persons") if x["last_name"] == "Prevue"] and [r for r in db_all("rides") if r["id"] == "r4"])
+    ok(tag + " « Annuler » rend la fiche", [x for x in db_all("persons") if x["last_name"] == "Corbeille"])
     open_fiche("Notee Une")
     dis = pg.locator("#s-fiche .list-item[disabled]")
     ok(tag + " 1 course déjà notée : « Supprimer cette fiche » grisée avec « Impossible : 1 course déjà notée. »", dis.count() == 1 and "Supprimer cette fiche" in dis.inner_text() and "Impossible : 1 course déjà notée." in dis.inner_text() and pg.locator('[data-a="deleteask"]').count() == 0 and pg.locator("#s-fiche .list-item[disabled]").get_attribute("aria-disabled") == "true", dis.inner_text())
@@ -370,7 +377,7 @@ with sync_playwright() as p:
     pg.close(); pg = cx.new_page(); pg.on("pageerror", lambda e: errs.append("pageerror " + str(e))); boot()
     goto("personnes")
     ok(tag + " fermeture et réouverture de l'appli : les %d personnes sont toujours là, dans le même ordre" % n0, len(names()) == len([x for x in before if not x["archived"]]) and pg.locator("#pcount").inner_text() == "%d personnes" % len([x for x in before if not x["archived"]]), names())
-    pg.wait_for_function("navigator.serviceWorker.getRegistration().then(r=>!!(r&&r.active))"); pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready"); pg.wait_for_timeout(400)
+    pg.wait_for_function("!!navigator.serviceWorker.controller"); pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready"); pg.wait_for_timeout(400)
     cx.set_offline(True)
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready", timeout=15000); pg.evaluate("window.__ag.ready"); w()
     goto("personnes")
@@ -433,10 +440,10 @@ with sync_playwright() as p:
 
     # ================= 14. les autres écrans n'ont pas bougé =================
     for t, title in [("aujourdhui", "Aujourd’hui"), ("essence", "Essence")]:
-        goto(t); ok(tag + " « %s » : toujours seulement son titre" % title, pg.locator(".screen.on").inner_text().strip() == title)
+        goto(t); ok(tag + " « %s » : %s" % (title, "écran de l'étape 3 (jour, flèches)" if t == "aujourdhui" else "toujours seulement son titre"), (pg.locator(".screen.on h1").text_content() == title and pg.locator("[data-a=day]").count() == 2) if t == "aujourdhui" else pg.locator(".screen.on").inner_text().strip() == title)
     goto("bilan"); ok(tag + " « Bilan » : toujours son titre et la ligne « Réglages »", pg.locator(".screen.on").inner_text().strip() == "Bilan\nRéglages")
     tap('[data-a="reglages"]')
-    ok(tag + " Réglages : version 0.2.1 et structure n° 2", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == "0.2.1" and pg.locator("#rg-schema").inner_text() == "2")
+    ok(tag + " Réglages : version 0.3.0 et structure n° 3", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == "0.3.0" and pg.locator("#rg-schema").inner_text() == "3")
 
     # ================= 15. migration 1 → 2 =================
     mig = pg.evaluate("""async()=>{ const name='agenda-essai-v1v2';
@@ -448,9 +455,9 @@ with sync_playwright() as p:
       const out={s1,v1,s2,v2,idle:await __ag.dbGet(d,'settings','idle_sec'),asked:await __ag.dbGet(d,'meta','persist_asked'),sv:await __ag.dbGet(d,'meta','schema_version'),created:!!(await __ag.dbGet(d,'meta','created_at'))};
       const tx=d.transaction(['persons','rides']); out.persons=await new Promise(r=>{const g=tx.objectStore('persons').getAll();g.onsuccess=()=>r(g.result.length)}); out.rides=await new Promise(r=>{const g=tx.objectStore('rides').getAll();g.onsuccess=()=>r(g.result.length)});
       out.idx=[...tx.objectStore('rides').indexNames]; out.keyPath=tx.objectStore('rides').index('person_id').keyPath; out.pk=[tx.objectStore('persons').keyPath,tx.objectStore('rides').keyPath]; d.close(); await del(); return out }""")
-    ok(tag + " migration 1 → 2 sur une base d'essai : structure 1 avant (meta, settings), structure 2 après (+ persons, rides)", mig["s1"] == ["meta", "settings"] and mig["v1"] == 1 and mig["s2"] == ["meta", "persons", "rides", "settings"] and mig["v2"] == 2, mig)
-    ok(tag + " … les données de la version 1 sont gardées (réglage 600, « stockage demandé », date de création) et le numéro noté passe à 2", mig["idle"] == 600 and mig["asked"] == "2026-10-01T00:00:00Z" and mig["sv"] == 2 and mig["created"], mig)
-    ok(tag + " … les nouveaux magasins sont vides, courses indexées par personne (person_id), clé = id", mig["persons"] == 0 and mig["rides"] == 0 and mig["idx"] == ["person_id"] and mig["keyPath"] == "person_id" and mig["pk"] == ["id", "id"], mig)
+    ok(tag + " migration 1 → 3 sur une base d'essai : structure 1 avant (meta, settings), structure 3 après (+ persons, rides)", mig["s1"] == ["meta", "settings"] and mig["v1"] == 1 and mig["s2"] == ["meta", "persons", "rides", "settings"] and mig["v2"] == 3, mig)
+    ok(tag + " … les données de la version 1 sont gardées (réglage 600, « stockage demandé », date de création) et le numéro noté passe à 3", mig["idle"] == 600 and mig["asked"] == "2026-10-01T00:00:00Z" and mig["sv"] == 3 and mig["created"], mig)
+    ok(tag + " … les nouveaux magasins sont vides, courses indexées par date et par personne, clé = id", mig["persons"] == 0 and mig["rides"] == 0 and mig["idx"] == ["date", "person_id"] and mig["keyPath"] == "person_id" and mig["pk"] == ["id", "id"], mig)
     b.close()
 
     # vraie base de la version 0.1 sur le téléphone de Pascal : on la crée à l'identique AVANT d'ouvrir l'appli 0.2
@@ -464,7 +471,7 @@ with sync_playwright() as p:
       q.onsuccess=()=>{q.result.close();r()}})""")
     boot(pm)
     info = pm.evaluate("""new Promise(r=>{const q=indexedDB.open('agenda');q.onsuccess=()=>{const d=q.result,v=d.version,s=[...d.objectStoreNames].sort();const g=d.transaction('meta').objectStore('meta').get('schema_version');g.onsuccess=()=>{const h=d.transaction('meta').objectStore('meta').get('created_at');h.onsuccess=()=>{d.close();r({v,s,sv:g.result.value,created:h.result.value})}}}})""")
-    ok(tag + " VRAIE base de la version 0.1 (structure 1) ouverte par l'appli 0.2 : passe à la structure 2, ses données restent (date de création d'origine)", info["v"] == 2 and info["s"] == ["meta", "persons", "rides", "settings"] and info["sv"] == 2 and info["created"] == "2026-10-07T08:00:00.000Z", info)
+    ok(tag + " VRAIE base de la version 0.1 (structure 1) ouverte par l'appli 0.3 : passe à la structure 3, ses données restent (date de création d'origine)", info["v"] == 3 and info["s"] == ["meta", "persons", "rides", "settings"] and info["sv"] == 3 and info["created"] == "2026-10-07T08:00:00.000Z", info)
     ok(tag + " … le réglage de masquage (1 minute) est conservé, le stockage persistant n'est PAS redemandé, aucune personne inventée", pm.evaluate("__ag.idle") == 60 and pm.evaluate("window.__pc") == 0 and pm.evaluate("__ag.people.length") == 0 and not perr, (pm.evaluate("__ag.idle"), pm.evaluate("window.__pc"), perr))
     b2.close()
 

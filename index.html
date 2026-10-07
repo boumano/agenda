@@ -24,14 +24,18 @@
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></symbol>
   <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m5 9 7 7 7-7"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 15 7-7 7 7"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></symbol>
+  <symbol id="i-ring" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M4.5 11 9 6.5M4.5 11 9 15.5"/><path d="M5 11h9a5 5 0 0 1 0 10h-3"/></symbol>
 </svg>
 
 <div id="app">
   <div id="views">
-    <section class="screen" id="s-aujourdhui">
-      <header class="top"><div class="hrow"><div><h1>Aujourd’hui</h1></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
-      <div class="content"></div>
-    </section>
+    <section class="screen" id="s-aujourdhui"></section>
     <section class="screen" id="s-personnes">
       <header class="top"><div class="hrow"><div><h1>Personnes</h1><div class="sub" id="pcount"></div></div><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div></header>
       <div class="content">
@@ -56,6 +60,7 @@
       <div class="content"></div>
     </section>
     <section class="screen" id="s-fiche"></section>
+    <section class="screen" id="s-calendrier"></section>
     <section class="screen" id="s-reglages">
       <header class="top"><div class="backrow"><button class="back" data-a="back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg>Retour</button><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div><h1 style="margin-top:6px">Réglages</h1></header>
       <div class="content">
@@ -72,6 +77,9 @@
           <button class="list-item" data-a="persist" id="rg-persist-btn" hidden><span>Redemander à Chrome</span></button>
         </div>
         <p class="note">« Persistant » veut dire : Chrome ne vide pas la réserve de l’appli quand le téléphone manque de place. Ce n’est pas garanti : l’export vers le PC reste l’assurance.</p>
+        <h2>Journal de mise à jour</h2>
+        <div class="card"><ul class="log" id="rg-log" aria-label="Les 20 derniers évènements"></ul><p class="note" id="rg-log-empty" style="padding:0">Rien pour l’instant.</p></div>
+        <p class="note">Sert à comprendre ce qui se passe quand une nouvelle version s’installe : les 20 derniers évènements, avec l’heure, gardés dans l’appli. Aucune donnée de personne n’y figure.</p>
         <h2>Masquage automatique</h2>
         <div class="card"><div class="field"><label id="rg-idle-label">Masquer l’écran après…</label>
           <div class="seg two" role="group" aria-labelledby="rg-idle-label">
@@ -92,6 +100,10 @@
     <div class="tab"><button class="t" data-a="tab" data-t="bilan"><svg class="i" aria-hidden="true"><use href="#i-chart"/></svg>Bilan</button></div>
     <div class="tab"><button class="t" data-a="tab" data-t="essence"><svg class="i" aria-hidden="true"><use href="#i-fuel"/></svg>Essence</button></div>
   </nav>
+  <div id="daysheet" role="dialog" aria-modal="true" aria-labelledby="ds-title">
+    <button class="scrim" data-a="dsclose" aria-label="Fermer"></button>
+    <div class="panel" id="ds-panel"></div>
+  </div>
   <div id="confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <button class="scrim" data-a="confirmcancel" aria-label="Fermer"></button>
     <div class="panel">
@@ -107,6 +119,7 @@
 
 <script src="version.js"></script>
 <script src="db.js"></script>
+<script src="rides.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

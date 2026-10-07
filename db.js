@@ -23,6 +23,10 @@ var MIGRATIONS = [
     db.createObjectStore('persons', { keyPath: 'id' });     /* une fiche par personne (actives et archivées) */
     var rides = db.createObjectStore('rides', { keyPath: 'id' });   /* les courses : vide pour l'instant, utilisé à l'étape 3 */
     rides.createIndex('person_id', 'person_id', { unique: false });
+  } },
+  { version: 3, up: function (db, tx) {
+    /* courses : on ajoute l'index par date (les personnes, les réglages et les courses déjà là ne bougent pas) */
+    tx.objectStore('rides').createIndex('date', 'date', { unique: false });
   } }
 ];
 function latest(migrations) { return migrations[migrations.length - 1].version; }
@@ -36,6 +40,7 @@ function openDatabase(name, migrations, hooks) {
       var db = req.result, tx = req.transaction, from = ev.oldVersion;
       migrations.forEach(function (m) { if (m.version > from && m.version <= target) m.up(db, tx); });
       tx.objectStore('meta').put({ key: 'schema_version', value: target });
+      tx.objectStore('meta').put({ key: 'last_upgrade', value: { from: from, to: target, at: new Date(Date.now()).toISOString() } });   /* pour le journal de mise à jour */
     };
     req.onsuccess = function () { resolve(req.result); };
     req.onerror = function () { var er = req.error; reject({ code: er && er.name === 'VersionError' ? 'newer' : 'error', error: er }); };
@@ -50,7 +55,10 @@ function init(hooks) {
   return openDatabase(DB_NAME, MIGRATIONS, hooks).then(function (d) {
     db = d;
     /* une autre page demande une nouvelle structure : on lâche NOTRE connexion tout de suite, sinon elle bloquerait la mise à niveau */
-    d.onversionchange = function () { d.close(); db = null; if (onClosed) onClosed(); };
+    d.onversionchange = function () {
+      try { appendLogOn(d, [{ t: new Date(Date.now()).toISOString(), e: 'Base fermée : une autre page demande une nouvelle structure', v: self.APP_VERSION }]); } catch (e) { /* le journal ne doit jamais gêner */ }
+      d.close(); db = null; if (onClosed) onClosed();     /* close() attend la fin de l'écriture en cours */
+    };
     return d;
   });
 }
@@ -97,16 +105,20 @@ function allPersons() { return req2p(db.transaction('persons').objectStore('pers
 function putPerson(p) {
   var tx = db.transaction('persons', 'readwrite'); tx.objectStore('persons').put(p); return done(tx);
 }
-/* courses d'une personne : « notées » = faites ou pas faites ; « prévues » = créées mais pas encore notées */
+/* ----- courses -----
+   Une course n'est JAMAIS effacée pour de bon : « supprimer » = la mettre à la corbeille (champ deleted_at). */
 function ridesOf(personId) { return req2p(db.transaction('rides').objectStore('rides').index('person_id').getAll(personId)); }
+function allRides() { return req2p(db.transaction('rides').objectStore('rides').getAll()); }
+function putRide(r) { var tx = db.transaction('rides', 'readwrite'); tx.objectStore('rides').put(r); return done(tx); }
+/* courses non supprimées d'une personne (faites, pas faites, ou créées mais pas notées) : elles empêchent de supprimer la fiche */
 function countRides(personId) {
   return ridesOf(personId).then(function (list) {
-    var noted = list.filter(function (r) { return r.status === 'done' || r.status === 'not_done'; }).length;
-    return { noted: noted, planned: list.length - noted };
+    return { noted: list.filter(function (r) { return !r.deleted_at; }).length, planned: 0 };
   });
 }
-/* Efface une personne pour de bon, SEULEMENT si aucune course n'est notée. Ses courses « prévues » partent avec elle.
-   Renvoie ce qui a été effacé (pour pouvoir annuler pendant quelques secondes), ou { refused: n } s'il y a des courses notées. */
+/* Efface une personne pour de bon, SEULEMENT s'il n'existe aucune course non supprimée.
+   Les courses déjà à la corbeille ne sont pas touchées. Renvoie la fiche effacée (pour « Annuler » pendant quelques secondes),
+   ou { refused: n } s'il y a des courses. */
 function deletePerson(id) {
   return new Promise(function (resolve, reject) {
     var tx = db.transaction(['persons', 'rides'], 'readwrite'), ps = tx.objectStore('persons'), rs = tx.objectStore('rides'), out = { person: null, rides: [] }, refused = 0;
@@ -114,9 +126,9 @@ function deletePerson(id) {
       out.person = e.target.result || null;
       rs.index('person_id').getAll(id).onsuccess = function (e2) {
         var list = e2.target.result || [];
-        refused = list.filter(function (r) { return r.status === 'done' || r.status === 'not_done'; }).length;
+        refused = list.filter(function (r) { return !r.deleted_at; }).length;
         if (refused) { tx.abort(); return; }
-        out.rides = list; list.forEach(function (r) { rs.delete(r.id); }); ps.delete(id);
+        ps.delete(id);
       };
     };
     tx.oncomplete = function () { resolve(out); };
@@ -124,7 +136,7 @@ function deletePerson(id) {
     tx.onerror = function () { /* l'abandon volontaire passe par onabort */ };
   });
 }
-/* Annuler une suppression : on remet exactement ce qui a été effacé. */
+/* Annuler une suppression de fiche : on remet exactement ce qui a été effacé. */
 function restoreDeleted(out) {
   var tx = db.transaction(['persons', 'rides'], 'readwrite');
   if (out.person) tx.objectStore('persons').put(out.person);
@@ -132,10 +144,27 @@ function restoreDeleted(out) {
   return done(tx);
 }
 
+/* ----- journal de mise à jour : les 20 derniers évènements, gardés dans la base ----- */
+var LOG_MAX = 20;
+function getLog() { return getMeta('update_log').then(function (v) { return v || []; }); }
+function appendLog(entries) { return appendLogOn(db, entries); }
+function appendLogOn(d, entries) {
+  return new Promise(function (resolve, reject) {
+    var tx = d.transaction('meta', 'readwrite'), st = tx.objectStore('meta');
+    st.get('update_log').onsuccess = function (e) {
+      var arr = (e.target.result && e.target.result.value) || [];
+      arr = arr.concat(entries).slice(-LOG_MAX);
+      st.put({ key: 'update_log', value: arr });
+    };
+    tx.oncomplete = function () { resolve(); };
+    tx.onerror = tx.onabort = function () { reject(tx.error); };
+  });
+}
+
 self.AG = {
   DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init, closeDb: closeDb,
   dbGet: dbGet, dbPut: dbPut, getMeta: getMeta, putMeta: putMeta, getSetting: getSetting, putSetting: putSetting,
-  uuid: uuid, allPersons: allPersons, putPerson: putPerson, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
+  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allRides: allRides, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
   get db() { return db; }, set onClosed(f) { onClosed = f; }, get schemaTarget() { return latest(MIGRATIONS); }
 };
 })();
