@@ -301,6 +301,16 @@ mark{background:transparent;color:var(--accent);font-weight:700;text-decoration:
 input[type=date]{color-scheme:light dark}   /* l'icône du calendrier du champ date reste visible en mode sombre */
 button.jjrow{width:100%;border-left:0;border-right:0;border-top:0;background:none;color:inherit;font:inherit;text-align:left;min-height:48px}
 .jjw{font-weight:700}
+.jjrow .jjppl{flex-direction:column;flex-wrap:nowrap;gap:6px}
+.jjrow .jjp{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;line-height:1.25}
+.jjrow .jjp .name{min-width:0}
+.jjrow .jjr{display:inline-flex;align-items:center;gap:6px;flex:none}
+.pp{text-align:left}
+.calsum-g{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:6px;text-align:center}
+.calsum .v{font-size:20px;font-weight:700;line-height:1.15;overflow-wrap:anywhere}
+.calsum .l{color:var(--text2);font-size:13px;margin-top:2px}
+.calsum-b{border:0;background:none;color:inherit;font:inherit;min-height:48px;padding:0;text-align:center;border-radius:10px}
+.calsum .note{margin-top:6px;text-align:center}
 .pp .l3{display:block;color:var(--text2);font-size:13px;line-height:1.3}
 .cardact{grid-column:1 / -1;margin-top:12px;display:flex;flex-direction:column;gap:8px}
 .log{margin:0;padding:0;list-style:none;font-size:13px;line-height:1.35;color:var(--text2)}

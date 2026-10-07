@@ -1,6 +1,6 @@
-# Agenda : notes (étapes 1 à 4)
+# Agenda : notes (étapes 1 à 4, correctifs 0.4.1)
 
-État au 7 octobre 2026 : **version 0.4.0, structure des données n° 3** (inchangée). Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+État au 7 octobre 2026 : **version 0.4.1, structure des données n° 3** (inchangée). Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
 Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 4.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
@@ -14,15 +14,15 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `db.js` | **Un seul endroit** qui lit et écrit dans IndexedDB : ouverture, migrations, personnes, courses, journal de mise à jour, suppression sûre. |
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.4.0`). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.4.1`). |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
 | `verifications/verif_personnes.py` | Contrôles de l'étape 2 (140) : personnes, fiche, « Quand », « Quitter sans enregistrer ? », archivage, suppression, migration 1 → 2, masquage. |
 | `verifications/verif_miseajour.py` | Contrôles du correctif 0.2.1 (19) : ancienne page qui garde la base ouverte pendant une mise à niveau, message de blocage, base pas prête après 5 s, lâcher de connexion (versionchange), vraie mise à jour avec migration 3 → 4 sur une copie d'essai, un seul rechargement. |
 | `verifications/verif_courses.py` | Étape 3, écran Aujourd'hui (71) : cartes prévues, création à la première action, fait / pas fait / annuler, changer ce jour, ajouter une course, montant et km, fiche qui ne réécrit rien, archivage, persistance, hors connexion, masquage, changement d'heure du 25 octobre 2026. |
-| `verifications/verif_calendrier.py` | Étape 3, calendrier d'une personne (64) : lien dans la fiche, états des jours, panneau d'un jour, « Pas de course », corbeille, suppression d'une personne, masquage. |
+| `verifications/verif_calendrier.py` | Calendrier d'une personne (68) : lien dans la fiche, résumé du mois, états des jours, panneau d'un jour, « Pas de course », corbeille, suppression d'une personne, masquage. |
 | `verifications/verif_maj030.py` | Mise à jour **réelle** 0.2.1 → version actuelle (fichiers de l'ancienne version tirés de git, structure 2 → 3, 2e page ouverte) et journal de mise à jour (28). |
-| `verifications/verif_bilan.py` | Étape 4, Bilan (57) : totaux par mois et par personne, prix ou km inconnus, corbeille, « pas fait », cartes jamais touchées, jour par jour, archivée, « changé », 25 octobre 2026, masquage, hors connexion, 6 048 courses fictives (lecture par l'index, temps d'affichage), rien pour le père. |
+| `verifications/verif_bilan.py` | Étape 4, Bilan (75) : noms complets, personne touchable → calendrier, retour selon l'origine, totaux par mois et par personne, prix ou km inconnus, corbeille, « pas fait », cartes jamais touchées, jour par jour, archivée, « changé », 25 octobre 2026, masquage, hors connexion, 6 048 courses fictives (lecture par l'index, temps d'affichage), rien pour le père. |
 | `verifications/verif_publication.py` | À lancer après une publication : vérifie que le site répond et sert les bons fichiers (dont `version.js`). |
 
 Règles respectées : JavaScript simple, aucune bibliothèque, aucun outil de construction, **aucune ressource chargée depuis internet**. Le seul trafic réseau est le téléchargement des fichiers de l'appli.
@@ -148,7 +148,7 @@ Voir les étapes numérotées du rapport de l'étape 2.
 - **Inconnu ≠ 0** : une course « faite » sans prix (ou sans km) est comptée comme faite mais **pas comme 0** : « + N courses sans prix (total partiel) » / « + N courses sans km (total partiel) » (visibles même quand les montants sont masqués). Si **toutes** les courses du mois ont l'info inconnue, le total affiche « **inconnu** » (jamais « 0,00 € » ni « 0 km »).
 - **Montants masqués** (« •••• € ») tant qu'on ne touche pas la tuile (comme la maquette) ; ils se recachent au changement de mois, de vue, en quittant le Bilan et au masquage. Les km ne sont pas masqués.
 - Affichage : euros « 12,50 € », km avec 2 décimales au plus (« 8,4 km », « 17,73 km »).
-- **Jour par jour** : une ligne par jour du mois **jusqu'à aujourd'hui** avec au moins une personne concernée (course enregistrée ou carte prévue), « mar 6 » puis, pour chaque personne, le **prénom + un mot** : « oui » (fait, coche), « non » (pas fait, croix rouge), « pas noté » (jour passé, rien noté), « à faire » (aujourd'hui). Deux prénoms identiques : initiale du nom (« Un A. », « Un Z. »). Ligne « **N jours sans note** » = jours **passés** où une course était prévue (ou créée) et où **rien n'a été noté** (aujourd'hui jamais compté). Les jours sans personne concernée n'ont pas de ligne. **Toucher un jour ouvre ce jour dans Aujourd'hui.**
+- **Jour par jour** : une ligne par jour du mois **jusqu'à aujourd'hui** avec au moins une personne concernée (course enregistrée ou carte prévue), « mar 6 » puis, pour chaque personne, le **nom complet + un mot** : « oui » (fait, coche), « non » (pas fait, croix rouge), « pas noté » (jour passé, rien noté), « à faire » (aujourd'hui) (depuis 0.4.1 : une ligne par personne, voir les correctifs). Ligne « **N jours sans note** » = jours **passés** où une course était prévue (ou créée) et où **rien n'a été noté** (aujourd'hui jamais compté). Les jours sans personne concernée n'ont pas de ligne. **Toucher un jour ouvre ce jour dans Aujourd'hui.**
 - **Personne archivée** : ses courses passées restent dans les totaux et dans « Jour par jour ». Les courses « changées » comptent avec **leurs valeurs propres**.
 - **Masquage** (œil ou masquage automatique) : « Agenda » seul, aucun nom ni montant lisible, Totaux comme Jour par jour.
 
@@ -159,6 +159,14 @@ Voir les étapes numérotées du rapport de l'étape 2.
 ### Écarts par rapport à la maquette
 - **Plus de choix « Semaine / Mois »** : seulement le mois, comme demandé.
 - La maquette cachait le prix et affichait des km « fictifs » ; ici les chiffres viennent des vraies courses.
-- Les lignes « Par personne » ne s'ouvrent pas sur le calendrier (non demandé).
+- (Depuis 0.4.1 les lignes « Par personne » ouvrent le calendrier de la personne : voir les correctifs.)
 - « Jour par jour » affiche **aussi** « pas noté » / « à faire » pour les personnes d'un jour partiellement noté (la maquette n'affichait que fait / pas fait / pas noté dans un seul résumé).
 - Le résumé « Pas faits / Pas notés » de la maquette est remplacé par « N jours sans note » (définition ci-dessus).
+
+## Correctifs 0.4.1 (demandés par Pascal après essai du Bilan 0.4.0)
+
+- **Jour par jour : nom complet.** Chaque personne a maintenant **nom puis prénom** (même présentation que les lignes « Par personne » de « Totaux »). La date n'est écrite qu'**une fois**, puis **une ligne par personne** sous la date, avec « oui » / « non » / « pas noté » / « à faire » **à droite** (plus lisible à voix haute). Comme les noms complets distinguent les personnes, l'initiale ajoutée aux prénoms en double (« Un A. ») n'existe plus. Le masquage cache ces noms comme le reste.
+- **Totaux : « Par personne » touchable.** Chaque ligne est un bouton avec la flèche à droite : il ouvre le **calendrier de cette personne** (le même que le lien « Calendrier et courses » de la fiche), **directement sur le mois affiché dans le Bilan**. Marche aussi pour une personne archivée. Pendant ce temps l'onglet **Bilan reste allumé**.
+- **Résumé du mois en haut du calendrier** (aussi quand on arrive par la fiche) : courses faites, montant (**masqué** par « •••• € » tant qu'on ne touche pas, comme dans le Bilan), km. Mêmes règles que « Totaux » : seules les courses faites comptent ; un prix ou des km inconnus ne sont jamais comptés comme 0 (« + N courses sans prix / sans km (total partiel) », « inconnu » si tout est inconnu ; « 0,00 € » / « 0 km » seulement quand aucune course n'a été faite). Le résumé **suit le mois** quand on change de mois dans le calendrier ; le montant se recache à chaque changement de mois, au masquage et en quittant le calendrier.
+- **« Retour » selon l'origine** : depuis le Bilan → retour au **Bilan, vue « Totaux », même mois** (les changements de mois faits dans le calendrier ne déplacent pas le Bilan) ; depuis la fiche → retour à la **fiche**. La touche Retour d'Android fait pareil.
+- Pas de changement de structure des données. Ces changements sont dans `app.js`, `style.css` et `version.js`.

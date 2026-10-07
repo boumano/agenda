@@ -55,7 +55,7 @@ var idleSec = 120;                       /* réglable : 0 (jamais), 60, 120, 600
 var veilEl = $('#veil'), veilOn = false, lastTouch = Date.now(), swallowClick = false;
 var toastEl = $('#toast'), toastTimer = null, undoFn = null;
 var showArch = false, query = '';
-var ctx = { sig: null, pid: null, person: null, mode: 'sem', jours: [], du: '', au: '', dates: {}, dm: { y: 0, m: 0 }, leaving: false, noted: 0, planned: 0, calPid: null, calY: 0, calM: 0 };
+var ctx = { sig: null, pid: null, person: null, mode: 'sem', jours: [], du: '', au: '', dates: {}, dm: { y: 0, m: 0 }, leaving: false, noted: 0, planned: 0, calPid: null, calY: 0, calM: 0, calFrom: 'fiche', calReveal: false };
 var confirmCtx = null;
 
 function toast(text, undo, ms) {
@@ -73,7 +73,7 @@ var TABS = ['aujourdhui', 'personnes', 'bilan', 'essence'];
 function go(id) {
   var prev = cur;
   cur = id;
-  if (TABS.indexOf(id) >= 0) tab = id; else tab = (id === 'fiche' || id === 'calendrier') ? 'personnes' : 'bilan';   /* sous-pages : l'onglet d'origine reste allumé */
+  if (TABS.indexOf(id) >= 0) tab = id; else tab = id === 'fiche' ? 'personnes' : (id === 'calendrier' ? (ctx.calFrom === 'bilan' ? 'bilan' : 'personnes') : 'bilan');   /* sous-pages : l'onglet d'origine reste allumé */
   $$('.screen').forEach(function (s) { s.classList.toggle('on', s.id === 's-' + id); });
   $$('.nav button.t').forEach(function (b) {
     var on = b.dataset.t === tab; b.classList.toggle('on', on);
@@ -226,7 +226,7 @@ function dupMsg() {
   return hit ? ('Une fiche « ' + hit.last_name + ' ' + hit.first_name + ' » existe déjà' + (hit.archived ? ' (archivée)' : '') + '. Tu peux quand même enregistrer.') : '';
 }
 function back() {
-  if (cur === 'calendrier') { openFiche(ctx.calPid); return; }
+  if (cur === 'calendrier') { if (ctx.calFrom === 'bilan') go('bilan'); else openFiche(ctx.calPid); return; }      /* retour là d'où l'on vient */
   if (ficheDirty()) { openConfirm('leave', null, null); return; }
   go('personnes');
 }
@@ -307,7 +307,7 @@ function setArchived(p, flag) {
 }
 function confirmOk() {
   var cc = confirmCtx; closeConfirm(); if (!cc) return;
-  if (cc.kind === 'leave') { ctx.leaving = true; if (cc.target && cc.target.cal) openCalendar(cc.target.cal); else if (cc.target) go(cc.target); else go('personnes'); ctx.leaving = false; return; }
+  if (cc.kind === 'leave') { ctx.leaving = true; if (cc.target && cc.target.cal) openCalendar(cc.target.cal, 'fiche'); else if (cc.target) go(cc.target); else go('personnes'); ctx.leaving = false; return; }
   var p = ctx.person; if (!p) return;
   if (cc.kind === 'archive') {
     setArchived(p, true).then(function (q) {
@@ -568,9 +568,22 @@ function sheetAction(a) {
 }
 
 /* ========= Calendrier d'une personne ========= */
-function openCalendar(pid) {
-  var t = today(); ctx.calPid = pid; ctx.calY = t.getFullYear(); ctx.calM = t.getMonth();
+function openCalendar(pid, from, y, m) {
+  var t = today(); ctx.calPid = pid; ctx.calFrom = from || 'fiche'; ctx.calReveal = false;
+  ctx.calY = y == null ? t.getFullYear() : y; ctx.calM = m == null ? t.getMonth() : m;
   history.pushState({ app: 1 }, ''); renderCal(); go('calendrier'); $('#s-calendrier .content').scrollTop = 0;
+}
+/* résumé du mois affiché : mêmes règles que « Totaux » (seulement les courses faites, jamais un 0 inventé, montant masqué tant qu'on ne touche pas) */
+function calSummaryHTML(p, y, m) {
+  var pre = y + '-' + pad(m + 1) + '-', t = AGR.totals([p], rides.filter(function (r) { return r.person_id === p.id && r.date.indexOf(pre) === 0; })).total;
+  var eur = ctx.calReveal ? totalTxt(t.cents, t.noPrice, t.count, fmtEuros) : '•••• €';
+  var kmv = totalTxt(t.meters, t.noKm, t.count, function (v) { return fmtKm2(v) + ' km'; }), notes = [];
+  if (t.noPrice > 0) notes.push('+ ' + coursesSans(t.noPrice, 'prix') + ' (total partiel)');
+  if (t.noKm > 0) notes.push('+ ' + coursesSans(t.noKm, 'km') + ' (total partiel)');
+  return '<div class="card calsum" id="cal-sum"><div class="calsum-g"><div><div class="v" id="cal-count">' + t.count + '</div><div class="l">' + (t.count > 1 ? 'courses faites' : 'course faite') + '</div></div>' +
+    '<button class="calsum-b" data-a="calreveal" aria-label="Afficher ou masquer le montant"><div class="v" id="cal-eur">' + esc(eur) + '</div><div class="l">' + (ctx.calReveal ? 'toucher pour masquer' : 'toucher pour afficher') + '</div></button>' +
+    '<div><div class="v" id="cal-km">' + esc(kmv) + '</div><div class="l">km</div></div></div>' +
+    (notes.length ? '<p class="note" id="cal-notes">' + esc(notes.join(' · ')) + '</p>' : '') + '</div>';
 }
 function renderCal() {
   var p = personById(ctx.calPid); if (!p) return;
@@ -584,7 +597,7 @@ function renderCal() {
   }
   var h = '<header class="top"><div class="backrow"><button class="back" data-a="back">' + I('left') + 'Retour</button>' + tools() + '</div><h1 style="margin-top:6px">Calendrier et courses</h1><div class="sub">' + esc(fullName(p)) + '</div>' +
     '<div class="monthnav"><button class="chev" data-a="month" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl">' + esc(cap(fmtMonth.format(first))) + '</div><button class="chev" data-a="month" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div></header>' +
-    '<div class="content"><div class="card" style="padding:4px"><div class="calgrid">' + L.map(function (l) { return '<div class="dow">' + l + '</div>'; }).join('') + cells + '</div></div>' +
+    '<div class="content">' + calSummaryHTML(p, y, m) + '<div class="card" style="padding:4px"><div class="calgrid">' + L.map(function (l) { return '<div class="dow">' + l + '</div>'; }).join('') + cells + '</div></div>' +
     '<p class="summary" id="cal-summary">' + cnt.t + ' transportée, ' + cnt.p + ' pas transportée, ' + (cnt.a ? cnt.a + ' à faire, ' : '') + plural(cnt.b, 'jour', 'jours') + ' sans note</p>' +
     '<div class="legend"><span><i class="sw t">' + I('check') + '</i>Transportée</span><span><i class="sw p">' + I('x') + '</i>Pas transportée</span><span><i class="sw a">' + I('ring') + '</i>À faire</span><span><i class="sw n"></i>Pas noté</span></div></div>';
   mount('s-calendrier', h);
@@ -645,24 +658,22 @@ function bilanTotauxHTML(rs) {
     var notes = [];
     if (q.noPrice > 0) notes.push('+ ' + coursesSans(q.noPrice, 'prix'));
     if (q.noKm > 0) notes.push('+ ' + coursesSans(q.noKm, 'km'));
-    h += '<div class="pp" data-pid="' + esc(q.p.id) + '"><span class="head"><span class="name">' + nameHTML(q.p) + '<small>' + plural(q.count, 'course faite', 'courses faites') + '</small></span><span class="amount">' + esc(pe) + '</span></span>' +
-      '<span class="l3">' + esc(pk) + (notes.length ? ' · ' + esc(notes.join(' · ')) : '') + '</span></div>';
+    h += '<button class="pp" data-a="bperson" data-pid="' + esc(q.p.id) + '" aria-label="Ouvrir le calendrier de ' + esc(fullName(q.p)) + '"><span class="head"><span class="name">' + nameHTML(q.p) + '<small>' + plural(q.count, 'course faite', 'courses faites') + '</small></span><span class="amount">' + esc(pe) + '</span>' + I('right') + '</span>' +
+      '<span class="l3">' + esc(pk) + (notes.length ? ' · ' + esc(notes.join(' · ')) : '') + '</span></button>';
   });
   return h + '</div>';
 }
 function bilanJourHTML(rs, y, m) {
-  var O = AGR.overview(people, rs, y, m, todayISO()), T = todayISO(), first = {};
-  O.days.forEach(function (d) { d.items.forEach(function (it) { (first[norm(it.p.first_name || it.p.last_name)] = first[norm(it.p.first_name || it.p.last_name)] || {})[it.p.id] = 1; }); });
+  var O = AGR.overview(people, rs, y, m, todayISO()), T = todayISO();
   var h = '<p class="jjsum" id="jj-sum">' + plural(O.noNote, 'jour', 'jours') + ' sans note</p><div class="card jjcard" style="padding-top:2px;padding-bottom:2px" id="jj-list">';
   if (!O.days.length) h += '<div class="empty">Rien à afficher ce mois-ci.</div>';
   O.days.forEach(function (d) {
     var dt = parseISO(d.iso);
+    /* la date une seule fois, puis UNE LIGNE PAR PERSONNE : nom complet (même présentation que « Par personne »), « oui » / « non » / « pas noté » / « à faire » à droite */
     h += '<button class="jjrow" data-a="bday" data-iso="' + d.iso + '" aria-label="Ouvrir le ' + esc(fmtDay.format(dt)) + ' dans Aujourd’hui"><span class="jjday">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="jjppl">' +
       d.items.map(function (it) {
-        var nm = it.p.first_name || it.p.last_name, dup = Object.keys(first[norm(nm)] || {}).length > 1;
-        if (dup) nm += ' ' + (it.p.last_name || '').charAt(0) + '.';
         var st = it.status === 'done' ? 't' : (it.status === 'not_done' ? 'p' : 'n'), word = st === 't' ? 'oui' : (st === 'p' ? 'non' : (d.iso === T ? 'à faire' : 'pas noté'));
-        return '<span class="jjp ' + st + '"><span>' + esc(nm) + '</span> <span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span>';
+        return '<span class="jjp ' + st + '"><span class="name">' + nameHTML(it.p) + '</span><span class="jjr"><span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span></span>';
       }).join('') + '</span></button>';
   });
   return h + '</div>';
@@ -768,6 +779,7 @@ function mask() {
   if (veilOn) return;
   clearTimeout(toastTimer); toastEl.hidden = true; undoFn = null;      /* un message ne doit rien montrer sous l'écran neutre */
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();      /* valide un champ en cours de saisie */
+  ctx.calReveal = false; if (cur === 'calendrier') renderCal();
   bil.reveal = false; if (cur === 'bilan') renderBilan();                                        /* les montants se recachent */
   openKey = null; if (cur === 'aujourdhui') renderAuj();                                          /* au retour, les cartes sont repliées : montants et adresses retirés de l'écran */
   veilEl.innerHTML = '<span class="vword">Agenda</span>';
@@ -863,8 +875,10 @@ document.addEventListener('click', function (e) {
     case 'aset': setStatus(b.dataset.key, b.dataset.v); break;
     case 'copyitem': var ci = findItem(b.dataset.key, iso(day)); if (ci) copyText(addrPlain(b.dataset.kind === 'dest' ? ci.dest : AGR.pickOf(ci.p)), function (good) { flashCopied(b, good); }); break;
     case 'aadd': sheetOpen({ iso: iso(day), mode: 'pick', direct: true }); break;
-    case 'calfiche': if (ficheDirty()) { openConfirm('leave', null, { cal: id }); break; } openCalendar(id); break;
-    case 'month': var mm = new Date(ctx.calY, ctx.calM + (+b.dataset.d), 1); ctx.calY = mm.getFullYear(); ctx.calM = mm.getMonth(); renderCal(); break;
+    case 'calfiche': if (ficheDirty()) { openConfirm('leave', null, { cal: id }); break; } openCalendar(id, 'fiche'); break;
+    case 'bperson': openCalendar(b.dataset.pid, 'bilan', bil.ref.getFullYear(), bil.ref.getMonth()); break;       /* depuis « Par personne » : directement sur le mois du Bilan */
+    case 'calreveal': ctx.calReveal = !ctx.calReveal; renderCal(); break;
+    case 'month': var mm = new Date(ctx.calY, ctx.calM + (+b.dataset.d), 1); ctx.calY = mm.getFullYear(); ctx.calM = mm.getMonth(); ctx.calReveal = false; renderCal(); break;
     case 'calday': sheetOpen({ pid: ctx.calPid, iso: b.dataset.iso, mode: 'menu', direct: false }); break;
     case 'dsclose': sheetClose(); break;
     case 'dspick': if (dsh) { dsh = { pid: id, iso: dsh.iso, mode: 'form', add: true, direct: true }; renderSheet(); } break;
@@ -973,7 +987,7 @@ startWorker();
 /* lecture seule, pour les contrôles automatiques */
 window.__ag = {
   get cur() { return cur; }, get tab() { return tab; }, get masked() { return veilOn; }, get idle() { return idleSec; },
-  get ready() { return ready; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
+  get ready() { return ready; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
   version: APP_VERSION, dbName: AG.DB_NAME, openDatabase: AG.openDatabase, dbGet: AG.dbGet, dbPut: AG.dbPut,
   migrations: AG.MIGRATIONS, schemaTarget: AG.schemaTarget
 };

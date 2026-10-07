@@ -63,9 +63,9 @@ def person(i, last, first, **kw):
     p.update(kw); return p
 
 
-def ride(n, pid, dt, status=None, added=False, deleted=None, skip=False):
+def ride(n, pid, dt, status=None, added=False, deleted=None, skip=False, price=1250, km=8500):
     return {"id": "00000000-0000-4000-9000-%012d" % n, "person_id": pid, "date": dt.isoformat(), "time": "09:00", "dest_place": "Lieu Cible", "dest_street": "2 rue Cible", "dest_zip": "22222", "dest_city": "Villecible",
-            "price_cents": 1250, "km_m": 8500, "usual_price_cents": 1250, "usual_km_m": 8500, "status": status, "changed": False, "added": added, "skip": skip,
+            "price_cents": price, "km_m": km, "usual_price_cents": 1250, "usual_km_m": 8500, "status": status, "changed": False, "added": added, "skip": skip,
             "created_at": "2026-01-01T00:00:00.000Z", "updated_at": "2026-01-01T00:00:00.000Z", "deleted_at": deleted}
 
 
@@ -109,6 +109,7 @@ with sync_playwright() as p:
     toast_msg = lambda: pg.locator("#toast span").inner_text() if pg.locator("#toast").is_visible() and pg.locator("#toast span").count() else ""
     has_undo = lambda: pg.locator('#toast [data-a="undo"]').count() == 1 and pg.locator("#toast").is_visible()
     jump = lambda ms: pg.evaluate("window.__off += %d" % ms)
+    txt_ = lambda sel: pg.locator(sel).inner_text().strip()
     mois_lbl = lambda: pg.locator("#s-calendrier .monthnav .lbl").inner_text().lower()
     summary = lambda: pg.locator("#cal-summary").inner_text()
     cells = lambda: pg.evaluate("[...document.querySelectorAll('#s-calendrier .cell')].map(c=>[c.dataset.iso,(c.className.split(' ').filter(x=>['t','p','a','n'].indexOf(x)>=0)[0]||'')])")
@@ -135,15 +136,15 @@ with sync_playwright() as p:
         ok(tag + " %s : résumé « %s »" % (name, expected_summary(first)), summary() == expected_summary(first), summary())
 
     boot()
-    for dt, st in [(pm(5), "done"), (pm(6), "not_done"), (pm(7), None), (pm(12), "done")]: model[dt] = st
+    for dt, st in [(pm(5), "done"), (pm(6), "not_done"), (pm(7), None), (pm(12), "done"), (pm(16), "done")]: model[dt] = st
     seed([ALPHA, GAMMA], [ride(1, ALPHA["id"], pm(5), "done"), ride(2, ALPHA["id"], pm(6), "not_done"), ride(3, ALPHA["id"], pm(7), None), ride(4, ALPHA["id"], pm(12), "done", added=True),
-                          ride(5, ALPHA["id"], pm(20), "done", deleted="2026-01-02T00:00:00.000Z")])     # une course à la corbeille : ne compte jamais
+                          ride(5, ALPHA["id"], pm(20), "done", deleted="2026-01-02T00:00:00.000Z"), ride(6, ALPHA["id"], pm(16), "done", price=None, km=None)])     # une course à la corbeille : ne compte jamais
 
     # ================= 1. lien dans la fiche, retour =================
     goto("personnes"); tap('#plist .list-item:has-text("Alpha")')
     ok(tag + " fiche : section « Courses de Un » avec « Calendrier et courses »", [x.lower() for x in pg.locator("#s-fiche h2").all_inner_texts()] == ["courses de un", "gérer cette fiche"] and "Calendrier et courses" in pg.locator('[data-a="calfiche"]').inner_text())
     tap('[data-a="calfiche"]')
-    ok(tag + " « Calendrier et courses » : titre, nom de la personne, mois en cours, deux chevrons, onglet Personnes allumé", cur() == "calendrier" and pg.locator("#s-calendrier h1").inner_text() == "Calendrier et courses" and pg.locator("#s-calendrier .sub").inner_text() == "Alpha Un" and mois_lbl() == "%s %d" % (MOIS[CM.month - 1], CM.year) and pg.locator('#s-calendrier [data-a="month"]').count() == 2 and pg.locator('.nav button.t[aria-current="page"]').inner_text().strip() == "Personnes")
+    ok(tag + " « Calendrier et courses » : titre, nom de la personne, mois en cours, deux chevrons, onglet Personnes allumé", cur() == "calendrier" and pg.locator("#s-calendrier h1").inner_text() == "Calendrier et courses" and pg.locator("#s-calendrier .sub").inner_text() == "Alpha Un" and mois_lbl() == "%s %d" % (MOIS[CM.month - 1], CM.year) and pg.locator('#s-calendrier [data-a="month"]').count() == 2 and pg.locator('.nav button.t[aria-current="page"]').inner_text().strip() == "Personnes" and pg.evaluate("__ag.calFrom") == "fiche")
     tap('.screen.on [data-a="back"]')
     ok(tag + " « Retour » : on retrouve la fiche d'Alpha", cur() == "fiche" and pg.input_value("#f-nom") == "Alpha")
     pg.fill("#f-ville", "Autreville"); tap('[data-a="calfiche"]')
@@ -166,7 +167,13 @@ with sync_playwright() as p:
     tap('#s-calendrier [data-a="month"][data-d="-1"]')
     ok(tag + " « Mois précédent » : %s %d" % (MOIS[PM.month - 1], PM.year), mois_lbl() == "%s %d" % (MOIS[PM.month - 1], PM.year))
     check(PM, "mois précédent")
-    ok(tag + " coches (fait) et croix rouge (pas fait) dessinées : %d coches, %d croix, ronds vides « pas noté »" % (2, 1), pg.locator("#s-calendrier .cell.t svg use[href='#i-check']").count() == 2 and pg.locator("#s-calendrier .cell.p svg use[href='#i-x']").count() == 1 and pg.locator("#s-calendrier .cell.n").count() >= 1)
+    ok(tag + " résumé du mois en haut du calendrier : 3 courses faites, montant masqué « •••• € », 17 km, notes « + 1 course sans prix (total partiel) · + 1 course sans km (total partiel) » (la course sans prix n'est pas comptée comme 0)", txt_("#cal-count") == "3" and txt_("#cal-eur") == "•••• €" and txt_("#cal-km") == "17 km" and txt_("#cal-notes") == "+ 1 course sans prix (total partiel) · + 1 course sans km (total partiel)", (txt_("#cal-count"), txt_("#cal-eur"), txt_("#cal-km"), txt_("#cal-notes")))
+    tap('[data-a="calreveal"]')
+    ok(tag + " toucher le montant : « 25,00 € » (deux courses à 12,50 € ; la course sans prix n'ajoute rien) ; retouché : masqué", txt_("#cal-eur") == "25,00 €" and (tap('[data-a="calreveal"]') or True) and txt_("#cal-eur") == "•••• €")
+    tap('[data-a="calreveal"]'); tap('#s-calendrier [data-a="month"][data-d="1"]')
+    ok(tag + " changer de mois dans le calendrier : le résumé suit (mois en cours : 0 course faite) et le montant se recache", txt_("#cal-eur") == "•••• €" and pg.locator("#s-calendrier .monthnav .lbl").inner_text().lower().startswith(MOIS[CM.month - 1]))
+    tap('#s-calendrier [data-a="month"][data-d="-1"]')
+    ok(tag + " coches (fait) et croix rouge (pas fait) dessinées : %d coches, %d croix, ronds vides « pas noté »" % (3, 1), pg.locator("#s-calendrier .cell.t svg use[href='#i-check']").count() == 3 and pg.locator("#s-calendrier .cell.p svg use[href='#i-x']").count() == 1 and pg.locator("#s-calendrier .cell.n").count() >= 1)
     ok(tag + " la course à la corbeille du %s ne compte pas (jour sans course)" % pm(20), [c for c in cells() if c[0] == pm(20).isoformat()][0][1] == day_state(pm(20)))
     pg.screenshot(path=SHOTS + "/calendrier_mois_%dx%d_%s.png" % (W, H, SCHEME))
     tap('#s-calendrier [data-a="month"][data-d="1"]'); tap('#s-calendrier [data-a="month"][data-d="1"]')
@@ -182,9 +189,10 @@ with sync_playwright() as p:
     tap(cell(X))
     btns = [x.strip() for x in pg.locator("#ds-panel button").all_inner_texts()]
     ok(tag + " jour passé habituel, sans rien d'enregistré : panneau (pas une page) « Fait » / « Pas fait » + montant et km, avec les repères « habituel »", pg.locator("#daysheet.on").count() == 1 and btns[:2] == ["Fait", "Pas fait"] and pg.input_value("#ds-montant") == "12,50" and pg.input_value("#ds-km") == "8,5" and pg.locator("#ds-hab-p").count() == 1 and pg.locator("#ds-hab-k").count() == 1 and cur() == "calendrier", btns)
-    ok(tag + " ouvrir le panneau n'enregistre rien", len(live()) == 4, len(live()))
+    ok(tag + " ouvrir le panneau n'enregistre rien", len(live()) == 5, len(live()))
     tap('#ds-panel [data-a="dsfait"]'); model[X] = "done"
     r1 = [r for r in live() if r["date"] == X.isoformat()][0]
+    ok(tag + " résumé mis à jour après « Fait » : 4 courses faites, 25,5 km (la nouvelle course a copié 8,5 km de la fiche)", txt_("#cal-count") == "4" and txt_("#cal-km") == "25,5 km", (txt_("#cal-count"), txt_("#cal-km")))
     ok(tag + " « Fait » : course créée à cet instant avec les valeurs de la fiche copiées (1250 / 8500), le jour passe à la coche, résumé mis à jour", r1["status"] == "done" and r1["price_cents"] == 1250 and r1["km_m"] == 8500 and r1["time"] == "09:00" and r1["added"] is False and pg.locator("#ds-panel [data-a=dsfait][aria-pressed=true]").count() == 1, r1)
     pg.locator("#ds-panel .btn.sel").count()
     tap('#ds-panel [data-a="dsfait"]'); model[X] = None

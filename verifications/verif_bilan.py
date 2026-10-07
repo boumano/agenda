@@ -121,8 +121,8 @@ def model_days(rides, first, today, persons=PEOPLE):
         if not noted and dt < today: nonote += 1
         row = []
         for t, n_, p, st in its:
-            nm = p["first_name"] or p["last_name"]
-            if len(names[norm(nm)]) > 1: nm += " " + p["last_name"][:1] + "."
+            nm = p["last_name"] + " " + p["first_name"]       # nom complet, comme « Par personne »
+            pass
             row.append((nm, "oui" if st == DONE else ("non" if st == NOT else ("à faire" if dt == today else "pas noté"))))
         rows.append((dt.isoformat(), "%s %d" % (JJ[dt.weekday()], dt.day), row))
     return rows, nonote
@@ -147,7 +147,7 @@ with sync_playwright() as p:
     txt = lambda sel: pg.locator(sel).inner_text().strip()
     mois = lambda: txt("#bil-month").lower()
     pers_rows = lambda: pg.evaluate("[...document.querySelectorAll('#bil-persons .pp')].map(r=>[r.querySelector('.nom').textContent.trim(),r.querySelector('small').textContent.trim(),r.querySelector('.amount').textContent.trim(),r.querySelector('.l3').textContent.trim()])")
-    jj_rows = lambda: pg.evaluate("[...document.querySelectorAll('#jj-list .jjrow')].map(r=>[r.dataset.iso,r.querySelector('.jjday').textContent.trim(),[...r.querySelectorAll('.jjp')].map(s=>[s.children[0].textContent.trim(),s.querySelector('.jjw').textContent.trim()])])")
+    jj_rows = lambda: pg.evaluate("[...document.querySelectorAll('#jj-list .jjrow')].map(r=>[r.dataset.iso,r.querySelector('.jjday').textContent.trim(),[...r.querySelectorAll('.jjp')].map(s=>[s.querySelector('.name').textContent.trim(),s.querySelector('.jjw').textContent.trim()])])")
 
     def db_all(store):
         return pg.evaluate("""(s)=>new Promise(r=>{const q=indexedDB.open('agenda');q.onsuccess=()=>{const d=q.result;const g=d.transaction(s).objectStore(s).getAll();g.onsuccess=()=>{d.close();r(g.result)}}})""", store)
@@ -212,6 +212,49 @@ with sync_playwright() as p:
     tap('[data-a="bmonth"][data-d="1"]')
     ok(tag + " mois suivant (à venir) : 0 course faite, « Rien de fait ce mois-ci. », « 0 km », jamais d'erreur", mois() == "%s %d" % (MOIS[NM.month - 1], NM.year) and txt("#bil-count") == "0" and "Rien de fait ce mois-ci." in pg.locator("#bil-persons").inner_text() and txt("#bil-km") == "0 km")
 
+    # ================= 2b. « Par personne » touchable : calendrier de CETTE personne =================
+    cal_lbl = lambda: txt("#s-calendrier .monthnav .lbl").lower()
+    lit = lambda: pg.locator(".nav button.t.on").inner_text().strip()
+    bilan("tot", PM)
+    hts = pg.evaluate("[...document.querySelectorAll('#bil-persons button.pp')].map(b=>Math.round(b.getBoundingClientRect().height))")
+    ok(tag + " lignes « Par personne » : ce sont des boutons avec la flèche à droite (comme les autres lignes touchables), 52 px de haut au moins", pg.locator("#bil-persons button.pp").count() == 4 and pg.locator('#bil-persons button.pp svg use[href="#i-right"]').count() == 4 and all(x >= 52 for x in hts), hts)
+    tap('#bil-persons .pp[data-pid="%s"]' % A["id"])
+    ok(tag + " toucher « Alpha Un » ouvre SON calendrier, directement sur le mois du Bilan (%s %d), l'onglet Bilan reste allumé" % (MOIS[PM.month - 1], PM.year), cur() == "calendrier" and txt("#s-calendrier h1") == "Calendrier et courses" and txt("#s-calendrier .sub") == "Alpha Un" and cal_lbl() == "%s %d" % (MOIS[PM.month - 1], PM.year) and lit() == "Bilan" and pg.evaluate("__ag.calFrom") == "bilan" and pg.locator("#s-calendrier .cell").count() == len(month_days(PM)), (cur(), cal_lbl(), lit()))
+    pg.screenshot(path=SHOTS + "/bilan_calendrier_%dx%d_%s.png" % (W, H, SCHEME))
+    qa = per[A["id"]]
+    ok(tag + " résumé du mois en haut : %d courses faites, euros masqués « •••• € », km %s, notes « sans prix / sans km » visibles" % (qa[0], km2(qa[3])), txt("#cal-count") == str(qa[0]) and txt("#cal-eur") == "•••• €" and txt("#cal-km") == km2(qa[3]) and txt("#cal-notes") == "+ %s (total partiel) · + %s (total partiel)" % (sans(qa[2], "prix"), sans(qa[4], "km")), (txt("#cal-count"), txt("#cal-eur"), txt("#cal-km"), txt("#cal-notes")))
+    tap('[data-a="calreveal"]')
+    ok(tag + " toucher le montant : %s (somme des prix connus, jamais de 0 inventé)" % euros(qa[1]), txt("#cal-eur") == euros(qa[1]) and "toucher pour masquer" in pg.locator('[data-a="calreveal"]').inner_text())
+    tap('#s-calendrier [data-a="month"][data-d="-1"]')
+    ok(tag + " mois d'avant DANS le calendrier : le résumé suit (0 course, montant de nouveau masqué)", cal_lbl() == "%s %d" % (MOIS[PM2.month - 1], PM2.year) and txt("#cal-count") == "0" and txt("#cal-eur") == "•••• €" and pg.locator("#cal-notes").count() == 0, (cal_lbl(), txt("#cal-count"), txt("#cal-eur")))
+    tap('[data-a="calreveal"]')
+    ok(tag + " aucune course ce mois-là : « 0,00 € » et « 0 km » (vrai zéro : aucune course faite), pas « inconnu »", txt("#cal-eur") == "0,00 €" and txt("#cal-km") == "0 km")
+    tap('#s-calendrier [data-a="month"][data-d="1"]')
+    ok(tag + " retour au mois du Bilan : le résumé d'Alpha est revenu", txt("#cal-count") == str(qa[0]) and txt("#cal-eur") == "•••• €")
+    tap('.screen.on [data-a="back"]')
+    ok(tag + " « Retour » depuis ce calendrier : on revient au BILAN (pas à la fiche), vue « Totaux », même mois %s %d, montants masqués" % (MOIS[PM.month - 1], PM.year), cur() == "bilan" and pg.locator('[data-a="bview"][data-v="tot"].on').count() == 1 and mois() == "%s %d" % (MOIS[PM.month - 1], PM.year) and txt("#bil-eur") == "•••• €" and lit() == "Bilan", (cur(), mois()))
+    tap('#bil-persons .pp[data-pid="%s"]' % C["id"])
+    ok(tag + " personne ARCHIVÉE (Gamma Trois) : son calendrier s'ouvre aussi, résumé 1 course faite", cur() == "calendrier" and txt("#s-calendrier .sub") == "Gamma Trois" and txt("#cal-count") == "1")
+    pg.evaluate("history.back()"); w()
+    ok(tag + " touche Retour d'Android depuis ce calendrier : retour au Bilan", cur() == "bilan" and mois() == "%s %d" % (MOIS[PM.month - 1], PM.year))
+    bilan("tot", PM2); tap('#bil-persons .pp[data-pid="%s"]' % E["id"]); tap('[data-a="calreveal"]')
+    ok(tag + " Epsilon Cinq (2 courses sans prix ni km) : résumé « inconnu » / « inconnu » et « + 2 courses sans prix… »", cal_lbl() == "%s %d" % (MOIS[PM2.month - 1], PM2.year) and txt("#cal-eur") == "inconnu" and txt("#cal-km") == "inconnu" and "+ 2 courses sans prix (total partiel)" in txt("#cal-notes") and "+ 2 courses sans km (total partiel)" in txt("#cal-notes"), (txt("#cal-eur"), txt("#cal-notes")))
+    tap('.screen.on [data-a="back"]')
+    ok(tag + " « Retour » : Bilan sur le mois d'où l'on vient (%s %d)" % (MOIS[PM2.month - 1], PM2.year), cur() == "bilan" and mois() == "%s %d" % (MOIS[PM2.month - 1], PM2.year))
+    bilan("tot", PM); tap('#bil-persons .pp[data-pid="%s"]' % B["id"]); tap('[data-a="calreveal"]')
+    qb = per[B["id"]]
+    ok(tag + " Beta Deux : %s, %s, notes « + 1 course sans prix… · + 1 course sans km… »" % (euros(qb[1]), km2(qb[3])), txt("#cal-eur") == euros(qb[1]) and txt("#cal-km") == km2(qb[3]) and txt("#cal-notes") == "+ %s (total partiel) · + %s (total partiel)" % (sans(qb[2], "prix"), sans(qb[4], "km")), (txt("#cal-eur"), txt("#cal-notes")))
+    pg.evaluate("document.querySelector('#s-calendrier [data-a=\"hide\"]').click()"); w()
+    ok(tag + " œil sur ce calendrier (montant affiché) : « Agenda » seul, rien de lisible", masked() and pg.evaluate("document.getElementById('veil').innerText.trim()") == "Agenda")
+    pg.locator("#veil").tap(); w()
+    ok(tag + " un toucher rouvre : le montant du résumé est de nouveau masqué (« •••• € »)", txt("#cal-eur") == "•••• €")
+    tap('.screen.on [data-a="back"]')
+    goto("personnes"); tap('#plist .list-item:has-text("Alpha")'); tap('[data-a="calfiche"]')
+    ok(tag + " calendrier ouvert depuis la FICHE : le résumé est aussi en haut (mois en cours), origine « fiche », onglet Personnes allumé", cur() == "calendrier" and pg.evaluate("__ag.calFrom") == "fiche" and pg.locator("#cal-sum").count() == 1 and cal_lbl() == "%s %d" % (MOIS[CM.month - 1], CM.year) and lit() == "Personnes")
+    tap('.screen.on [data-a="back"]')
+    ok(tag + " « Retour » depuis la fiche : on revient à la FICHE d'Alpha (pas au Bilan)", cur() == "fiche" and pg.input_value("#f-nom") == "Alpha")
+    bilan("tot", PM)
+
     # ================= 3. Jour par jour : mois précédent =================
     bilan("jj", PM)
     rows_exp, nonote_exp = model_days(RIDES, PM, TODAY)
@@ -220,11 +263,15 @@ with sync_playwright() as p:
     ok(tag + " « %d jours sans note » (jours passés où une course était prévue et où rien n'a été noté)" % nonote_exp, txt("#jj-sum") == "%d %s sans note" % (nonote_exp, "jours" if nonote_exp > 1 else "jour"), txt("#jj-sum"))
     ok(tag + " jours sans course prévue ni notée (week-ends) : pas de ligne", all(datetime.fromisoformat(g[0]).isoweekday() <= 5 or g[0] in {r["date"] for r in RIDES} for g in got))
     d5 = [g for g in got if g[0] == md(PM, 5).isoformat()][0]
-    ok(tag + " deux « Un » le même jour : prénoms distingués par l'initiale du nom (« Un A. », « Un Z. »), les autres sans initiale", sorted(x[0] for x in d5[2] if x[0].startswith("Un")) == ["Un A.", "Un Z."] and all("." not in x[0] for g in got for x in g[2] if not x[0].startswith("Un")), d5)
+    ok(tag + " plusieurs personnes le même jour (le %s) : NOM COMPLET « Alpha Un » et « Zeta Un » (nom puis prénom, comme « Par personne »), aucun prénom seul" % md(PM, 5), sorted(x[0] for x in d5[2] if x[0].endswith(" Un")) == ["Alpha Un", "Zeta Un"] and all(" " in x[0] for g in got for x in g[2]), d5)
+    lay = pg.evaluate("""(iso)=>{const r=document.querySelector('#jj-list .jjrow[data-iso="'+iso+'"]'),ps=[...r.querySelectorAll('.jjp')],b=ps.map(e=>e.getBoundingClientRect()),n=ps.map(e=>e.querySelector('.name').getBoundingClientRect()),w=ps.map(e=>e.querySelector('.jjr').getBoundingClientRect());
+      const f=document.querySelector('#bil-persons') ? 0 : 0; return {days:r.querySelectorAll('.jjday').length,n:ps.length,stack:b.every((x,i)=>i===0||x.top>b[i-1].top+10),right:w.every((x,i)=>x.left>n[i].left+20&&Math.abs(x.right-b[i].right)<3),nom:ps.every(e=>e.querySelector('.name .nom')&&e.querySelector('.name .pre')),
+      fs:getComputedStyle(ps[0].querySelector('.name .nom')).fontSize+'/'+getComputedStyle(ps[0].querySelector('.name .pre')).fontSize}}""", md(PM, 5).isoformat())
+    ok(tag + " mise en page : la date UNE seule fois, UNE LIGNE PAR PERSONNE (l'une sous l'autre), « oui » / « non » / « pas noté » à DROITE de chaque nom", lay["days"] == 1 and lay["n"] >= 2 and lay["stack"] and lay["right"] and lay["nom"], lay)
     d9 = [g for g in got if g[0] == md(PM, 9).isoformat()][0]
-    ok(tag + " « pas fait » = « non » (lisible à voix haute) ; la personne archivée garde sa course passée (« Trois oui »)", ("Un A.", "non") in [tuple(x) for x in d9[2]] and ("Trois", "oui") in [tuple(x) for g in got if g[0] == md(PM, 14).isoformat() for x in g[2]])
+    ok(tag + " « pas fait » = « non » (lisible à voix haute) ; la personne archivée garde sa course passée (« Gamma Trois oui »)", ("Alpha Un", "non") in [tuple(x) for x in d9[2]] and ("Gamma Trois", "oui") in [tuple(x) for g in got if g[0] == md(PM, 14).isoformat() for x in g[2]])
     d10 = [g for g in got if g[0] == md(PM, 10).isoformat()]
-    ok(tag + " la course à la corbeille (le %s) n'existe plus : « Un A. » y est « pas noté » (carte prévue)" % md(PM, 10), (not d10) or ("Un A.", "pas noté") in [tuple(x) for x in d10[0][2]])
+    ok(tag + " la course à la corbeille (le %s) n'existe plus : « Alpha Un » y est « pas noté » (carte prévue)" % md(PM, 10), (not d10) or ("Alpha Un", "pas noté") in [tuple(x) for x in d10[0][2]])
     pg.screenshot(path=SHOTS + "/bilan_jour_%dx%d_%s.png" % (W, H, SCHEME))
     ok(tag + " mots affichés en toutes lettres (« oui », « non », « pas noté »), pas seulement des icônes", all(x[1] in ("oui", "non", "pas noté", "à faire") for g in got for x in g[2]))
     day_iso = md(PM, 9).isoformat()
@@ -268,7 +315,7 @@ with sync_playwright() as p:
     tap('[data-a="bview"][data-v="jj"]')
     tap('.screen.on [data-a="hide"]')
     vt = pg.evaluate("document.getElementById('veil').innerText.trim()")
-    ok(tag + " œil sur « Jour par jour » : « Agenda » seul, aucun prénom lisible", masked() and vt == "Agenda" and not re.search(r"Un|Deux|Trois|Quatre", vt))
+    ok(tag + " œil sur « Jour par jour » : « Agenda » seul, aucun nom lisible", masked() and vt == "Agenda" and not re.search(r"Alpha|Beta|Gamma|Delta|Zeta|Un|Deux|Trois|Quatre", vt))
     pg.locator("#veil").tap(); w()
     jump(125000); pg.wait_for_timeout(1700)
     ok(tag + " 2 minutes simulées sur le Bilan : masqué tout seul, rien de lisible", masked() and pg.evaluate("document.getElementById('veil').innerText.trim()") == "Agenda")
@@ -318,11 +365,11 @@ with sync_playwright() as p:
     pd.locator('.nav button.t[data-t="bilan"]').tap(); pd.wait_for_timeout(400)
     ok(tag + " horloge simulée au mardi 27 octobre 2026 : le Bilan s'ouvre sur « octobre 2026 »", pd.locator("#bil-month").inner_text().lower() == "octobre 2026" and pd.evaluate("__ag.bilan.month") == "2026-10-01")
     pd.locator('[data-a="bview"][data-v="jj"]').tap(); pd.wait_for_timeout(400)
-    got = pd.evaluate("[...document.querySelectorAll('#jj-list .jjrow')].map(r=>[r.dataset.iso,r.querySelector('.jjday').textContent.trim(),[...r.querySelectorAll('.jjp')].map(s=>[s.children[0].textContent.trim(),s.querySelector('.jjw').textContent.trim()])])")
+    got = pd.evaluate("[...document.querySelectorAll('#jj-list .jjrow')].map(r=>[r.dataset.iso,r.querySelector('.jjday').textContent.trim(),[...r.querySelectorAll('.jjp')].map(s=>[s.querySelector('.name').textContent.trim(),s.querySelector('.jjw').textContent.trim()])])")
     byd = {g[0]: g for g in got}
     ok(tag + " octobre 2026 : les jours 24, 25 et 26 ont chacun UNE ligne, « sam 24 », « dim 25 », « lun 26 » (rien de sauté ni compté deux fois)", [byd[k][1] for k in ("2026-10-24", "2026-10-25", "2026-10-26")] == ["sam 24", "dim 25", "lun 26"] and len([g for g in got if g[0] in ("2026-10-24", "2026-10-25", "2026-10-26")]) == 3, [(g[0], g[1]) for g in got if "10-2" in g[0]])
-    ok(tag + " dimanche 25 : « Seul oui » (course faite, 8 h) puis « Tous oui » (15 h) ; lundi 26 : « Tous oui » seulement (« Seul » n'est prévu que le dimanche)", [tuple(x) for x in byd["2026-10-25"][2]] == [("Seul", "oui"), ("Tous", "oui")] and [tuple(x) for x in byd["2026-10-26"][2]] == [("Tous", "oui")], (byd["2026-10-25"], byd["2026-10-26"]))
-    ok(tag + " mardi 27 (jour courant) : « à faire » pour les cartes pas encore notées, pas compté dans « jours sans note »", byd["2026-10-27"][1] == "mar 27" and ("Tous", "à faire") in [tuple(x) for x in byd["2026-10-27"][2]])
+    ok(tag + " dimanche 25 : « Dimanche Seul oui » (course faite, 8 h) puis « Quotidien Tous oui » (15 h) ; lundi 26 : « Quotidien Tous oui » seulement (« Dimanche Seul » n'est prévu que le dimanche)", [tuple(x) for x in byd["2026-10-25"][2]] == [("Dimanche Seul", "oui"), ("Quotidien Tous", "oui")] and [tuple(x) for x in byd["2026-10-26"][2]] == [("Quotidien Tous", "oui")], (byd["2026-10-25"], byd["2026-10-26"]))
+    ok(tag + " mardi 27 (jour courant) : « à faire » pour les cartes pas encore notées, pas compté dans « jours sans note »", byd["2026-10-27"][1] == "mar 27" and ("Quotidien Tous", "à faire") in [tuple(x) for x in byd["2026-10-27"][2]])
     pd.locator('[data-a="bview"][data-v="tot"]').tap(); pd.wait_for_timeout(400)
     ok(tag + " Totaux d'octobre : 4 courses faites (3 de « Quotidien » + 1 de « Dimanche »), 5 km (3 x 1 + 2)", pd.locator("#bil-count").inner_text() == "4" and pd.locator("#bil-km").inner_text() == "5 km", (pd.locator("#bil-count").inner_text(), pd.locator("#bil-km").inner_text()))
     ok(tag + " aucune erreur JavaScript (changement d'heure)", not derrs, derrs)
