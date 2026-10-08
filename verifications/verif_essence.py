@@ -89,7 +89,7 @@ with sync_playwright() as p:
     essence(CM)
     ok(tag + " Essence vide : titre, mois en cours, 2 chevrons, « 0 plein », « Aucun plein noté ce mois-ci. »", txt("#s-essence h1") == "Essence" and month_now() == "%s %d" % (MOIS[CM.month - 1], CM.year) and pg.locator('[data-a="emonth"]').count() == 2 and txt("#fu-count") == "0" and "Aucun plein noté ce mois-ci." in txt("#fu-list"))
     ok(tag + " total vide : « 0,00 L » et « 0,00 € », jamais « inconnu » sans plein", txt("#fu-lit") == "0,00 L" and txt("#fu-eur") == "0,00 €", (txt("#fu-lit"), txt("#fu-eur")))
-    ok(tag + " la base est en structure 4 avec le magasin « fuel » et l'index « date »", pg.evaluate("""()=>new Promise(r=>{const q=indexedDB.open('agenda');q.onsuccess=()=>{const d=q.result;const t=d.transaction('fuel');r([d.version,[...d.objectStoreNames].includes('fuel'),[...t.objectStore('fuel').indexNames]]);d.close()}})""") == [4, True, ["date"]])
+    ok(tag + " la base est en structure 5 avec le magasin « fuel » et l'index « date »", pg.evaluate("""()=>new Promise(r=>{const q=indexedDB.open('agenda');q.onsuccess=()=>{const d=q.result;const t=d.transaction('fuel');r([d.version,[...d.objectStoreNames].includes('fuel'),[...t.objectStore('fuel').indexNames]]);d.close()}})""") == [5, True, ["date"]])
 
     # ---------- 2. ajout : deux chiffres remplis, le troisième se calcule ----------
     tap('[data-a="eday"][data-iso="%s"]' % TISO)

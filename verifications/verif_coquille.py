@@ -45,17 +45,17 @@ def version_in_file(root):
 
 
 # ================= 1. fichiers (sans navigateur) =================
-EXPECTED = {"garde.js", "app.js", "db.js", "rides.js", "fuel.js", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "manifest.json", "style.css", "sw.js", "version.js", "NOTES_AGENDA.md", ".gitignore"}
+EXPECTED = {"garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "manifest.json", "style.css", "sw.js", "version.js", "NOTES_AGENDA.md", ".gitignore"}
 present = {p.name for p in ROOT.iterdir() if p.is_file()}
-ok(tag + " fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)", present <= EXPECTED and {"index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"} <= present, sorted(present ^ EXPECTED))
-code = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon.svg")}
+ok(tag + " fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)", present <= EXPECTED and {"index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"} <= present, sorted(present ^ EXPECTED))
+code = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon.svg")}
 ext = [(n, u) for n, t in code.items() for u in re.findall(r"https?://[^\s\"')<>]+", t) if u != "http://www.w3.org/2000/svg"]
 ok(tag + " aucune adresse internet dans les fichiers (ni police, ni script, ni image externes)", not ext, ext)
 ok(tag + " aucun outil de construction ni bibliothèque : pas de package.json, pas de node_modules", not (ROOT / "package.json").exists() and not (ROOT / "node_modules").exists())
 ok(tag + " aucun import, require, fetch vers l'extérieur dans app.js, db.js et rides.js (JavaScript simple)", not re.search(r"\bimport\s|require\(|importScripts\(['\"]https?", code["app.js"] + code["db.js"] + code["rides.js"]))
 V = version_in_file(ROOT)
 STAMP = re.compile(r'^.*(AG_STAMPS|--ag-version|name="ag-version").*$', re.M)          # les tampons recopient le numéro (sync_version.py) : ce n'est pas une 2e source
-others = [n for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "icon.svg") if re.search(r"\b" + re.escape(V) + r"\b", STAMP.sub("", code[n]))]
+others = [n for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "icon.svg") if re.search(r"\b" + re.escape(V) + r"\b", STAMP.sub("", code[n]))]
 ok(tag + " numéro de version (%s) écrit à UN seul endroit : version.js (hors tampons recopiés par sync_version.py)" % V, not others and code["version.js"].count(V) == 1, others)
 names = []
 mq = ROOT.parent / "chauffeur" / "maquette.html"
@@ -65,7 +65,7 @@ if mq.exists():
 alltext = "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in ROOT.iterdir() if p.is_file() and p.suffix in (".js", ".html", ".css", ".json", ".md", ".svg")) + "\n" + "\n".join(p.read_text(encoding="utf-8") for p in HERE.glob("*.py") if p.name != pathlib.Path(__file__).name)
 hit = [n for n in names if re.search(r"\b" + re.escape(n) + r"\b", alltext)]
 ok(tag + " aucun nom de la maquette (%d noms comparés, lus dans la maquette au moment du test) dans les fichiers" % len(names), not hit and (names or True), hit)
-ok(tag + " aucun numéro de téléphone ni adresse en dur (téléphones à 10 chiffres, « rue », « avenue »)", not re.search(r"\b0[1-9](?:[ .]?\d{2}){4}\b|\b(?:rue|avenue|impasse|chemin) [A-Za-zÀ-ÿ]", "\n".join(code.values())), "")
+ok(tag + " aucun numéro de téléphone ni adresse en dur (téléphones à 10 chiffres, « rue », « avenue »)", not re.search(r"\b0[1-9](?:[ .]?\d{2}){4}\b|\b(?:rue|avenue|impasse|chemin) [A-Za-zÀ-ÿ]", "\n".join(v for k, v in code.items() if k != "mots.js")), "")
 man = json.loads(code["manifest.json"])
 ok(tag + " manifeste : nom et nom court « Agenda », démarrage ./, affichage autonome, couleurs, deux icônes", man.get("name") == "Agenda" and man.get("short_name") == "Agenda" and man.get("start_url") == "./" and man.get("display") == "standalone" and re.fullmatch(r"#[0-9A-Fa-f]{6}", man.get("theme_color", "")) and re.fullmatch(r"#[0-9A-Fa-f]{6}", man.get("background_color", "")) and [i["sizes"] for i in man.get("icons", [])] == ["192x192", "512x512"], man)
 
@@ -134,7 +134,7 @@ with sync_playwright() as p:
     # --- IndexedDB
     dbinfo = pg.evaluate("""async()=>{const d=await __ag.openDatabase(__ag.dbName,[{version:__ag.schemaTarget,up(){}}]);
       const o={v:d.version,stores:[...d.objectStoreNames].sort(),sv:await __ag.dbGet(d,'meta','schema_version'),created:await __ag.dbGet(d,'meta','created_at'),asked:await __ag.dbGet(d,'meta','persist_asked')};d.close();return o}""")
-    ok(tag + " IndexedDB « agenda » : structure n° 4, magasins « fuel », « meta », « persons », « rides » et « settings », numéro noté dans la base", dbinfo["v"] == 4 and dbinfo["stores"] == ["fuel", "meta", "persons", "rides", "settings"] and dbinfo["sv"] == 4 and dbinfo["created"] and dbinfo["asked"], dbinfo)
+    ok(tag + " IndexedDB « agenda » : structure n° 5, magasins « fuel », « meta », « persons », « rides », « safety » et « settings », numéro noté dans la base", dbinfo["v"] == 5 and dbinfo["stores"] == ["fuel", "meta", "persons", "rides", "safety", "settings"] and dbinfo["sv"] == 5 and dbinfo["created"] and dbinfo["asked"], dbinfo)
     mig = pg.evaluate("""async()=>{ const name='agenda-essai-migration';
       const del=()=>new Promise(r=>{const q=indexedDB.deleteDatabase(name);q.onsuccess=q.onerror=q.onblocked=()=>r()}); await del();
       const m1={version:1,up:(db,tx)=>{db.createObjectStore('meta',{keyPath:'key'});db.createObjectStore('a',{keyPath:'k'})}};
@@ -182,7 +182,7 @@ with sync_playwright() as p:
     goto("bilan"); tap('[data-a="reglages"]')
     ok(tag + " Bilan → « Réglages » : l'écran s'ouvre et l'onglet Bilan reste allumé", cur() == "reglages" and pg.locator('.nav button.t[aria-current="page"]').inner_text().strip() == "Bilan")
     ok(tag + " Réglages : numéro de version affiché = celui de version.js (%s)" % V, pg.locator("#rg-version").inner_text() == V)
-    ok(tag + " Réglages : structure des données n° 4", pg.locator("#rg-schema").inner_text() == "4")
+    ok(tag + " Réglages : structure des données n° 5", pg.locator("#rg-schema").inner_text() == "5")
     ok(tag + " Réglages : stockage persistant « accordé » (réponse simulée de Chrome)", pg.locator("#rg-persist").inner_text() == "accordé" and pg.locator("#rg-persist-btn").is_hidden(), pg.locator("#rg-persist").inner_text())
     ok(tag + " Réglages : masquage automatique 2 minutes par défaut, quatre choix", pg.locator('[data-a="idle"]').count() == 4 and pg.locator('[data-a="idle"][data-n="120"][aria-pressed="true"]').count() == 1 and [x.strip() for x in pg.locator('[data-a="idle"]').all_inner_texts()] == ["Jamais", "1 minute", "2 minutes", "10 minutes"])
     pg.screenshot(path=SHOTS + "/coquille_reglages_%dx%d_%s.png" % (W, H, SCHEME))
@@ -251,7 +251,7 @@ with sync_playwright() as p:
 
     # --- hors connexion
     caches = pg.evaluate("caches.keys().then(async ks=>({ks, n: ks.length? (await (await caches.open(ks[0])).keys()).length : 0}))")
-    ok(tag + " réserve du service worker « agenda-%s » : 12 fichiers gardés" % V, caches["ks"] == ["agenda-" + V] and caches["n"] == 12, caches)
+    ok(tag + " réserve du service worker « agenda-%s » : 14 fichiers gardés" % V, caches["ks"] == ["agenda-" + V] and caches["n"] == 14, caches)
     cx.set_offline(True)
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready", timeout=15000); pg.evaluate("window.__ag.ready"); pg.wait_for_timeout(300)
     ok(tag + " MODE AVION : l'appli s'ouvre (titre « Aujourd’hui », barre du bas)", pg.locator("#s-aujourdhui.on h1").inner_text() == "Aujourd’hui" and pg.locator(".nav button.t").count() == 4)
@@ -279,18 +279,18 @@ with sync_playwright() as p:
     # --- données plus récentes que l'appli : message, rien d'effacé
     b3, cx3 = new_context(p, SCHEME)
     pn = cx3.new_page(); pn.goto(BASE + "manifest.json")
-    pn.evaluate("""new Promise(r=>{const q=indexedDB.open('agenda',5);q.onupgradeneeded=()=>{const d=q.result;d.createObjectStore('meta',{keyPath:'key'});d.createObjectStore('futur',{keyPath:'k'})};
+    pn.evaluate("""new Promise(r=>{const q=indexedDB.open('agenda',9);q.onupgradeneeded=()=>{const d=q.result;d.createObjectStore('meta',{keyPath:'key'});d.createObjectStore('futur',{keyPath:'k'})};
       q.onsuccess=()=>{const t=q.result.transaction('futur','readwrite');t.objectStore('futur').put({k:'a',value:'précieux'});t.oncomplete=()=>{q.result.close();r()}}})""")
     pn.goto(BASE); pn.wait_for_timeout(800)
     ok(tag + " base d'une version plus récente : message « Données plus récentes que l’appli » affiché", pn.locator("#fatal.on").count() == 1 and "plus récentes" in pn.locator("#fatal-title").inner_text() + pn.locator("#fatal-text").inner_text() and "Rien n’a été effacé" in pn.locator("#fatal-text").inner_text())
     left = pn.evaluate("""new Promise(r=>{const q=indexedDB.open('agenda');q.onsuccess=()=>{const d=q.result,v=d.version,s=[...d.objectStoreNames];const g=d.transaction('futur').objectStore('futur').get('a');g.onsuccess=()=>{d.close();r({v,s,val:g.result&&g.result.value})}}})""")
-    ok(tag + " … et rien n'a été effacé ni modifié (base toujours en version 5, donnée « précieux » intacte)", left == {"v": 5, "s": ["futur", "meta"], "val": "précieux"}, left)
+    ok(tag + " … et rien n'a été effacé ni modifié (base toujours en version 9, donnée « précieux » intacte)", left == {"v": 9, "s": ["futur", "meta"], "val": "précieux"}, left)
     b3.close()
     srv.shutdown()
 
     # --- mise à jour proposée, jamais imposée
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="agenda_maj_"))
-    for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"): shutil.copy(ROOT / n, tmp / n)
+    for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"): shutil.copy(ROOT / n, tmp / n)
     srv2, B2 = serve(tmp)
     b4, cx4 = new_context(p, SCHEME)
     pu = cx4.new_page(); uerrs = []
@@ -319,7 +319,7 @@ with sync_playwright() as p:
     pu.locator('.nav button.t[data-t="bilan"]').tap(); pu.wait_for_timeout(250); pu.locator('[data-a="reglages"]').tap(); pu.wait_for_timeout(250)
     ks = pu.evaluate("caches.keys()")
     ok(tag + " « Mettre à jour » : l'appli se recharge et affiche la version 9.9.9, le message a disparu, l'ancienne réserve est effacée", pu.locator("#rg-version").inner_text() == "9.9.9" and pu.locator("#update").is_hidden() and ks == ["agenda-9.9.9"], (pu.locator("#rg-version").inner_text(), ks))
-    ok(tag + " les données restent après la mise à jour (même base, numéro de structure 4)", pu.locator("#rg-schema").inner_text() == "4")
+    ok(tag + " les données restent après la mise à jour (même base, numéro de structure 5)", pu.locator("#rg-schema").inner_text() == "5")
     ok(tag + " aucune erreur JavaScript pendant la mise à jour", not uerrs, uerrs)
     b4.close(); srv2.shutdown(); shutil.rmtree(tmp, ignore_errors=True)
 print("TOTAL", total, "ECHECS", fails)

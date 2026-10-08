@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.5.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.6.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la « garde ». Chargée AVANT le reste, elle ne dépend de rien d'autre.
    Elle sert à ne jamais laisser un écran figé sans explication :
    - elle note dans le journal de mise à jour (Réglages) toute erreur JavaScript non attrapée et toute promesse rejetée ;
@@ -9,7 +9,7 @@ self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.5.2'; /* numéro
 (function () {
 'use strict';
 var V = self.APP_VERSION || '?';
-var FILES = ['./', 'index.html', 'garde.js', 'db.js', 'rides.js', 'fuel.js', 'app.js', 'style.css', 'version.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+var FILES = ['./', 'index.html', 'garde.js', 'db.js', 'rides.js', 'fuel.js', 'mots.js', 'sauvegarde.js', 'app.js', 'style.css', 'version.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 var G = self.AGG = { pending: [], sink: null, shown: false, deferred: false, problemOn: false };
 
 /* ----- journal : avant que app.js soit prêt, les lignes attendent ici ; ensuite elles passent par app.js (logEvt) ----- */
@@ -75,7 +75,7 @@ function cssStamp() { try { return getComputedStyle(document.documentElement).ge
 function metaStamp() { var m = document.querySelector('meta[name="ag-version"]'); return m ? m.getAttribute('content') : ''; }
 G.mismatches = function () {
   var S = self.AG_STAMPS || {}, bad = [];
-  ['garde.js', 'db.js', 'rides.js', 'fuel.js', 'app.js'].forEach(function (n) { if (S[n] !== V) bad.push(n + ' ' + (S[n] || 'sans numéro')); });
+  ['garde.js', 'db.js', 'rides.js', 'fuel.js', 'mots.js', 'sauvegarde.js', 'app.js'].forEach(function (n) { if (S[n] !== V) bad.push(n + ' ' + (S[n] || 'sans numéro')); });
   var c = cssStamp(); if (c !== V) bad.push('style.css ' + (c || 'sans numéro'));
   var m = metaStamp(); if (m !== V) bad.push('index.html ' + (m || 'sans numéro'));
   return bad;

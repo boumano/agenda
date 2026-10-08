@@ -10,7 +10,7 @@
 importScripts('version.js');
 
 var CACHE = 'agenda-' + self.APP_VERSION;
-var FILES = ['./', 'index.html', 'garde.js', 'db.js', 'rides.js', 'fuel.js', 'app.js', 'style.css', 'version.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+var FILES = ['./', 'index.html', 'garde.js', 'db.js', 'rides.js', 'fuel.js', 'mots.js', 'sauvegarde.js', 'app.js', 'style.css', 'version.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 function abs(u) { return new URL(u, self.registration.scope).href; }
 
 self.addEventListener('install', function (e) {

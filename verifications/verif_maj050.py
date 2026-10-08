@@ -21,7 +21,7 @@ NEXT = "9.9.9"                                      # « version suivante » inv
 T = lambda x: x.replace("@CUR@", CUR).replace("@NEXT@", NEXT)
 OLD = "886bcbd"                                     # commit de la version 0.4.1
 fails = 0; total = 0
-NEW_FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+NEW_FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 OLD_FILES = ("index.html", "app.js", "db.js", "rides.js", "style.css", "sw.js", "manifest.json", "version.js")
 
 
@@ -106,7 +106,7 @@ with sync_playwright() as p:
     info0 = p1.evaluate(DB_INFO)
     p1.evaluate("""async([pp,rr])=>{ await AG.putPerson(pp); await AG.putSetting('idle_sec',600); await AG.putRide(rr) }""", [PERSON, RIDE])
     ok(tag + " version 0.4.1 : structure 3 (sans magasin des pleins), une personne, une course et un réglage de masquage (10 minutes) enregistrés", info0["v"] == 3 and info0["s"] == ["meta", "persons", "rides", "settings"] and info0["idx"] == ["date", "person_id"], info0)
-    for n in NEW_FILES: shutil.copy(ROOT / n, tmp / n)                   # « publication » de la version actuelle (@CUR@, structure 4)
+    for n in NEW_FILES: shutil.copy(ROOT / n, tmp / n)                   # « publication » de la version actuelle (@CUR@, structure 5)
     ok(tag + T(" « publication » de la version actuelle : version.js = @CUR@"), re.search(r"APP_VERSION\s*=\s*'([^']+)'", (tmp / "version.js").read_text(encoding="utf-8")).group(1) == CUR)
     found = ask_update(p1)
     p1.wait_for_timeout(800)
@@ -121,21 +121,21 @@ with sync_playwright() as p:
     p1.wait_for_timeout(5000)
     ok(tag + " … pas de boucle de rechargements (toujours un seul 5 s plus tard)", len(loads1) - n_before == 1, len(loads1) - n_before)
     p1.locator('.nav button.t[data-t="bilan"]').tap(); p1.wait_for_timeout(250); p1.locator('[data-a="reglages"]').tap(); p1.wait_for_timeout(500)
-    ok(tag + T(" Réglages : version @CUR@ et structure n° 4"), p1.locator("#rg-version").inner_text() == CUR and p1.locator("#rg-schema").inner_text() == "4", (p1.locator("#rg-version").inner_text(), p1.locator("#rg-schema").inner_text()))
+    ok(tag + T(" Réglages : version @CUR@ et structure n° 5"), p1.locator("#rg-version").inner_text() == CUR and p1.locator("#rg-schema").inner_text() == "5", (p1.locator("#rg-version").inner_text(), p1.locator("#rg-schema").inner_text()))
     info = p1.evaluate(DB_INFO)
-    ok(tag + " la base est en structure 4 : magasins gardés + « fuel » vide, courses toujours indexées par date ET par personne", info["v"] == 4 and info["s"] == ["fuel", "meta", "persons", "rides", "settings"] and info["idx"] == ["date", "person_id"] and info["fuel"] == 0, info)
+    ok(tag + " la base est en structure 5 : magasins gardés + « fuel » vide, courses toujours indexées par date ET par personne", info["v"] == 5 and info["s"] == ["fuel", "meta", "persons", "rides", "safety", "settings"] and info["idx"] == ["date", "person_id"] and info["fuel"] == 0, info)
     kept = p1.evaluate("""(async()=>({n:(await AG.allPersons()).length, id:(await AG.allPersons())[0].id, idle:await AG.getSetting('idle_sec'), rides:(await AG.allRides()).length}))()""")
     ok(tag + " personne, course et réglage de masquage (600) gardés, aucun plein inventé", kept == {"n": 1, "id": PERSON["id"], "idle": 600, "rides": 1}, kept)
     p2.wait_for_timeout(300)
     ok(tag + " la 2e page, restée ouverte en 0.4.1, a lâché sa connexion (elle n'a PAS bloqué) et l'explique : « Agenda a été mis à jour dans une autre fenêtre »", p2.locator("#fatal.on").count() == 1 and "autre fenêtre" in p2.locator("#fatal-title").inner_text(), p2.locator("#fatal-title").inner_text())
     # ----- journal
     jl = journal(p1); texts = [x["e"] for x in jl]
-    ok(tag + T(" journal : « Démarrage de la version @CUR@ », « Base ouverte (structure 4) »"), T("Démarrage de la version @CUR@") in texts and "Base ouverte (structure 4)" in texts, texts)
+    ok(tag + T(" journal : « Démarrage de la version @CUR@ », « Base ouverte (structure 5) »"), T("Démarrage de la version @CUR@") in texts and "Base ouverte (structure 5)" in texts, texts)
     def pos(x): return next((i for i, t in enumerate(texts) if t.startswith(x)), -1)
     ok(tag + " journal : « Nouvelle version prête », « Bouton « Mettre à jour » touché », « Nouveau service worker actif », « Rechargement de la page » (écrits AVANT le rechargement), dans cet ordre", 0 <= pos("Nouvelle version prête") < pos("Bouton « Mettre à jour » touché") < pos("Nouveau service worker actif") < pos("Rechargement de la page"), texts)
     ok(tag + " journal : « Écran affiché (menu prêt) » après le rechargement ; aucune ligne « Erreur » ni « Fichiers de versions différentes »", pos("Rechargement de la page") < pos("Écran affiché (menu prêt)") and pos("Erreur") < 0 and pos("Fichiers de versions différentes") < 0, texts)
     ok(tag + " journal : la 2e page a noté « Base fermée : une autre page demande une nouvelle structure » avant de lâcher sa connexion", pos("Base fermée : une autre page demande une nouvelle structure") >= 0, texts)
-    ok(tag + T(" journal : après le rechargement, « Démarrage de la version @CUR@ », « Structure des données mise à niveau : 3 → 4 » et « Version de l’appli passée de 0.4.1 à @CUR@ »"), pos(T("Démarrage de la version @CUR@")) > pos("Rechargement de la page") and pos("Structure des données mise à niveau : 3 → 4") >= 0 and pos(T("Version de l’appli passée de 0.4.1 à @CUR@")) >= 0, texts)
+    ok(tag + T(" journal : après le rechargement, « Démarrage de la version @CUR@ », « Structure des données mise à niveau : 3 → 5 » et « Version de l’appli passée de 0.4.1 à @CUR@ »"), pos(T("Démarrage de la version @CUR@")) > pos("Rechargement de la page") and pos("Structure des données mise à niveau : 3 → 5") >= 0 and pos(T("Version de l’appli passée de 0.4.1 à @CUR@")) >= 0, texts)
     ok(tag + " journal : chaque évènement a une heure (AAAA-MM-JJTHH:MM:SS) et le numéro de version de l'appli qui l'a écrit", all(re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d", x["t"]) and x["v"] for x in jl), jl[:2])
     li = p1.locator("#rg-log li")
     ok(tag + " Réglages : « Journal de mise à jour » affiche les évènements, le plus récent d'abord, avec heure (jj/mm hh:mm:ss) et version", li.count() == len(jl) and re.match(r"^\d\d/\d\d \d\d:\d\d:\d\d", li.first.locator("time").inner_text()) and li.first.locator(".v").inner_text() == CUR and p1.locator("#rg-log-empty").is_hidden(), (li.count(), len(jl)))

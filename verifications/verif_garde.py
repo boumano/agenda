@@ -13,7 +13,7 @@ from playwright.sync_api import sync_playwright
 
 W = int(os.environ.get("W", "390")); H = int(os.environ.get("H", "780")); SCHEME = os.environ.get("SCHEME", "dark")
 tag = "[%s %dx%d]" % (SCHEME, W, H)
-FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 CUR = re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1)
 fails = 0; total = 0
 
@@ -83,7 +83,7 @@ def vis(pg, sel): return pg.evaluate("s=>{const e=document.querySelector(s);if(!
 # ---------- 0. tampons : un numéro de version dans chaque fichier, égal à celui de version.js (sans navigateur)
 r = subprocess.run([sys.executable, str(HERE / "sync_version.py"), "--check"], capture_output=True, text=True, encoding="utf-8")
 ok(tag + " tampons de version : chaque fichier JavaScript, style.css et index.html portent le numéro de version.js (%s)" % CUR, r.returncode == 0, r.stdout + r.stderr)
-for f in ("garde.js", "db.js", "rides.js", "fuel.js", "app.js"):
+for f in ("garde.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "app.js"):
     t = (ROOT / f).read_text(encoding="utf-8")
     ok(tag + " %s : tampon en toute première ligne" % f, t.startswith("self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['%s']='%s';" % (f, CUR)), t[:100])
 

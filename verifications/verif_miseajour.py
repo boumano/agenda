@@ -2,7 +2,7 @@
 pendant que la nouvelle version veut mettre la structure des données à niveau.
 Vérifie : message « Fermez et rouvrez l'appli pour finir la mise à jour » (au lieu d'un écran muet) quand l'ouverture est bloquée, disparition toute seule
 quand le blocage se lève, même message si la base n'est pas prête après 5 secondes, lâcher de la connexion quand une autre page demande une nouvelle structure
-(versionchange), mise à jour avec migration réelle (structure 4 → 5 sur une copie d'essai) avec UNE seule page puis avec une AUTRE page encore ouverte,
+(versionchange), mise à jour avec migration réelle (structure 5 → 6 sur une copie d'essai) avec UNE seule page puis avec une AUTRE page encore ouverte,
 un seul rechargement après « Mettre à jour » (pas de boucle), aucune donnée perdue.
 Aucune donnée de personne : seulement des réglages d'essai. W et H par variables d'environnement (390 x 780 par défaut), SCHEME=dark (défaut) ou light."""
 import os, re, shutil, tempfile, threading, pathlib, http.server, functools
@@ -40,7 +40,7 @@ def serve(directory):
     return srv, "http://127.0.0.1:%d/" % srv.server_address[1]
 
 
-FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 
 
 def copy_app():
@@ -83,7 +83,7 @@ with sync_playwright() as p:
     page.wait_for_function("document.getElementById('fatal').classList.contains('on')===false", timeout=10000)
     page.evaluate("window.__ag.ready"); page.wait_for_timeout(300)
     info = page.evaluate(DB_INFO)
-    ok(tag + " dès que le blocage se lève : la mise à niveau se termine toute seule, le message disparaît, sans rien rouvrir", info["v"] == 4 and info["s"] == ["fuel", "meta", "persons", "rides", "settings"] and page.locator("#fatal.on").count() == 0, info)
+    ok(tag + " dès que le blocage se lève : la mise à niveau se termine toute seule, le message disparaît, sans rien rouvrir", info["v"] == 5 and info["s"] == ["fuel", "meta", "persons", "rides", "safety", "settings"] and page.locator("#fatal.on").count() == 0, info)
     ok(tag + " … les données d'avant sont gardées (réglage de masquage 1 minute), la barre du bas répond", page.evaluate("__ag.idle") == 60 and page.locator(".nav button.t").count() == 4 and (page.locator('.nav button.t[data-t="personnes"]').tap() or True) and page.evaluate("__ag.cur") == "personnes")
     ok(tag + " aucune erreur JavaScript (cas bloqué)", not errs, errs)
     b.close()
@@ -100,15 +100,15 @@ with sync_playwright() as p:
     b, cx = ctx_new(p)
     page = cx.new_page(); page.goto(BASE); page.wait_for_function("window.__ag"); page.evaluate("window.__ag.ready"); page.wait_for_timeout(300)
     other = cx.new_page(); other.goto(BASE + "manifest.json")
-    r = other.evaluate("""new Promise(r=>{const t0=Date.now();const q=indexedDB.open('agenda',5);q.onupgradeneeded=()=>{q.result.createObjectStore('futur',{keyPath:'k'})};
+    r = other.evaluate("""new Promise(r=>{const t0=Date.now();const q=indexedDB.open('agenda',9);q.onupgradeneeded=()=>{q.result.createObjectStore('futur',{keyPath:'k'})};
       let blocked=false;q.onblocked=()=>{blocked=true};q.onsuccess=()=>{const v=q.result.version;q.result.close();r({v,blocked,ms:Date.now()-t0})};q.onerror=()=>r({err:String(q.error)})})""")
-    ok(tag + " une autre page demande la structure 5 : l'appli ouverte lâche sa connexion, la demande n'est PAS bloquée (%s ms)" % r.get("ms"), r.get("v") == 5 and not r.get("blocked") and r.get("ms", 9999) < 3000, r)
+    ok(tag + " une autre page demande la structure 9 : l'appli ouverte lâche sa connexion, la demande n'est PAS bloquée (%s ms)" % r.get("ms"), r.get("v") == 9 and not r.get("blocked") and r.get("ms", 9999) < 3000, r)
     page.wait_for_timeout(300)
     ok(tag + " l'appli ouverte explique : « Agenda a été mis à jour dans une autre fenêtre » (rien d'effacé)", page.locator("#fatal.on").count() == 1 and "autre fenêtre" in page.locator("#fatal-title").inner_text() and "Rien n’a été effacé" in page.locator("#fatal-text").inner_text())
     b.close()
     srv.shutdown()
 
-    # ================= D. vraie mise à jour avec migration (structure 4 → 5 sur une copie d'essai) =================
+    # ================= D. vraie mise à jour avec migration (structure 5 → 6 sur une copie d'essai) =================
     tmp = copy_app(); srv2, B2 = serve(tmp)
     b, cx = ctx_new(p)
     p1 = cx.new_page(); nav1 = []; e1 = []
@@ -117,11 +117,11 @@ with sync_playwright() as p:
     p1.goto(B2); p1.wait_for_function("window.__ag"); p1.evaluate("window.__ag.ready")
     p1.wait_for_function("!!navigator.serviceWorker.controller"); p1.reload(); p1.wait_for_function("window.__ag"); p1.evaluate("window.__ag.ready"); p1.wait_for_timeout(500)
     p2 = cx.new_page(); p2.goto(B2); p2.wait_for_function("window.__ag"); p2.evaluate("window.__ag.ready"); p2.wait_for_timeout(300)   # une 2e page (autre onglet) reste ouverte
-    # « publication » : nouvelle version + nouvelle migration (3)
+    # « publication » : nouvelle version + nouvelle migration (6)
     dbjs = (tmp / "db.js").read_text(encoding="utf-8")
-    marker = "f.createIndex('date', 'date', { unique: false });\n  } }\n];"
+    marker = "db.createObjectStore('safety', { keyPath: 'key' });\n  } }\n];"
     assert dbjs.replace("\r\n", "\n").count(marker) == 1
-    (tmp / "db.js").write_text(dbjs.replace("\r\n", "\n").replace(marker, "f.createIndex('date', 'date', { unique: false });\n  } },\n  { version: 5, up: function (db, tx) { db.createObjectStore('extra', { keyPath: 'id' }); } }\n];"), encoding="utf-8")
+    (tmp / "db.js").write_text(dbjs.replace("\r\n", "\n").replace(marker, "db.createObjectStore('safety', { keyPath: 'key' });\n  } },\n  { version: 6, up: function (db, tx) { db.createObjectStore('extra', { keyPath: 'id' }); } }\n];"), encoding="utf-8")
     fausse_version(tmp, "9.9.9")
     p1.locator('.nav button.t[data-t="bilan"]').tap(); p1.wait_for_timeout(250); p1.locator('[data-a="reglages"]').tap(); p1.wait_for_timeout(250)
     for essai in range(4):          # une recherche déjà en cours au chargement peut absorber la première demande : on redemande
@@ -131,7 +131,7 @@ with sync_playwright() as p:
         except Exception:
             p1.wait_for_timeout(500)
     p1.wait_for_timeout(800)
-    ok(tag + " nouvelle version + nouvelle structure publiées : « Nouvelle version disponible » apparaît, la page ne se recharge pas toute seule", p1.locator("#update").is_visible() and len(nav1) == 2 and p1.locator("#rg-schema").inner_text() == "4", (len(nav1), p1.locator("#rg-schema").inner_text()))
+    ok(tag + " nouvelle version + nouvelle structure publiées : « Nouvelle version disponible » apparaît, la page ne se recharge pas toute seule", p1.locator("#update").is_visible() and len(nav1) == 2 and p1.locator("#rg-schema").inner_text() == "5", (len(nav1), p1.locator("#rg-schema").inner_text()))
     n_before = len(nav1)
     p1.evaluate("window.__marqueur=1")
     p1.locator('#update [data-a="applyupdate"]').tap()
@@ -142,9 +142,9 @@ with sync_playwright() as p:
     p1.wait_for_timeout(5000)
     ok(tag + " … toujours un seul rechargement 5 s plus tard", len(nav1) - n_before == 1, len(nav1) - n_before)
     p1.locator('.nav button.t[data-t="bilan"]').tap(); p1.wait_for_timeout(250); p1.locator('[data-a="reglages"]').tap(); p1.wait_for_timeout(250)
-    ok(tag + " migration réelle 4 → 5 faite malgré la 2e page ouverte : version 9.9.9, structure n° 5, aucun message de blocage", p1.locator("#rg-version").inner_text() == "9.9.9" and p1.locator("#rg-schema").inner_text() == "5" and p1.locator("#fatal.on").count() == 0, (p1.locator("#rg-version").inner_text(), p1.locator("#rg-schema").inner_text()))
+    ok(tag + " migration réelle 5 → 6 faite malgré la 2e page ouverte : version 9.9.9, structure n° 6, aucun message de blocage", p1.locator("#rg-version").inner_text() == "9.9.9" and p1.locator("#rg-schema").inner_text() == "6" and p1.locator("#fatal.on").count() == 0, (p1.locator("#rg-version").inner_text(), p1.locator("#rg-schema").inner_text()))
     info = p1.evaluate(DB_INFO)
-    ok(tag + " la base est bien en structure 5 avec le nouveau magasin, les anciens magasins gardés", info["v"] == 5 and info["s"] == ["extra", "fuel", "meta", "persons", "rides", "settings"], info)
+    ok(tag + " la base est bien en structure 6 avec le nouveau magasin, les anciens magasins gardés", info["v"] == 6 and info["s"] == ["extra", "fuel", "meta", "persons", "rides", "safety", "settings"], info)
     ok(tag + " la nouvelle page affiche son menu du bas et répond (4 onglets, un toucher change de page)", p1.locator(".nav button.t").count() == 4 and (p1.locator('.nav button.t[data-t="essence"]').tap() or True) and p1.evaluate("__ag.cur") == "essence")
     ok(tag + " la 2e page restée ouverte a lâché sa connexion et l'explique (« mis à jour dans une autre fenêtre »), sans bloquer", p2.locator("#fatal.on").count() == 1 and "autre fenêtre" in p2.locator("#fatal-title").inner_text())
     ok(tag + " aucune erreur JavaScript pendant la mise à jour avec migration", not e1, e1)

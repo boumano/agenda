@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['db.js']='0.5.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['db.js']='0.6.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la couche d'accès aux données. TOUT ce qui lit ou écrit dans IndexedDB passe par ici (un seul endroit).
    IndexedDB = la base de données intégrée à Chrome. Aucune donnée dans ce fichier : seulement la façon de les ranger.
 
@@ -33,6 +33,11 @@ var MIGRATIONS = [
     /* pleins d'essence : litres en millilitres, prix au litre en millièmes d'euro, montant en centimes (null = inconnu) ; index par date */
     var f = db.createObjectStore('fuel', { keyPath: 'id' });
     f.createIndex('date', 'date', { unique: false });
+  } },
+  { version: 5, up: function (db, tx) {
+    /* sauvegarde : « safety » = la copie de sécurité interne gardée avant une restauration (un seul niveau, clé 'current').
+       Le trousseau de chiffrement et la date du dernier export vont dans « meta » (déjà là). Rien d'existant ne bouge. */
+    db.createObjectStore('safety', { keyPath: 'key' });
   } }
 ];
 function latest(migrations) { return migrations[migrations.length - 1].version; }
@@ -177,10 +182,43 @@ function appendLogOn(d, entries) {
   });
 }
 
+/* ----- sauvegarde : lire tout, remplacer tout (en UNE transaction : tout ou rien), copie de sécurité ----- */
+function snapshotAll() {
+  var tx = db.transaction(['persons', 'rides', 'fuel', 'settings'], 'readonly'), out = {};
+  out.persons = req2p(tx.objectStore('persons').getAll()); out.rides = req2p(tx.objectStore('rides').getAll());
+  out.fuel = req2p(tx.objectStore('fuel').getAll()); out.settings = req2p(tx.objectStore('settings').getAll());
+  return Promise.all([out.persons, out.rides, out.fuel, out.settings]).then(function (r) { return { persons: r[0], rides: r[1], fuel: r[2], settings: r[3] }; });
+}
+/* data = { persons, rides, fuel, settings:[{key,value}] } ; metaPuts = { clé: valeur | undefined (undefined = effacer) } ;
+   opts.safetyPut = enregistrement à garder dans « safety » ; opts.safetyDelete = true pour l'effacer.
+   Le journal de mise à jour et les réglages techniques (meta) ne sont pas touchés, sauf ceux de metaPuts. */
+function replaceAll(data, metaPuts, opts) {
+  opts = opts || {};
+  return new Promise(function (resolve, reject) {
+    var tx = db.transaction(['persons', 'rides', 'fuel', 'settings', 'meta', 'safety'], 'readwrite');
+    try {
+      ['persons', 'rides', 'fuel', 'settings'].forEach(function (s) { tx.objectStore(s).clear(); });
+      data.persons.forEach(function (x) { tx.objectStore('persons').put(x); });
+      data.rides.forEach(function (x) { tx.objectStore('rides').put(x); });
+      data.fuel.forEach(function (x) { tx.objectStore('fuel').put(x); });
+      (data.settings || []).forEach(function (x) { tx.objectStore('settings').put(x); });
+      Object.keys(metaPuts || {}).forEach(function (k) {
+        if (metaPuts[k] === undefined) tx.objectStore('meta').delete(k); else tx.objectStore('meta').put({ key: k, value: metaPuts[k] });
+      });
+      if (opts.safetyPut) tx.objectStore('safety').put(opts.safetyPut);
+      if (opts.safetyDelete) tx.objectStore('safety').delete('current');
+    } catch (er) { try { tx.abort(); } catch (e2) { /* déjà terminée */ } reject(er); return; }       /* un enregistrement refusé : TOUT est annulé */
+    tx.oncomplete = function () { resolve(); };
+    tx.onerror = tx.onabort = function () { reject(tx.error || new Error('abort')); };
+  });
+}
+function getSafety() { return req2p(db.transaction('safety').objectStore('safety').get('current')); }
+function deleteSafety() { var tx = db.transaction('safety', 'readwrite'); tx.objectStore('safety').delete('current'); return done(tx); }
+
 self.AG = {
   DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init, closeDb: closeDb,
   dbGet: dbGet, dbPut: dbPut, getMeta: getMeta, putMeta: putMeta, getSetting: getSetting, putSetting: putSetting,
-  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allFuel: allFuel, fuelInRange: fuelInRange, putFuel: putFuel, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted,
+  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allFuel: allFuel, fuelInRange: fuelInRange, putFuel: putFuel, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted, snapshotAll: snapshotAll, replaceAll: replaceAll, getSafety: getSafety, deleteSafety: deleteSafety,
   get db() { return db; }, set onClosed(f) { onClosed = f; }, get schemaTarget() { return latest(MIGRATIONS); }
 };
 })();

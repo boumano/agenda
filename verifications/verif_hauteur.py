@@ -15,7 +15,7 @@ from playwright.sync_api import sync_playwright
 
 W = int(os.environ.get("W", "390")); H = int(os.environ.get("H", "780")); SCHEME = os.environ.get("SCHEME", "dark")
 tag = "[%s %dx%d]" % (SCHEME, W, H)
-FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 fails = 0; total = 0
 
 

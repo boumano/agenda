@@ -1,6 +1,6 @@
 # Agenda : notes (étapes 1 à 5)
 
-État au 7 octobre 2026 : **version 0.5.2, structure des données n° 4**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+État au 7 octobre 2026 : **version 0.6.0, structure des données n° 5**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
 Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 5.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
@@ -15,7 +15,7 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `fuel.js` | La **logique des pleins d'essence**, sans écran ni stockage : calcul du troisième chiffre, lecture « virgule ou point », 0 refusé, conversion en entiers (millilitres, millièmes d'euro, centimes), totaux du mois (valeurs inconnues comptées à part). |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.5.2`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.6.0`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
 | `garde.js` | La **garde**, chargée en premier : note dans le journal les erreurs JavaScript, vérifie que tous les fichiers sont de la même version, affiche « Un problème est survenu à l’affichage » + bouton « Recharger » au lieu d’un écran figé. |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
@@ -29,6 +29,9 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `verifications/verif_maj050.py` | Mise à jour **réelle** 0.4.1 → 0.5.0 (fichiers de l'ancienne version tirés de git, commit 886bcbd, structure 3 → 4, 2e page ouverte) et contenu du « Journal de mise à jour ». |
 | `verifications/verif_cache_coherent.py` | Cache cohérent après « Mettre à jour » (36) : octets de chaque fichier servi, réseau lent / coupé, 2e page, installation interrompue. `NEW_REF=HEAD` le rejoue sur une autre version publiée (preuve avant correction). |
 | `verifications/verif_garde.py` | La garde 0.5.1 (25) : tampons, « Écran affiché », erreurs, fichiers de versions différentes (un seul rechargement), message + bouton, écran masqué. |
+| `mots.js`, `sauvegarde.js` | La liste des 2048 mots de la phrase de récupération (fabriquée par `tools/generer_mots.py`) ; le moteur de chiffrement de la sauvegarde (WebCrypto, sans accès à la base). |
+| `tools/lire_export.py` | Script PC (Python 3 + `cryptography`) : lit un fichier `.agenda` avec la phrase et écrit un JSON lisible. |
+| `verifications/verif_sauvegarde.py` | Étape 6 (92) : liste de mots, tirage sans biais, premier export, exports suivants, contenu complet, Vérifier, Restaurer, Annuler, atomicité, migration, rappel de 7 jours, hors connexion, masquage, test croisé avec le script PC. |
 | `verifications/verif_hauteur.py` | Hauteur de la fenêtre (14) : le menu du bas reste entièrement visible quand la taille change après l'affichage, au démarrage, après rechargement ou « Mettre à jour », et quand la hauteur de `#app` est périmée. |
 | `verifications/sync_version.py`, `_outils.py` | Recopie le numéro de version dans les tampons ; outil commun des contrôles. |
 | `verifications/verif_publication.py` | À lancer après une publication : vérifie que le site répond et sert les bons fichiers (dont `version.js`). |
@@ -245,3 +248,39 @@ Hypothèse restante, **non vérifiable sur PC** : une erreur JavaScript ou un af
 - Pas de changement de structure des données.
 
 **Non testé** : le vrai Galaxy A12 (le défaut dépend de Chrome Android et de sa barre système). Si le menu redescend, la ligne « Mise en page » du journal donnera H, V et B.
+
+## Étape 6 : export chiffré, vérification, restauration (0.6.0, structure n° 5)
+
+**Où** : Réglages → « Sauvegarde et restauration » (écran `s-sauvegarde`), et ligne « Dernier export : il y a N jours » dans Réglages. Le Bilan affiche, discrètement et sans jamais bloquer, « Pas d’export depuis N jours » au-delà de 7 jours, ou « Pas encore d’export » s'il y a des données et aucun export.
+
+### Le schéma de chiffrement (en phrases simples)
+- Les données restent **non chiffrées sur le téléphone** (la protection est le verrou d'Android). **Seul le fichier d'export est chiffré.**
+- **La phrase** : 10 mots tirés au hasard dans une liste de **2048 mots** français (`mots.js`), avec `crypto.getRandomValues`. 2048 = 2^11 : on prend 16 bits au hasard et on garde les 11 derniers, donc chaque mot a exactement la même chance (vérifié : sur les 65 536 valeurs possibles, chaque mot sort 32 fois). Cela fait **110 bits** de hasard (le plan prévoyait 7 776 mots, ≈ 129 bits : la liste de 2048 mots est un choix de Pascal ; 110 bits restent hors de portée de toute devinette, grâce aussi à la lenteur voulue de PBKDF2). Aucun mot ne ressemble à un autre à une lettre près, aucun n'est le début d'un autre, aucun doublon même sans accents. La phrase est comparée sans accents, sans majuscules, espaces en trop ignorés.
+- **Pourquoi pas de phrase à chaque semaine** : le téléphone garde une **clé de données** (32 octets au hasard, AES-256-GCM) sous forme de **clé WebCrypto non extractible** : même le code de l'appli ne peut pas la relire, seulement s'en servir. À la création de la phrase, cette clé est **enveloppée** (chiffrée) par une clé fabriquée à partir de la phrase (**PBKDF2-SHA256, 600 000 tours**, sel de 16 octets au hasard). C'est cette « clé enveloppée » qui est gardée sur le téléphone et **recopiée dans chaque fichier**.
+- **Chaque export** chiffre le contenu avec la clé de données (**AES-GCM**, nouveau vecteur d'initialisation à chaque fois) : aucune phrase à retaper. **Pour restaurer sur n'importe quel téléphone** : le fichier + la phrase suffisent (phrase → clé d'enveloppe → clé de données → contenu). Après une restauration, le téléphone **adopte la clé du fichier** (sans la revoir) : l'export suivant se fait aussi sans phrase et s'ouvre avec la même phrase.
+- **La phrase n'est jamais enregistrée** : ni dans la base, ni dans le stockage du navigateur, ni dans le journal (vérifié). Elle n'existe en mémoire que le temps de l'afficher et de la confirmer.
+- Pas de « mieux que PBKDF2 hors bibliothèque » : WebCrypto n'offre que PBKDF2 (pas d'Argon2 sans bibliothèque). Le nombre de tours est écrit dans le fichier (on pourra l'augmenter plus tard sans casser les anciens fichiers).
+- **Authentification** : AES-GCM détecte toute modification (même un seul caractère). L'en-tête (format, structure, date) est lié au contenu (données associées) : changer la date de l'en-tête rend le fichier illisible.
+
+### Format du fichier `.agenda` (texte JSON ; nom `agenda-AAAA-MM-JJ-HHMM.agenda`, heure locale)
+`format` = « agenda-export » · `format_version` = 1 · `app_version` · `schema` (structure des données, ici 5) · `exported_at` (UTC, ISO) · `kdf` {`name` « PBKDF2-SHA256 », `iterations`, `salt` base 64} · `wrapped_key` {`iv`, `ct`} (clé de données enveloppée ; données associées « agenda-key|1 ») · `cipher` « AES-256-GCM » · `iv` · `ct` (contenu ; données associées « agenda-export|1|<structure>|<date> »).
+Le contenu déchiffré : `counts` {`persons`, `rides`, `fuel`} (comptes de contrôle) · `sha256` (empreinte du texte `data`) · `data` (texte JSON : `schema`, `persons` **y compris archivées**, `rides` **y compris corbeille**, `fuel` **y compris corbeille**, `settings`). Dates en texte, montants en centimes, comme dans la base. Aucun nom, adresse ni valeur n'est lisible dans le fichier brut (vérifié).
+
+### Comportements
+- **Premier export** : explication en phrases courtes → phrase affichée (10 mots numérotés) → « J'ai tout écrit » → confirmation de **2 mots demandés au hasard** (ex. n° 3 et n° 7) → seulement alors le trousseau est créé et le fichier produit. Mauvaise réponse (ou mot vide) : on **revoit la même phrase**, rien n'est créé.
+- **Masquage (œil ou automatique)** : la page de Sauvegarde est vidée ; la phrase est effacée de la mémoire et **ne revient pas** (retour à l'accueil, « recommencez », rien créé). Un résultat « Sauvegarde valide » ou un résumé de restauration ne revient pas non plus. Le fichier choisi (chiffré) et l'étape « taper la phrase » sont gardés (le champ est vidé), parce que le sélecteur de fichiers d'Android peut mettre l'appli en arrière-plan.
+- **« Dernier export »** n'est mis à jour qu'**après** avoir lancé le téléchargement (si le navigateur refuse, rien ne change). Le nombre de jours est calculé en **jours de calendrier** (le changement d'heure du 25 octobre 2026 ne décale rien : testé).
+- **Vérifier une sauvegarde** : fichier + phrase → « Sauvegarde valide : date, N personnes, N courses, N pleins », **sans rien modifier**. Messages simples : mauvaise phrase, fichier abîmé ou incomplet (un caractère modifié, tronqué, vide), pas une sauvegarde Agenda, format ou structure plus récents que l'appli (dit avant même de demander la phrase).
+- **Restaurer** : même vérification, puis résumé « dans le fichier / sur ce téléphone », confirmation « Cela remplace tout ce qui est sur ce téléphone ». Avant de remplacer, une **copie de sécurité interne** de l'état actuel est gardée (un seul niveau, magasin `safety`), 7 jours. **Atomique** : un seul passage dans la base (`replaceAll`) ; si un enregistrement est refusé, **tout est annulé** (testé : données, réglages et métadonnées inchangés). « Annuler la restauration » (avec confirmation : ce qui a été noté depuis est perdu) remet l'état d'avant, y compris l'ancien « dernier export » et l'ancienne clé ; « Garder définitivement » efface la copie ; après 7 jours elle disparaît seule. Une structure plus ancienne est **migrée** (`AGB.migrateData` : structure 3 → ajoute les pleins vides, 4 → 5 rien à changer). **Après restauration, « Dernier export » reste celui du fichier.**
+- **Migration de structure 4 → 5** (`db.js`) : crée le magasin `safety`. Le trousseau (`backup_key`) et la date (`last_export`) sont dans `meta`. Rien d'existant ne bouge (vérifié par la mise à jour 0.5.2 → 0.6.0 réelle dans `verif_maj*`).
+- Aucune requête réseau : tout (liste de mots, chiffrement) est dans le dépôt et marche hors connexion (testé en mode avion).
+
+### Script PC `tools/lire_export.py`
+Prérequis : Python 3 et `pip install cryptography`. Usage : `python tools/lire_export.py agenda-2026-10-25-0930.agenda` (la phrase est demandée sans s'afficher) ; option `-o contenu.json`. Il vérifie l'empreinte et les comptes puis écrit un JSON lisible (en-tête, comptes, `data`). **Ce JSON contient des données personnelles** : à ranger comme du papier sensible. Il ne modifie jamais le fichier `.agenda` et sert de base à l'archivage futur dans la base Python. Testé par `verif_sauvegarde.py` : un fichier produit par l'appli est déchiffré par le script, contenu identique à celui du téléphone ; mauvaise phrase et fichier modifié refusés.
+
+### Écarts et limites
+- Liste de **2048** mots (et non 7 776 comme dans le plan) : demande de Pascal ; phrase de 110 bits au lieu de ≈ 129.
+- Le nom du fichier est celui que propose le navigateur ; Chrome peut ajouter « (1) » si le nom existe déjà.
+- Le script PC ne verse pas encore dans `chauffeur.db` (ce sera l'étape suivante : `chauffeur_import.py`).
+- Comptes affichés = fichiers entiers, **corbeille comprise**.
+- Non testé : le sélecteur de fichiers d'Android réel, le dossier Téléchargements du Galaxy A12, le temps de calcul de PBKDF2 sur ce téléphone (600 000 tours : de l'ordre de la seconde, un message « Un instant… » s'affiche).

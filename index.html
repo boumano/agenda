@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="ag-version" content="0.5.2">
+<meta name="ag-version" content="0.6.0">
 <meta name="theme-color" content="#D6E4F2" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#123A5E" media="(prefers-color-scheme: dark)">
 <title>Agenda</title>
@@ -53,6 +53,7 @@
     <section class="screen" id="s-essence"></section>
     <section class="screen" id="s-fiche"></section>
     <section class="screen" id="s-calendrier"></section>
+    <section class="screen" id="s-sauvegarde"></section>
     <section class="screen" id="s-reglages">
       <header class="top"><div class="backrow"><button class="back" data-a="back"><svg class="i" aria-hidden="true"><use href="#i-left"/></svg>Retour</button><span class="tools"><button class="tool" data-a="hide" aria-label="Masquer l’écran"><svg class="i" aria-hidden="true"><use href="#i-eyeoff"/></svg></button></span></div><h1 style="margin-top:6px">Réglages</h1></header>
       <div class="content">
@@ -62,6 +63,11 @@
           <div class="list-item"><span>Structure des données</span><span class="val" id="rg-schema"></span></div>
           <div class="list-item"><span id="rg-update-txt">Cette version est la plus récente.</span></div>
           <button class="list-item" data-a="checkupdate"><span>Chercher une mise à jour</span></button>
+        </div>
+        <h2>Sauvegarde</h2>
+        <div class="card" style="padding-top:2px;padding-bottom:2px">
+          <div class="list-item"><span>Dernier export</span><span class="val" id="rg-lastexport">…</span></div>
+          <button class="list-item" data-a="opensave"><span>Sauvegarde et restauration</span></button>
         </div>
         <h2>Stockage</h2>
         <div class="card" id="rg-card-stock" style="padding-top:2px;padding-bottom:2px">
@@ -114,6 +120,8 @@
 <script src="db.js"></script>
 <script src="rides.js"></script>
 <script src="fuel.js"></script>
+<script src="mots.js"></script>
+<script src="sauvegarde.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
