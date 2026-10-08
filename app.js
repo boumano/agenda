@@ -1,3 +1,4 @@
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.5.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -8,6 +9,8 @@ function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
 var APP_VERSION = self.APP_VERSION || '?';
 var AG = self.AG, AGR = self.AGR, AGF = self.AGF;
+/* la garde (garde.js) : journal des erreurs, contrôle des versions, message d'affichage ; si elle manque, on continue sans elle */
+var AGG = self.AGG || { pending: [], sink: null, log: function () {}, caught: function () {}, problem: function () {}, unmasked: function () {}, displayed: function () {}, reload: function () { location.reload(); } };
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 function I(n, c) { return '<svg class="i ' + (c || '') + '" aria-hidden="true"><use href="#i-' + n + '"/></svg>'; }
 function norm(s) { return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
@@ -607,7 +610,8 @@ function renderCal() {
 }
 
 /* ========= Journal de mise à jour (les 20 derniers évènements, gardés dans la base) ========= */
-var evlog = [];
+var evlog = AGG.pending.splice(0);      /* lignes déjà notées par la garde avant que ce fichier démarre */
+AGG.sink = function (text) { return logEvt(text); };
 function logEvt(text, at) {
   evlog.push({ t: at || nowIso(), e: text, v: APP_VERSION });
   return flushLog();
@@ -864,7 +868,7 @@ function setIdle(n) {
 }
 
 /* ========= mises à jour (service worker) : jamais de rechargement automatique ========= */
-var swReg = null, updateReady = false, userAsked = false, reloading = false;
+var swReg = null, updateReady = false, userAsked = false, reloading = false, swActive = false, swControls = false, verifying = false;
 function showUpdate() { if (!updateReady) logEvt('Nouvelle version prête (en attente du toucher sur « Mettre à jour »)'); updateReady = true; $('#update').hidden = false; if (cur === 'reglages') refreshReglages(); }
 function watchWorker(reg) {
   swReg = reg;
@@ -882,7 +886,28 @@ function startWorker() {
   navigator.serviceWorker.addEventListener('controllerchange', function () {
     /* le nouveau service worker vient de prendre la main : on attend qu'il soit « activé » (voir applyUpdate) ; filet de sécurité de 3 s */
     logEvt('Changement de service worker (le nouveau prend la main)');
-    if (userAsked && !reloading) setTimeout(reloadOnce, 3000);
+    swControls = true; maybeReload();
+  });
+}
+/* On ne recharge que lorsque : Pascal a touché « Mettre à jour » ET le nouveau service worker est actif ET il contrôle cette page ET sa réserve
+   est vérifiée COMPLÈTE (il répond lui-même à la question). Jamais avant. */
+function maybeReload() {
+  if (!userAsked || reloading || verifying || !swActive || !swControls) return;
+  verifying = true;
+  verifyCache().then(function (r) {
+    if (r === null) { logEvt('Réserve non vérifiée (pas de réponse en 4 s) : rechargement quand même'); reloadOnce(); }
+    else if (r.ok) { logEvt('Réserve complète (version ' + r.version + ')'); reloadOnce(); }
+    else if (!reloading) { reloading = true; logEvt('Réserve incomplète (' + String(r.missing).slice(0, 60) + ') : rechargement en contournant les réserves'); AGG.reload(true); }
+  });
+}
+function verifyCache() {
+  return new Promise(function (resolve) {
+    var c = navigator.serviceWorker.controller, done = false;
+    var end = function (v) { if (!done) { done = true; resolve(v); } };
+    setTimeout(function () { end(null); }, 4000);
+    if (!c || !self.MessageChannel) { end(null); return; }
+    var ch = new MessageChannel(); ch.port1.onmessage = function (e) { end(e.data || null); };
+    c.postMessage({ type: 'VERIFY' }, [ch.port2]);
   });
 }
 /* Un seul rechargement, jamais de boucle, et seulement après « Mettre à jour » ET quand le nouveau service worker est actif.
@@ -895,7 +920,7 @@ function reloadOnce() {
 function applyUpdate() {
   var w = swReg && swReg.waiting; if (!w) return;
   userAsked = true; logEvt('Bouton « Mettre à jour » touché');
-  w.addEventListener('statechange', function () { if (w.state === 'activated') { logEvt('Nouveau service worker actif'); reloadOnce(); } });
+  w.addEventListener('statechange', function () { if (w.state === 'activated') { logEvt('Nouveau service worker actif'); swActive = true; maybeReload(); } });
   w.postMessage({ type: 'SKIP_WAITING' });
 }
 function checkUpdate() {
@@ -927,7 +952,7 @@ function mask() {
   veilEl.setAttribute('role', 'button'); veilEl.setAttribute('tabindex', '0'); veilEl.setAttribute('aria-label', 'Agenda masqué. Toucher pour rouvrir');
   veilOn = true; veilEl.classList.add('on'); setInert(true);
 }
-function unmask() { if (cur === 'essence') renderEssence(); veilOn = false; veilEl.classList.remove('on'); veilEl.innerHTML = ''; setInert(false); lastTouch = Date.now(); }
+function unmask() { if (cur === 'essence') renderEssence(); veilOn = false; veilEl.classList.remove('on'); veilEl.innerHTML = ''; setInert(false); lastTouch = Date.now(); AGG.unmasked(); }
 /* minuit passé : « Aujourd'hui » suit le calendrier (si on regardait le jour courant, on passe au nouveau jour) */
 var lastToday = todayISO();
 function dayRollover() {
@@ -1123,17 +1148,21 @@ var ready = AG.init({ onBlocked: showBlocked }).then(function () {
 }).then(function (list) {
   people = list; return AG.allRides();
 }).then(function (rs) {
-  rides = rs; renderPers(); renderAuj();
+  rides = rs;
+  [['renderPers', renderPers], ['renderAuj', renderAuj]].forEach(function (s) { try { s[1](); } catch (er) { AGG.caught(er, s[0]); } });      /* une partie qui échoue n'empêche pas le reste de s'afficher */
+  setTimeout(function () { AGG.displayed(); }, 60);
   return startupLog();
 }).then(function () {
   return firstLaunchStorage();
 }).then(function () { isReady = true; hideBlocked(); refreshReglages(); }, function (er) {
   isReady = true; hideBlocked();
-  if (er && er.code === 'newer') fatal('Données plus récentes que l’appli', 'Les données de ce téléphone ont été écrites par une version plus récente d’Agenda. Rien n’a été effacé. Ferme l’appli, rouvre-la avec internet pour la mettre à jour, puis réessaie.');
+  var dbError = er && (er.code || er.name === 'VersionError' || (self.DOMException && er instanceof DOMException));
+  if (!dbError) { AGG.caught(er, 'démarrage'); AGG.problem(); }       /* erreur de code (pas de stockage) : message simple avec bouton « Recharger » */
+  else if (er && er.code === 'newer') fatal('Données plus récentes que l’appli', 'Les données de ce téléphone ont été écrites par une version plus récente d’Agenda. Rien n’a été effacé. Ferme l’appli, rouvre-la avec internet pour la mettre à jour, puis réessaie.');
   else fatal('Stockage indisponible', 'Agenda ne peut pas ouvrir son stockage sur ce téléphone. Rien n’a été effacé. Ferme et rouvre l’appli ; si le message revient, ne saisis rien et préviens celui qui t’aide.');
 });
 
-go('aujourdhui');
+try { go('aujourdhui'); } catch (er) { AGG.caught(er, 'go'); }
 startWorker();
 
 /* lecture seule, pour les contrôles automatiques */

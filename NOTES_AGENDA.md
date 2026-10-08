@@ -1,6 +1,6 @@
 # Agenda : notes (étapes 1 à 5)
 
-État au 7 octobre 2026 : **version 0.5.0, structure des données n° 4**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+État au 7 octobre 2026 : **version 0.5.1, structure des données n° 4**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
 Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 5.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
@@ -15,7 +15,8 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `fuel.js` | La **logique des pleins d'essence**, sans écran ni stockage : calcul du troisième chiffre, lecture « virgule ou point », 0 refusé, conversion en entiers (millilitres, millièmes d'euro, centimes), totaux du mois (valeurs inconnues comptées à part). |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.5.0`). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.5.1`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
+| `garde.js` | La **garde**, chargée en premier : note dans le journal les erreurs JavaScript, vérifie que tous les fichiers sont de la même version, affiche « Un problème est survenu à l’affichage » + bouton « Recharger » au lieu d’un écran figé. |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
 | `verifications/verif_personnes.py` | Contrôles de l'étape 2 (140) : personnes, fiche, « Quand », « Quitter sans enregistrer ? », archivage, suppression, migration 1 → 2, masquage. |
@@ -26,6 +27,9 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `verifications/verif_bilan.py` | Étape 4, Bilan (75) : noms complets, personne touchable → calendrier, retour selon l'origine, totaux par mois et par personne, prix ou km inconnus, corbeille, « pas fait », cartes jamais touchées, jour par jour, archivée, « changé », 25 octobre 2026, masquage, hors connexion, 6 048 courses fictives (lecture par l'index, temps d'affichage), rien pour le père. |
 | `verifications/verif_essence.py` | Étape 5, page Essence : ajout, modification, corbeille + « Annuler », calculs, « inconnu » et totaux partiels, changement de mois, virgule / point, 0 refusé, quitter sans enregistrer, masquage (formulaire ouvert compris), persistance, hors connexion, 24-25-26 octobre 2026. |
 | `verifications/verif_maj050.py` | Mise à jour **réelle** 0.4.1 → 0.5.0 (fichiers de l'ancienne version tirés de git, commit 886bcbd, structure 3 → 4, 2e page ouverte) et contenu du « Journal de mise à jour ». |
+| `verifications/verif_cache_coherent.py` | Cache cohérent après « Mettre à jour » (36) : octets de chaque fichier servi, réseau lent / coupé, 2e page, installation interrompue. `NEW_REF=HEAD` le rejoue sur une autre version publiée (preuve avant correction). |
+| `verifications/verif_garde.py` | La garde 0.5.1 (25) : tampons, « Écran affiché », erreurs, fichiers de versions différentes (un seul rechargement), message + bouton, écran masqué. |
+| `verifications/sync_version.py`, `_outils.py` | Recopie le numéro de version dans les tampons ; outil commun des contrôles. |
 | `verifications/verif_publication.py` | À lancer après une publication : vérifie que le site répond et sert les bons fichiers (dont `version.js`). |
 
 Règles respectées : JavaScript simple, aucune bibliothèque, aucun outil de construction, **aucune ressource chargée depuis internet**. Le seul trafic réseau est le téléchargement des fichiers de l'appli.
@@ -202,3 +206,23 @@ Voir les étapes numérotées du rapport de l'étape 2.
 ### Ce qui n'est PAS testé (étape 5)
 - Les touchers réels sur le Galaxy A12 (clavier numérique réel, virgule du clavier du téléphone).
 - La mise à jour 0.4.1 → 0.5.0 sur le vrai téléphone (simulée sur le PC).
+
+## Correctif 0.5.1 : mise à jour « figée » (0.4.1 → 0.5.0 sur le vrai téléphone)
+
+**Constat** (Galaxy A12) : après « Mettre à jour », la page restait sur « Aujourd'hui » sans menu du bas ; tout redevenait normal après fermeture complète. Le journal montrait que la base s'était ouverte normalement (« Base ouverte (structure 4) »), donc le blocage venait après.
+
+**Cause : non reproduite telle quelle.** Dans le simulateur (Edge, vrais fichiers de 0.4.1, vrai service worker), la mise à jour réussit : menu présent, tous les fichiers servis sont ceux de la nouvelle version, y compris avec réseau lent (1,5 s par fichier ; 4 s sur `app.js`), réseau coupé juste après le toucher, 2e page ouverte. Aucune erreur JavaScript. Donc je ne peux pas dire que c'est LA cause sur le téléphone. Ce que j'ai **prouvé** (`verif_cache_coherent.py`, qui échoue sur le code de 0.5.0 et réussit sur 0.5.1) : un défaut du service worker qui permet précisément un mélange de fichiers de deux versions.
+- Le service worker de 0.5.0 téléchargeait les fichiers **un par un** dans la réserve `agenda-0.5.0`. Si l'installation était interrompue (réseau mobile capricieux), il restait une réserve **à moitié remplie** ;
+- et tout service worker de l'époque (0.4.1 comme 0.5.0) cherchait un fichier dans **toutes** les réserves, pas seulement la sienne. Une page encore en 0.4.1 pouvait donc recevoir `fuel.js` de la nouvelle version (vérifié : servi en code 200 alors qu'il n'existe pas en 0.4.1) ;
+- hypothèses écartées par la simulation : rechargement trop tôt (le rechargement attend déjà l'état « activé »), erreur de base (la base s'ouvrait), vieux fichier gardé par le navigateur (`cache: 'reload'`).
+Hypothèse restante, **non vérifiable sur PC** : une erreur JavaScript ou un affichage qui ne se fait pas sur le téléphone. C'est pour la voir que le journal reçoit de nouvelles lignes.
+
+**Ce qui change**
+- **Service worker (`sw.js`)** : installation « tout ou rien » (tous les fichiers sont téléchargés en mémoire et vérifiés, puis écrits d'un coup ; au moindre manque l'installation échoue et rien ne reste) ; ne sert **que sa propre réserve** ; efface les anciennes réserves seulement **après** avoir pris la main ; sait répondre à « ta réserve est-elle complète ? ».
+- **Rechargement (`app.js`)** : seulement quand le bouton a été touché ET le nouveau service worker est actif ET il contrôle la page ET sa réserve est vérifiée complète (ligne « Réserve complète » dans le journal). Une seule fois.
+- **Journal (20 lignes, gardé dans la base)** : « Écran affiché (menu prêt) » après le premier affichage réussi ; « Erreur : … » (court, au plus 3 par chargement) pour toute erreur non attrapée ou promesse rejetée ; « Fichiers de versions différentes : <liste> » (chaque fichier porte son numéro) ; « Écran pas affiché correctement » ou « … après 8 secondes ». Rien n'est visible hors Réglages.
+- **Version différente détectée au démarrage** : la page se recharge **une seule fois** en vidant les réserves de l'appli et en redemandant tous les fichiers au site (seulement si le site répond), le note, puis affiche le message si ça persiste.
+- **Premier affichage qui échoue** : le menu du bas et le reste s'affichent quand même ; message « Un problème est survenu à l’affichage. Touchez pour recharger » avec un bouton « Recharger » (qui contourne les réserves). Jamais affiché sous l'écran neutre : il attend le retour de l'écran.
+- Pas de changement de structure des données. Aucun écran ni design modifié (seul ajout : le bouton dans le message d'erreur déjà existant).
+
+**Limites** : la mise à jour 0.5.0 → 0.5.1 est lancée par le code de 0.5.0 déjà sur le téléphone (rechargement à l'état « activé », sans la vérification de réserve) ; les nouvelles protections de rechargement agiront à partir de la mise à jour suivante. Le service worker 0.5.1, lui, protège dès son installation. Non testé : le vrai Galaxy A12.

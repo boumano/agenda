@@ -10,6 +10,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 (HERE / "captures").mkdir(exist_ok=True)
 SHOTS = (HERE / "captures").as_posix()
+import sys; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _outils import fausse_version
 from playwright.sync_api import sync_playwright
 
 W = int(os.environ.get("W", "390")); H = int(os.environ.get("H", "780")); SCHEME = os.environ.get("SCHEME", "dark")
@@ -38,7 +40,7 @@ def serve(directory):
     return srv, "http://127.0.0.1:%d/" % srv.server_address[1]
 
 
-FILES = ("index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 
 
 def copy_app():
@@ -120,7 +122,7 @@ with sync_playwright() as p:
     marker = "f.createIndex('date', 'date', { unique: false });\n  } }\n];"
     assert dbjs.replace("\r\n", "\n").count(marker) == 1
     (tmp / "db.js").write_text(dbjs.replace("\r\n", "\n").replace(marker, "f.createIndex('date', 'date', { unique: false });\n  } },\n  { version: 5, up: function (db, tx) { db.createObjectStore('extra', { keyPath: 'id' }); } }\n];"), encoding="utf-8")
-    (tmp / "version.js").write_text("self.APP_VERSION = '9.9.9';\n", encoding="utf-8")
+    fausse_version(tmp, "9.9.9")
     p1.locator('.nav button.t[data-t="bilan"]').tap(); p1.wait_for_timeout(250); p1.locator('[data-a="reglages"]').tap(); p1.wait_for_timeout(250)
     for essai in range(4):          # une recherche déjà en cours au chargement peut absorber la première demande : on redemande
         p1.locator('[data-a="checkupdate"]').tap()

@@ -11,6 +11,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 (HERE / "captures").mkdir(exist_ok=True)
 SHOTS = (HERE / "captures").as_posix()
+import sys; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _outils import fausse_version
 from playwright.sync_api import sync_playwright
 
 W = int(os.environ.get("W", "390")); H = int(os.environ.get("H", "780")); SCHEME = os.environ.get("SCHEME", "dark")
@@ -43,17 +45,18 @@ def version_in_file(root):
 
 
 # ================= 1. fichiers (sans navigateur) =================
-EXPECTED = {"app.js", "db.js", "rides.js", "fuel.js", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "manifest.json", "style.css", "sw.js", "version.js", "NOTES_AGENDA.md", ".gitignore"}
+EXPECTED = {"garde.js", "app.js", "db.js", "rides.js", "fuel.js", "icon-192.png", "icon-512.png", "icon.svg", "index.html", "manifest.json", "style.css", "sw.js", "version.js", "NOTES_AGENDA.md", ".gitignore"}
 present = {p.name for p in ROOT.iterdir() if p.is_file()}
-ok(tag + " fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)", present <= EXPECTED and {"index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"} <= present, sorted(present ^ EXPECTED))
-code = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon.svg")}
+ok(tag + " fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)", present <= EXPECTED and {"index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"} <= present, sorted(present ^ EXPECTED))
+code = {n: (ROOT / n).read_text(encoding="utf-8") for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon.svg")}
 ext = [(n, u) for n, t in code.items() for u in re.findall(r"https?://[^\s\"')<>]+", t) if u != "http://www.w3.org/2000/svg"]
 ok(tag + " aucune adresse internet dans les fichiers (ni police, ni script, ni image externes)", not ext, ext)
 ok(tag + " aucun outil de construction ni bibliothèque : pas de package.json, pas de node_modules", not (ROOT / "package.json").exists() and not (ROOT / "node_modules").exists())
 ok(tag + " aucun import, require, fetch vers l'extérieur dans app.js, db.js et rides.js (JavaScript simple)", not re.search(r"\bimport\s|require\(|importScripts\(['\"]https?", code["app.js"] + code["db.js"] + code["rides.js"]))
 V = version_in_file(ROOT)
-others = [n for n in ("index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "icon.svg") if re.search(r"\b" + re.escape(V) + r"\b", code[n])]
-ok(tag + " numéro de version (%s) écrit à UN seul endroit : version.js" % V, not others and code["version.js"].count(V) == 1, others)
+STAMP = re.compile(r'^.*(AG_STAMPS|--ag-version|name="ag-version").*$', re.M)          # les tampons recopient le numéro (sync_version.py) : ce n'est pas une 2e source
+others = [n for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "icon.svg") if re.search(r"\b" + re.escape(V) + r"\b", STAMP.sub("", code[n]))]
+ok(tag + " numéro de version (%s) écrit à UN seul endroit : version.js (hors tampons recopiés par sync_version.py)" % V, not others and code["version.js"].count(V) == 1, others)
 names = []
 mq = ROOT.parent / "chauffeur" / "maquette.html"
 if mq.exists():
@@ -248,7 +251,7 @@ with sync_playwright() as p:
 
     # --- hors connexion
     caches = pg.evaluate("caches.keys().then(async ks=>({ks, n: ks.length? (await (await caches.open(ks[0])).keys()).length : 0}))")
-    ok(tag + " réserve du service worker « agenda-%s » : 11 fichiers gardés" % V, caches["ks"] == ["agenda-" + V] and caches["n"] == 11, caches)
+    ok(tag + " réserve du service worker « agenda-%s » : 12 fichiers gardés" % V, caches["ks"] == ["agenda-" + V] and caches["n"] == 12, caches)
     cx.set_offline(True)
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready", timeout=15000); pg.evaluate("window.__ag.ready"); pg.wait_for_timeout(300)
     ok(tag + " MODE AVION : l'appli s'ouvre (titre « Aujourd’hui », barre du bas)", pg.locator("#s-aujourdhui.on h1").inner_text() == "Aujourd’hui" and pg.locator(".nav button.t").count() == 4)
@@ -287,7 +290,7 @@ with sync_playwright() as p:
 
     # --- mise à jour proposée, jamais imposée
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="agenda_maj_"))
-    for n in ("index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"): shutil.copy(ROOT / n, tmp / n)
+    for n in ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png"): shutil.copy(ROOT / n, tmp / n)
     srv2, B2 = serve(tmp)
     b4, cx4 = new_context(p, SCHEME)
     pu = cx4.new_page(); uerrs = []
@@ -296,7 +299,7 @@ with sync_playwright() as p:
     pu.wait_for_function("!!navigator.serviceWorker.controller"); pu.reload(); pu.wait_for_function("window.__ag && window.__ag.ready"); pu.wait_for_timeout(400)
     pu.evaluate("window.__marqueur=1")
     pu.locator('.nav button.t[data-t="bilan"]').tap(); pu.wait_for_timeout(250); pu.locator('[data-a="reglages"]').tap(); pu.wait_for_timeout(250)
-    (tmp / "version.js").write_text("self.APP_VERSION = '9.9.9';\n", encoding="utf-8")        # « publication » d'une nouvelle version
+    fausse_version(tmp, "9.9.9")        # « publication » d'une nouvelle version
     pu.locator('[data-a="checkupdate"]').tap()
     try:
         pu.wait_for_function("document.getElementById('update').hidden===false", timeout=30000)

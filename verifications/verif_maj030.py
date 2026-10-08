@@ -10,6 +10,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 (HERE / "captures").mkdir(exist_ok=True)
 SHOTS = (HERE / "captures").as_posix()
+import sys; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _outils import fausse_version
 from playwright.sync_api import sync_playwright
 
 W = int(os.environ.get("W", "390")); H = int(os.environ.get("H", "780")); SCHEME = os.environ.get("SCHEME", "dark")
@@ -19,7 +21,7 @@ NEXT = "9.9.9"                                      # « version suivante » inv
 T = lambda x: x.replace("@CUR@", CUR).replace("@NEXT@", NEXT)
 OLD = "35b4c67"                                     # commit de la version 0.2.1
 fails = 0; total = 0
-NEW_FILES = ("index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+NEW_FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 OLD_FILES = ("index.html", "app.js", "db.js", "style.css", "sw.js", "manifest.json", "version.js")
 
 
@@ -147,7 +149,7 @@ with sync_playwright() as p:
     marker = "f.createIndex('date', 'date', { unique: false });\n  } }\n];"
     assert dbjs.count(marker) == 1
     (tmp / "db.js").write_text(dbjs.replace(marker, "f.createIndex('date', 'date', { unique: false });\n  } },\n  { version: 5, up: function (db, tx) { db.createObjectStore('extra', { keyPath: 'id' }); } }\n];"), encoding="utf-8")
-    (tmp / "version.js").write_text(T("self.APP_VERSION = '@NEXT@';\n"), encoding="utf-8")
+    fausse_version(tmp, NEXT)
     found = ask_update(q1); q1.wait_for_timeout(500)
     ok(tag + T(" @CUR@ → @NEXT@ : « Nouvelle version disponible » détectée"), found and q1.locator("#update").is_visible())
     n_before = len(loads)
@@ -162,6 +164,7 @@ with sync_playwright() as p:
     ok(tag + T(" la 2e page (@CUR@) a lâché sa connexion et l'explique"), q2.locator("#fatal.on").count() == 1 and "autre fenêtre" in q2.locator("#fatal-title").inner_text())
     jl = journal(q1); texts = [x["e"] for x in jl]
     def pos(s): return next((i for i, t in enumerate(texts) if t.startswith(s)), -1)
+    ok(tag + T(" journal (page @CUR@ qui lance la mise à jour) : « Réserve complète » vérifiée par le nouveau service worker, entre « Nouveau service worker actif » et « Rechargement de la page » ; puis « Écran affiché (menu prêt) », sans « Erreur » ni « Fichiers de versions différentes »"), 0 <= pos("Nouveau service worker actif") < pos("Réserve complète") < pos("Rechargement de la page") and "Écran affiché (menu prêt)" in texts[pos("Rechargement de la page"):] and pos("Erreur") < 0 and pos("Fichiers de versions différentes") < 0, texts)
     ok(tag + " journal : « Nouvelle version prête », « Bouton « Mettre à jour » touché », « Nouveau service worker actif », « Rechargement de la page » (écrits AVANT le rechargement)", all(pos(x) >= 0 for x in ["Nouvelle version prête", "Bouton « Mettre à jour » touché", "Nouveau service worker actif", "Rechargement de la page"]), texts)
     ok(tag + " journal : ces évènements sont dans l'ordre (prête < touché < actif < rechargement)", 0 <= pos("Nouvelle version prête") < pos("Bouton « Mettre à jour » touché") < pos("Nouveau service worker actif") < pos("Rechargement de la page"), texts)
     ok(tag + " journal : la 2e page a noté « Base fermée : une autre page demande une nouvelle structure » AVANT de lâcher sa connexion", pos("Base fermée : une autre page demande une nouvelle structure") >= 0, texts)

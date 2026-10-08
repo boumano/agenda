@@ -10,6 +10,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 (HERE / "captures").mkdir(exist_ok=True)
 SHOTS = (HERE / "captures").as_posix()
+import sys; sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from _outils import fausse_version
 from playwright.sync_api import sync_playwright
 
 W = int(os.environ.get("W", "390")); H = int(os.environ.get("H", "780")); SCHEME = os.environ.get("SCHEME", "dark")
@@ -19,7 +21,7 @@ NEXT = "9.9.9"                                      # « version suivante » inv
 T = lambda x: x.replace("@CUR@", CUR).replace("@NEXT@", NEXT)
 OLD = "886bcbd"                                     # commit de la version 0.4.1
 fails = 0; total = 0
-NEW_FILES = ("index.html", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
+NEW_FILES = ("index.html", "garde.js", "app.js", "db.js", "rides.js", "fuel.js", "style.css", "sw.js", "manifest.json", "version.js", "icon-192.png", "icon-512.png")
 OLD_FILES = ("index.html", "app.js", "db.js", "rides.js", "style.css", "sw.js", "manifest.json", "version.js")
 
 
@@ -131,6 +133,7 @@ with sync_playwright() as p:
     ok(tag + T(" journal : « Démarrage de la version @CUR@ », « Base ouverte (structure 4) »"), T("Démarrage de la version @CUR@") in texts and "Base ouverte (structure 4)" in texts, texts)
     def pos(x): return next((i for i, t in enumerate(texts) if t.startswith(x)), -1)
     ok(tag + " journal : « Nouvelle version prête », « Bouton « Mettre à jour » touché », « Nouveau service worker actif », « Rechargement de la page » (écrits AVANT le rechargement), dans cet ordre", 0 <= pos("Nouvelle version prête") < pos("Bouton « Mettre à jour » touché") < pos("Nouveau service worker actif") < pos("Rechargement de la page"), texts)
+    ok(tag + " journal : « Écran affiché (menu prêt) » après le rechargement ; aucune ligne « Erreur » ni « Fichiers de versions différentes »", pos("Rechargement de la page") < pos("Écran affiché (menu prêt)") and pos("Erreur") < 0 and pos("Fichiers de versions différentes") < 0, texts)
     ok(tag + " journal : la 2e page a noté « Base fermée : une autre page demande une nouvelle structure » avant de lâcher sa connexion", pos("Base fermée : une autre page demande une nouvelle structure") >= 0, texts)
     ok(tag + T(" journal : après le rechargement, « Démarrage de la version @CUR@ », « Structure des données mise à niveau : 3 → 4 » et « Version de l’appli passée de 0.4.1 à @CUR@ »"), pos(T("Démarrage de la version @CUR@")) > pos("Rechargement de la page") and pos("Structure des données mise à niveau : 3 → 4") >= 0 and pos(T("Version de l’appli passée de 0.4.1 à @CUR@")) >= 0, texts)
     ok(tag + " journal : chaque évènement a une heure (AAAA-MM-JJTHH:MM:SS) et le numéro de version de l'appli qui l'a écrit", all(re.match(r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d", x["t"]) and x["v"] for x in jl), jl[:2])

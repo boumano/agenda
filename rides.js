@@ -1,3 +1,4 @@
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.5.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des courses (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3) :
    - une « carte prévue » est CALCULÉE à partir des fiches (mode « Chaque semaine » avec « Du » / « Au », ou « Dates choisies ») ; elle n'est pas enregistrée ;
