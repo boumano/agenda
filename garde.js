@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.5.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.5.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la « garde ». Chargée AVANT le reste, elle ne dépend de rien d'autre.
    Elle sert à ne jamais laisser un écran figé sans explication :
    - elle note dans le journal de mise à jour (Réglages) toute erreur JavaScript non attrapée et toute promesse rejetée ;
@@ -94,10 +94,31 @@ G.checkVersions = function () {
 window.addEventListener('load', function () { G.checkVersions(); });
 
 /* ----- premier affichage : réussi, vide, ou jamais arrivé ----- */
+/* ----- mise en page : le bas du menu doit rester dans la zone visible ----- */
+/* #app est collé aux 4 bords de la fenêtre (CSS : position fixed, inset 0, aucune hauteur écrite). Filet de sécurité : si malgré tout le menu dépasse la zone
+   visible (Chrome Android peut garder une hauteur trop grande juste après un rechargement), on fixe la hauteur sur la zone visible et on la suit ensuite. */
+var fixedH = false, fixLogged = false;
+function visibleH() { return Math.round(window.visualViewport ? window.visualViewport.height : window.innerHeight); }
+function metrics() { var n = document.querySelector('.nav'); return { H: Math.round(window.innerHeight), V: visibleH(), B: n ? Math.round(n.getBoundingClientRect().bottom) : 0 }; }
+G.layoutText = function () { var m = metrics(); return 'fenêtre ' + m.H + ', visible ' + m.V + ', bas du menu ' + m.B; };
+G.layout = function () {
+  var app = document.getElementById('app'), n = document.querySelector('.nav'); if (!app || !n) return;
+  var a = document.activeElement, typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);        /* clavier ouvert : on laisse faire */
+  var m = metrics();
+  if (!fixedH && !typing && m.B > m.V + 1) {
+    fixedH = true;
+    if (!fixLogged) { fixLogged = true; G.log('Mise en page corrigée : ' + G.layoutText()); }
+  }
+  if (fixedH && !typing) app.style.setProperty('height', m.V + 'px', 'important');
+};
+['resize', 'orientationchange', 'pageshow', 'visibilitychange'].forEach(function (ev) { window.addEventListener(ev, function () { G.layout(); }); });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', function () { G.layout(); });
+document.addEventListener('DOMContentLoaded', function () { G.layout(); [300, 1000, 2000].forEach(function (ms) { setTimeout(G.layout, ms); }); });
+
 G.displayed = function () {
   var nav = document.querySelectorAll('.nav button.t').length, s = document.getElementById('s-aujourdhui'), r = document.querySelector('.nav');
   var okNav = nav === 4 && r && r.getBoundingClientRect().height > 10 && getComputedStyle(r).display !== 'none';
-  if (okNav && s && s.children.length > 0) { if (!G.shown) { G.shown = true; G.log('Écran affiché (menu prêt)'); } return true; }
+  if (okNav && s && s.children.length > 0) { if (!G.shown) { G.shown = true; G.log('Écran affiché (menu prêt)'); G.log('Mise en page : ' + G.layoutText()); } return true; }
   G.log('Écran pas affiché correctement : ' + (okNav ? 'écran vide' : 'menu du bas absent'));
   G.problem(); return false;
 };

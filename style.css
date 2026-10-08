@@ -1,4 +1,4 @@
-:root{--ag-version:"0.5.1"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+:root{--ag-version:"0.5.2"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
@@ -73,7 +73,7 @@ button{cursor:pointer;text-align:inherit}
 .sprite{position:absolute;width:0;height:0;overflow:hidden}
 
 /* ---------- coque de l'appli : zone d'écrans | message | barre du bas ---------- */
-#app{position:relative;height:100dvh;max-width:430px;margin:0 auto;display:flex;flex-direction:column;background:var(--page);overflow:hidden;overflow:clip}
+#app{position:fixed;inset:0;margin:0 auto;max-width:430px;display:flex;flex-direction:column;background:var(--page);overflow:hidden;overflow:clip}
 @media (min-width:431px){ #app{border-left:1px solid var(--line);border-right:1px solid var(--line)} }
 #views{position:relative;flex:1;min-height:0;overflow:hidden;overflow:clip;touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .screen{position:absolute;inset:0;display:none;flex-direction:column;background:var(--page);will-change:transform}

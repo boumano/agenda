@@ -1,6 +1,6 @@
 # Agenda : notes (étapes 1 à 5)
 
-État au 7 octobre 2026 : **version 0.5.1, structure des données n° 4**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+État au 7 octobre 2026 : **version 0.5.2, structure des données n° 4**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
 Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 5.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
@@ -15,7 +15,7 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `fuel.js` | La **logique des pleins d'essence**, sans écran ni stockage : calcul du troisième chiffre, lecture « virgule ou point », 0 refusé, conversion en entiers (millilitres, millièmes d'euro, centimes), totaux du mois (valeurs inconnues comptées à part). |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.5.1`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.5.2`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
 | `garde.js` | La **garde**, chargée en premier : note dans le journal les erreurs JavaScript, vérifie que tous les fichiers sont de la même version, affiche « Un problème est survenu à l’affichage » + bouton « Recharger » au lieu d’un écran figé. |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
@@ -29,6 +29,7 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `verifications/verif_maj050.py` | Mise à jour **réelle** 0.4.1 → 0.5.0 (fichiers de l'ancienne version tirés de git, commit 886bcbd, structure 3 → 4, 2e page ouverte) et contenu du « Journal de mise à jour ». |
 | `verifications/verif_cache_coherent.py` | Cache cohérent après « Mettre à jour » (36) : octets de chaque fichier servi, réseau lent / coupé, 2e page, installation interrompue. `NEW_REF=HEAD` le rejoue sur une autre version publiée (preuve avant correction). |
 | `verifications/verif_garde.py` | La garde 0.5.1 (25) : tampons, « Écran affiché », erreurs, fichiers de versions différentes (un seul rechargement), message + bouton, écran masqué. |
+| `verifications/verif_hauteur.py` | Hauteur de la fenêtre (14) : le menu du bas reste entièrement visible quand la taille change après l'affichage, au démarrage, après rechargement ou « Mettre à jour », et quand la hauteur de `#app` est périmée. |
 | `verifications/sync_version.py`, `_outils.py` | Recopie le numéro de version dans les tampons ; outil commun des contrôles. |
 | `verifications/verif_publication.py` | À lancer après une publication : vérifie que le site répond et sert les bons fichiers (dont `version.js`). |
 
@@ -226,3 +227,21 @@ Hypothèse restante, **non vérifiable sur PC** : une erreur JavaScript ou un af
 - Pas de changement de structure des données. Aucun écran ni design modifié (seul ajout : le bouton dans le message d'erreur déjà existant).
 
 **Limites** : la mise à jour 0.5.0 → 0.5.1 est lancée par le code de 0.5.0 déjà sur le téléphone (rechargement à l'état « activé », sans la vérification de réserve) ; les nouvelles protections de rechargement agiront à partir de la mise à jour suivante. Le service worker 0.5.1, lui, protège dès son installation. Non testé : le vrai Galaxy A12.
+
+## Correctif 0.5.2 : menu du bas poussé sous le bord visible après « Mettre à jour »
+
+**Constat** (Galaxy A12) : après 0.5.0 → 0.5.1, l'écran Aujourd'hui s'affiche mais le menu du bas est en bas, presque hors de l'écran, jusqu'à la fermeture complète de l'appli. Le journal est parfait (aucune erreur, « Écran affiché »), donc ce n'est ni la base ni les fichiers.
+
+**Ce que j'ai trouvé dans le code** (rien de calculé en JavaScript : aucun `innerHeight`, `visualViewport`, `100vh` ni variable de hauteur) :
+- `style.css`, règle `#app{position:relative;height:100dvh;…}` : **toute la hauteur de l'appli venait d'une seule unité CSS, `100dvh`**. Le menu du bas (`.nav`, dernier élément de la colonne `#app`, marge `env(safe-area-inset-bottom)`) est collé au bas de `#app` : si `100dvh` est trop grand, le menu descend d'autant sous le bord visible. `body{overflow:hidden}` empêche d'aller le chercher en défilant.
+- `index.html` : `viewport` avec `viewport-fit=cover`, sans `interactive-widget`. `manifest.json` : `display: standalone`, `orientation: portrait`.
+- **Cause probable** : juste après un rechargement déclenché par « Mettre à jour », Chrome Android calcule `100dvh` avant d'avoir appliqué la barre de navigation système, puis ne redéclenche pas la mise en page. Une réouverture complète recalcule tout, d'où le retour à la normale.
+- **Ce qui a pu être prouvé sur PC** : le simulateur recalcule `100dvh` tout seul quand la fenêtre change (tous les changements de taille passent déjà sur 0.5.1). Le défaut du téléphone (hauteur CSS qui reste périmée) n'est donc reproduit que par un essai qui **fige** la hauteur de `#app` : `verif_hauteur.py` échoue sur 0.5.1 pour ce cas (3 échecs : menu 90 px sous le bord visible, pas de ligne au journal) et réussit sur 0.5.2.
+
+**Ce qui change**
+- `#app` est maintenant `position:fixed; inset:0` (collé aux quatre bords de la fenêtre, **aucune hauteur écrite**), largeur max 430 px centrée comme avant. Le menu reste collé au bas, marge `safe-area` conservée. Aucun changement visible.
+- Filet de sécurité dans `garde.js` : si le bas du menu dépasse la zone visible (`visualViewport.height`, sinon `innerHeight`), la hauteur de `#app` est fixée sur la zone visible, puis suivie. Recalcul sur `resize`, `orientationchange`, `visualViewport.resize`, `pageshow`, `visibilitychange`, et à 300 ms, 1 s et 2 s après le démarrage. Pas de correction quand un champ de saisie est actif (clavier ouvert : comportement inchangé).
+- Journal : « Mise en page : fenêtre H, visible V, bas du menu B » juste après « Écran affiché (menu prêt) » ; « Mise en page corrigée : fenêtre H, visible V, bas du menu B » (une fois par chargement) si la correction a servi. Rien de visible hors Réglages.
+- Pas de changement de structure des données.
+
+**Non testé** : le vrai Galaxy A12 (le défaut dépend de Chrome Android et de sa barre système). Si le menu redescend, la ligne « Mise en page » du journal donnera H, V et B.
