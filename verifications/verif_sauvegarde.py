@@ -1,4 +1,4 @@
-"""Étape 6 : export chiffré, vérification, restauration (version 0.6.0). Noms et valeurs FICTIFS seulement.
+"""Étape 6 : export chiffré, vérification, restauration (version 0.6.1). Noms et valeurs FICTIFS seulement.
 Vérifie : liste de mots (2048, sans doublon ni mots trop proches), tirage sans biais, premier export (phrase, confirmation de 2 mots, mauvaise réponse, masquage avant
 confirmation), exports suivants sans phrase, contenu complet (archivées, corbeille), « Vérifier » (bonne / mauvaise phrase, 1 caractère modifié, tronqué, structure trop récente),
 « Restaurer » (remplacement complet, « Annuler la restauration », atomicité, migration d'une structure plus ancienne, expiration à 7 jours), « Dernier export » et rappel de 7 jours
@@ -217,12 +217,14 @@ with sync_playwright() as p:
     t1 = screen_text(pg)
     ok(tag + " … au retour la phrase NE REVIENT PAS : retour à l'accueil avec « recommencez »", " ".join(phrase1[:3]) not in t1 and pg.locator("#bk-words").count() == 0 and "recommencez" in t1 and vis(pg, '[data-a="bk-export"]'), t1[:200])
     ok(tag + " … et rien n'a été créé (ni trousseau, ni date d'export)", pg.evaluate(META) == {"last": None, "hasKey": False, "safety": False})
-    # masquage AUTOMATIQUE pendant la saisie de confirmation
+    # plus de 10 minutes sur l'écran de la phrase : elle est effacée (le détail des 10 minutes est dans verif_phrase.py)
     tap(pg, "bk-export"); tap(pg, "bk-show"); phrase2 = pg.evaluate("__ag.bk.phrase"); tap(pg, "bk-written")
-    pg.evaluate("window.__off += 700000"); pg.wait_for_function("__ag.masked", timeout=6000); pg.wait_for_timeout(200)
-    ok(tag + " masquage automatique à l'étape de confirmation : page vidée, phrase effacée", pg.evaluate("document.getElementById('s-sauvegarde').innerHTML") == "" and pg.evaluate("__ag.bk.hasPhrase") is False)
-    pg.evaluate("window.__off -= 700000"); unmask(pg)
-    ok(tag + " … retour à l'accueil, aucune trace de la phrase, rien créé", " ".join(phrase2[:3]) not in screen_text(pg) and pg.locator("#bk-words").count() == 0 and pg.evaluate(META)["hasKey"] is False)
+    pg.evaluate("window.__off += 700000"); pg.wait_for_function("__ag.bk.hasPhrase===false", timeout=6000); pg.wait_for_timeout(200)
+    ok(tag + " au-delà de 10 minutes à l'étape de confirmation : phrase effacée, message simple", pg.evaluate("__ag.bk.hasPhrase") is False and "Pour votre sécurité" in screen_text(pg) and " ".join(phrase2[:3]) not in screen_text(pg))
+    pg.evaluate("window.__off -= 700000"); pg.wait_for_timeout(1500)
+    if pg.evaluate("__ag.masked"): unmask(pg)
+    ok(tag + " … aucune trace de la phrase, rien créé", " ".join(phrase2[:3]) not in screen_text(pg) and pg.locator("#bk-words").count() == 0 and pg.evaluate(META)["hasKey"] is False)
+    if pg.locator('[data-a="bk-cancel"]').count(): tap(pg, "bk-cancel")
     # mauvaise réponse : on recommence avec la MÊME phrase
     tap(pg, "bk-export"); tap(pg, "bk-show"); phrase3 = pg.evaluate("__ag.bk.phrase"); tap(pg, "bk-written")
     a, bq = pg.evaluate("__ag.bk.ask")
@@ -250,7 +252,7 @@ with sync_playwright() as p:
     ok(tag + " la phrase n'est écrite nulle part sur le téléphone (ni base, ni stockage du navigateur)", not pg.evaluate("""(async()=>{ const ph=%s; const s=JSON.stringify(await AG.snapshotAll())+JSON.stringify(Object.assign({},localStorage))+JSON.stringify(Object.assign({},sessionStorage))+JSON.stringify([await AG.getMeta('last_export'), await AG.getMeta('update_log')]); return ph.some(w=>s.includes(w)) })()""" % json.dumps(phrase3)))
     # le fichier
     hdr = json.loads(text1)
-    ok(tag + " fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours", hdr["format"] == "agenda-export" and hdr["format_version"] == 1 and hdr["app_version"] == "0.6.0" and hdr["schema"] == 5 and hdr["kdf"]["iterations"] == 600000 and hdr["exported_at"].startswith("2026-10-20T08:") and hdr["cipher"] == "AES-256-GCM", {k: hdr[k] for k in hdr if k not in ("ct", "iv", "kdf", "wrapped_key")})
+    ok(tag + " fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours", hdr["format"] == "agenda-export" and hdr["format_version"] == 1 and hdr["app_version"] == "0.6.1" and hdr["schema"] == 5 and hdr["kdf"]["iterations"] == 600000 and hdr["exported_at"].startswith("2026-10-20T08:") and hdr["cipher"] == "AES-256-GCM", {k: hdr[k] for k in hdr if k not in ("ct", "iv", "kdf", "wrapped_key")})
     leaks = [m for m in MARKERS if m in text1]
     ok(tag + " AUCUN nom, adresse, téléphone ni autre valeur de test lisible en clair dans le fichier brut", not leaks and not re.search(r"persons|rides|fuel|price_cents|last_name|Imaginaire", text1), leaks)
     ok(tag + " … le fichier est du texte JSON ordinaire (pas de données binaires brutes)", text1.isascii())

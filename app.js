@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -850,7 +850,8 @@ function fuelDelete(id) {
    (phrase, résumés, noms de fichiers) est effacé de la page et ne revient pas : on recommence l'étape. */
 var BK_SAFETY_DAYS = 7, BK_REMIND_DAYS = 7;
 var lastExport = null;            /* { at, date } du dernier export (ou du fichier restauré), ou null */
-var bk = { step: 'home', phrase: null, ask: null, text: null, header: null, mode: null, opened: null, msg: '', msgKind: '', safety: null, tok: 0 };
+var BK_PHRASE_MS = 600000;      /* la phrase affichée reste en mémoire 10 minutes au plus */
+var bk = { step: 'home', phrase: null, until: 0, renew: false, hasKey: false, ask: null, text: null, header: null, mode: null, opened: null, msg: '', msgKind: '', safety: null, tok: 0 };
 var fmtFull = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 var fmtShort = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
 
@@ -872,13 +873,13 @@ function exportReminderHTML() {
   return n > BK_REMIND_DAYS ? '<p class="note" id="bil-export">Pas d’export depuis ' + n + ' jours</p>' : '';
 }
 function bkInit() {
-  return Promise.all([AG.getMeta('last_export'), AG.getSafety()]).then(function (r) {
-    lastExport = r[0] || null; bk.safety = r[1] || null;
+  return Promise.all([AG.getMeta('last_export'), AG.getSafety(), AG.getMeta('backup_key')]).then(function (r) {
+    lastExport = r[0] || null; bk.safety = r[1] || null; bk.hasKey = !!r[2];
     if (bk.safety && Date.parse(bk.safety.expires_at) < Date.now()) { bk.safety = null; return AG.deleteSafety(); }      /* au-delà de 7 jours : la copie de sécurité disparaît */
   });
 }
 function bkReset(msg, kind) {
-  bk.tok++; bk.step = 'home'; bk.phrase = null; bk.ask = null; bk.text = null; bk.header = null; bk.mode = null; bk.opened = null; bk.msg = msg || ''; bk.msgKind = kind || '';
+  bk.tok++; bk.step = 'home'; bk.phrase = null; bk.until = 0; bk.renew = false; bk.ask = null; bk.text = null; bk.header = null; bk.mode = null; bk.opened = null; bk.msg = msg || ''; bk.msgKind = kind || '';
 }
 function bkErr(er) {
   var c = er && er.code, m = {
@@ -909,23 +910,36 @@ function bkBody() {
       h += '<div class="card" id="bk-safety"><p class="note" style="padding:0">Restauration du ' + esc(fmtShort.format(new Date(bk.safety.at))) + ' : vous pouvez l’annuler jusqu’au ' + esc(fmtShort.format(new Date(bk.safety.expires_at))) + '. Une copie de ce qu’il y avait avant est gardée sur ce téléphone.</p>' +
         bkBtn('strong', 'bk-undo', 'Annuler la restauration') + bkBtn('line', 'bk-keep', 'Garder définitivement') + '</div>';
     }
-    h += bkBtn('main', 'bk-export', 'Exporter vers mon PC') + bkBtn('soft', 'bk-verify', 'Vérifier une sauvegarde') + bkBtn('soft', 'bk-restore', 'Restaurer depuis une sauvegarde') +
+    if (!bk.hasKey) h += '<p class="note" id="bk-paper">Avant de commencer : prenez un papier et un stylo. Vous avez 10 minutes.</p>';
+    h += bkBtn('main', 'bk-export', 'Exporter vers mon PC') + bkBtn('soft', 'bk-verify', 'Vérifier une sauvegarde') + bkBtn('soft', 'bk-restore', 'Restaurer depuis une sauvegarde') + (bk.hasKey ? bkBtn('line', 'bk-renew', 'Créer une nouvelle phrase') : '') +
       '<p class="note">Le fichier de sauvegarde est chiffré : seul quelqu’un qui a la phrase de récupération peut l’ouvrir. Il est rangé dans le dossier Téléchargements du téléphone. Copiez-le sur le PC par câble, puis effacez-le du téléphone.</p>';
   } else if (s === 'explain') {
-    h = '<h2>Votre phrase de récupération</h2><div class="card"><p class="note" style="padding:0">Pour protéger vos sauvegardes, Agenda va créer une phrase de 10 mots.</p>' +
-      '<p class="note" style="padding:0;margin-top:8px">Elle sert à ouvrir un fichier de sauvegarde, sur le PC ou sur un autre téléphone.</p>' +
-      '<p class="note" style="padding:0;margin-top:8px"><b>Elle ne s’affiche qu’une seule fois.</b> Écrivez-la sur papier, dans l’ordre. Ne la photographiez pas, ne l’enregistrez pas dans le téléphone.</p>' +
-      '<p class="note" style="padding:0;margin-top:8px">Si vous perdez la phrase ET le téléphone, les sauvegardes ne pourront plus être ouvertes.</p></div>' +
+    h = bkBox() + '<h2>' + (bk.renew ? 'Nouvelle phrase de récupération' : 'Votre phrase de récupération') + '</h2>';
+    if (bk.renew) {
+      h += '<div class="card"><p class="note" style="padding:0">Agenda va créer une nouvelle phrase de 10 mots.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px">L’ancienne phrase ne servira plus qu’à ouvrir les fichiers déjà exportés avec elle.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px">Les prochains exports utiliseront la nouvelle phrase.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px">Il vaut mieux faire un export tout de suite après.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px"><b>Elle ne s’affiche qu’une seule fois.</b> Écrivez-la sur papier, dans l’ordre.</p></div>';
+    } else {
+      h += '<div class="card"><p class="note" style="padding:0">Pour protéger vos sauvegardes, Agenda va créer une phrase de 10 mots.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px">Elle sert à ouvrir un fichier de sauvegarde, sur le PC ou sur un autre téléphone.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px"><b>Elle ne s’affiche qu’une seule fois.</b> Écrivez-la sur papier, dans l’ordre. Ne la photographiez pas, ne l’enregistrez pas dans le téléphone.</p>' +
+        '<p class="note" style="padding:0;margin-top:8px">Si vous perdez la phrase ET le téléphone, les sauvegardes ne pourront plus être ouvertes.</p></div>';
+    }
+    h += '<p class="note" id="bk-paper"><b>Avant de commencer : prenez un papier et un stylo. Vous avez 10 minutes.</b></p>' +
       bkBtn('main', 'bk-show', 'Afficher la phrase') + bkBtn('line', 'bk-cancel', 'Annuler');
   } else if (s === 'phrase') {
     h = bkBox() + '<h2>Votre phrase</h2><div class="card"><ol class="words" id="bk-words">' + bk.phrase.map(function (w, i) { return '<li><span class="n">' + (i + 1) + '</span><span class="w">' + esc(w) + '</span></li>'; }).join('') + '</ol></div>' +
-      '<p class="note">Écrivez les 10 mots sur papier, dans l’ordre. Si l’écran se masque, la phrase disparaît et il faudra recommencer.</p>' +
+      '<p class="note">Écrivez les 10 mots sur papier, dans l’ordre, sans vous presser. Si vous changez d’application puis revenez, la même phrase est là. L’œil l’efface pour de bon.</p>' + bkCountHTML() +
       bkBtn('main', 'bk-written', 'J’ai tout écrit') + bkBtn('line', 'bk-cancel', 'Annuler');
   } else if (s === 'confirm') {
     h = '<h2>Vérification</h2><p class="note">Recopiez depuis votre papier les deux mots demandés.</p><div class="card">' +
       '<div class="field"><label for="bk-w1">Mot n° ' + bk.ask[0] + '</label><input class="input" id="bk-w1" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div>' +
       '<div class="field"><label for="bk-w2">Mot n° ' + bk.ask[1] + '</label><input class="input" id="bk-w2" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div></div>' +
-      bkBtn('main', 'bk-confirm', 'Continuer') + bkBtn('line', 'bk-review', 'Revoir la phrase');
+      bkCountHTML() + bkBtn('main', 'bk-confirm', 'Continuer') + bkBtn('line', 'bk-review', 'Revoir la phrase');
+  } else if (s === 'renewed') {
+    h = bkBox() + bkBtn('main', 'bk-export', 'Exporter maintenant') + bkBtn('line', 'bk-cancel', 'Plus tard');
   } else if (s === 'busy') {
     h = '<div class="card empty" role="status" id="bk-busy">Un instant…</div>';
   } else if (s === 'pick') {
@@ -959,16 +973,37 @@ function bkBack() {
   if (bk.step !== 'home') { bkReset(); renderSave(); } else { bkReset(); go('reglages'); }
 }
 /* masquage : on efface la page. La phrase affichée ne revient JAMAIS ; un résultat déchiffré non plus. Un fichier choisi (chiffré) ou l'étape de saisie sont gardés. */
-function bkOnMask() {
+function bkOnMask(eye) {
   var s = bk.step;
+  if (!eye && bkPhraseLive() && bk.until - Date.now() > 0) {      /* masquage automatique ou retour d'une autre appli : la phrase reste en mémoire, l'écran est vidé */
+    bk.msg = ''; if (cur === 'sauvegarde') $('#s-sauvegarde').innerHTML = ''; return;
+  }
   if (confirmCtx && (confirmCtx.kind === 'restore' || confirmCtx.kind === 'undorestore')) closeConfirm();
   if (s === 'explain' || s === 'phrase' || s === 'confirm') {
     bkReset('Le masquage a interrompu la création de la phrase. Rien n’a été enregistré : recommencez.', 'info');
   } else if (s === 'result' || s === 'summary') {
     bkReset('Le masquage a fermé l’affichage de la sauvegarde. Rien n’a été modifié.', 'info');
   } else { bk.msg = ''; }                      /* saisie, choix du fichier, accueil : on garde l'étape (le champ de la phrase est vidé avec la page) */
-  bk.phrase = null;
+  bk.phrase = null; bk.until = 0;
   if (cur === 'sauvegarde') $('#s-sauvegarde').innerHTML = '';
+}
+/* La phrase affichée : en mémoire de la page seulement, 10 minutes au plus (comparaison d'horodatages). */
+function bkPhraseLive() { return !!bk.phrase && (bk.step === 'phrase' || bk.step === 'confirm'); }
+function bkMinLeft() { return Math.max(1, Math.ceil((bk.until - Date.now()) / 60000)); }
+function bkCountText() { return 'Cette phrase reste affichée encore ' + bkMinLeft() + ' min'; }
+function bkCountHTML() { return '<p class="note" id="bk-count">' + bkCountText() + '</p>'; }
+/* appelé chaque seconde (même écran masqué) : au-delà de 10 minutes (ou si l'horloge a reculé), la phrase est effacée */
+function bkExpire() {
+  if (!bkPhraseLive()) return;
+  var d = bk.until - Date.now();
+  if (d > 0 && d <= BK_PHRASE_MS + 2000) {
+    var c = $('#bk-count'); if (c && !veilOn) { var tx = bkCountText(); if (c.textContent !== tx) c.textContent = tx; }
+    return;
+  }
+  var renew = bk.renew;
+  bkReset('Pour votre sécurité, la phrase a été effacée. Une nouvelle phrase va être créée.', 'info');
+  bk.step = 'explain'; bk.renew = renew; lastTouch = Date.now();
+  renderSave();
 }
 function bkPickAsk() {
   var a = new Uint8Array(2); crypto.getRandomValues(a);
@@ -1009,10 +1044,16 @@ function bkConfirm() {
     bk.step = 'phrase'; bk.ask = bkPickAsk(); bk.msg = 'Ce n’est pas bon. Regardez bien la phrase, recopiez-la sur papier, puis confirmez à nouveau. Rien n’a été créé.'; bk.msgKind = 'err'; renderSave(); return;
   }
   var t = bkStart(), phrase = ph.join(' ');
-  bk.phrase = null;                                                              /* confirmée : elle n'a plus rien à faire dans la page */
+  var renew = bk.renew;
+  bk.phrase = null; bk.until = 0;                                                /* confirmée : elle n'a plus rien à faire dans la page */
   AGB.createKeyBundle(phrase).then(function (bundle) {
-    return AG.putMeta('backup_key', bundle).then(function () { return bkRunExport(bundle); });
+    return AG.putMeta('backup_key', bundle).then(function () {
+      bk.hasKey = true;
+      if (renew) { logEvt('Phrase de récupération renouvelée'); return null; }
+      return bkRunExport(bundle);
+    });
   }).then(function (name) {
+    if (renew) { bkReset('Nouvelle phrase confirmée. Gardez le nouveau papier en lieu sûr : l’ancien ne sert plus que pour les anciens fichiers. Faites un export maintenant.', 'ok'); bk.step = 'renewed'; renderSave(); return; }
     bkReset('Phrase confirmée. Fichier « ' + name + ' » envoyé dans Téléchargements. Copiez-le sur le PC par câble, puis effacez-le du téléphone. Gardez le papier en lieu sûr.', 'ok'); renderSave();
   }, function () { bkReset('La création a échoué : réessayez. Rien n’a été modifié.', 'err'); renderSave(); });
 }
@@ -1045,8 +1086,8 @@ function bkOpen() {
 }
 /* état en mémoire relu depuis la base (après une restauration ou son annulation) */
 function bkReloadState() {
-  return Promise.all([AG.allPersons(), AG.allRides(), AG.getSetting('idle_sec'), AG.getMeta('last_export'), AG.getSafety()]).then(function (r) {
-    people = r[0]; rides = r[1]; if (typeof r[2] === 'number') idleSec = r[2]; lastExport = r[3] || null; bk.safety = r[4] || null;
+  return Promise.all([AG.allPersons(), AG.allRides(), AG.getSetting('idle_sec'), AG.getMeta('last_export'), AG.getSafety(), AG.getMeta('backup_key')]).then(function (r) {
+    people = r[0]; rides = r[1]; if (typeof r[2] === 'number') idleSec = r[2]; lastExport = r[3] || null; bk.safety = r[4] || null; bk.hasKey = !!r[5];
     day = today(); openKey = null; showArch = false; query = '';
   });
 }
@@ -1080,7 +1121,8 @@ function bkAction(a) {
   switch (a) {
     case 'opensave': bkOpenScreen(); break;
     case 'bk-export': bkExportClick(); break;
-    case 'bk-show': bk.phrase = AGB.drawPhrase(); bk.ask = bkPickAsk(); bk.step = 'phrase'; bk.msg = ''; renderSave(); break;
+    case 'bk-show': bk.phrase = AGB.drawPhrase(); bk.until = Date.now() + BK_PHRASE_MS; lastTouch = Date.now(); bk.ask = bkPickAsk(); bk.step = 'phrase'; bk.msg = ''; renderSave(); break;
+    case 'bk-renew': bkReset(); bk.renew = true; bk.step = 'explain'; renderSave(); break;
     case 'bk-written': bk.step = 'confirm'; bk.msg = ''; renderSave(); break;
     case 'bk-review': bk.step = 'phrase'; renderSave(); break;
     case 'bk-confirm': bkConfirm(); break;
@@ -1202,9 +1244,9 @@ function setInert(on) {
     if (on) e.setAttribute('aria-hidden', 'true'); else e.removeAttribute('aria-hidden');
   });
 }
-function mask() {
-  if (veilOn) return;
-  bkOnMask();                                                                                                  /* phrase, résumés, noms de fichiers : effacés de la page */
+function mask(eye) {
+  if (veilOn) { if (eye === 'eye') bkOnMask(true); return; }
+  bkOnMask(eye === 'eye');                                                                                                  /* phrase, résumés, noms de fichiers : effacés de la page */
   clearTimeout(toastTimer); toastEl.hidden = true; undoFn = null;      /* un message ne doit rien montrer sous l'écran neutre */
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();      /* valide un champ en cours de saisie */
   ctx.calReveal = false; if (cur === 'calendrier') renderCal();
@@ -1227,9 +1269,11 @@ function dayRollover() {
 }
 function tick() {
   dayRollover();
+  bkExpire();
   if (veilOn) return;
   var now = Date.now();
   if (now < lastTouch - 2000) { mask(); return; }                      /* l'horloge a reculé : par prudence on masque */
+  if (bkPhraseLive() && cur === 'sauvegarde') return;                  /* écran de la phrase ouvert : masquage automatique en pause (10 minutes au plus) */
   if (idleSec > 0 && now - lastTouch >= idleSec * 1000) mask();
 }
 setInterval(tick, 1000);
@@ -1265,7 +1309,7 @@ document.addEventListener('click', function (e) {
     case 'tab': if (ficheDirty()) { openConfirm('leave', null, b.dataset.t); break; } go(b.dataset.t); break;
     case 'reglages': history.pushState({ app: 1 }, ''); go('reglages'); break;
     case 'back': if (cur === 'fiche' || cur === 'calendrier') back(); else if (cur === 'sauvegarde') bkBack(); else go('bilan'); break;
-    case 'hide': mask(); break;
+    case 'hide': mask('eye'); break;
     case 'idle': setIdle(+b.dataset.n); break;
     case 'persist': askPersist().then(refreshPersist); break;
     case 'checkupdate': checkUpdate(); break;
@@ -1436,7 +1480,7 @@ startWorker();
 /* lecture seule, pour les contrôles automatiques */
 window.__ag = {
   get cur() { return cur; }, get tab() { return tab; }, get masked() { return veilOn; }, get idle() { return idleSec; },
-  get ready() { return ready; }, get lastExport() { return lastExport; }, get bk() { return { step: bk.step, hasPhrase: !!bk.phrase, phrase: bk.phrase ? bk.phrase.slice() : null, ask: bk.ask, msg: bk.msg, safety: !!bk.safety }; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get fuelMonth() { return fuelM.y + '-' + pad(fuelM.m + 1); }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
+  get ready() { return ready; }, get lastExport() { return lastExport; }, get bk() { return { until: bk.until, renew: bk.renew, hasKey: bk.hasKey, step: bk.step, hasPhrase: !!bk.phrase, phrase: bk.phrase ? bk.phrase.slice() : null, ask: bk.ask, msg: bk.msg, safety: !!bk.safety }; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get fuelMonth() { return fuelM.y + '-' + pad(fuelM.m + 1); }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
   version: APP_VERSION, dbName: AG.DB_NAME, openDatabase: AG.openDatabase, dbGet: AG.dbGet, dbPut: AG.dbPut,
   migrations: AG.MIGRATIONS, schemaTarget: AG.schemaTarget
 };
