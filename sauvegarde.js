@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['sauvegarde.js']='0.6.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['sauvegarde.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : sauvegarde chiffrée (export, vérification, lecture pour la restauration). Aucune donnée dans ce fichier, aucun accès à la base : seulement
    WebCrypto (intégré à Chrome), la liste de mots (mots.js) et le format du fichier. Tout fonctionne hors connexion.
 
@@ -30,7 +30,7 @@ function unb64(t) {
 }
 function hex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (x) { return (x + 256).toString(16).slice(1); }).join(''); }
 function sha256Hex(text) { return crypto.subtle.digest('SHA-256', enc.encode(text)).then(hex); }
-function bad(code, extra) { var e = new Error(code); e.code = code; if (extra) e.extra = extra; return e; }
+function bad(code, extra) { var e = new Error(code); e.code = code; if (extra !== undefined) e.extra = extra; return e; }
 
 /* ----- phrase de récupération ----- */
 /* 2048 mots = 11 bits : on prend 16 bits au hasard et on garde les 11 derniers. 65536 est un multiple de 2048, donc chaque mot a EXACTEMENT la même chance (aucun biais). */
@@ -39,10 +39,23 @@ function drawPhrase() {
   var a = new Uint16Array(PHRASE_WORDS); crypto.getRandomValues(a);
   return Array.prototype.map.call(a, function (u) { return WORDS[drawIndex(u)]; });
 }
-/* tolérant : majuscules, accents, espaces en trop ne comptent pas */
-function normWord(w) { return String(w || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
-function normPhrase(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/\s+/).filter(Boolean).join(' '); }
-function phraseOk(s) { return normPhrase(s).split(' ').length === PHRASE_WORDS; }
+/* TOLÉRANCE : chaque mot tapé est « replié » (sans accents, en minuscules, sans tiret ni apostrophe ni autre signe) puis cherché dans la liste officielle.
+   La liste ne contient aucun mot qui se confond avec un autre une fois les accents retirés (vérifié par verif_phrase.py) : il n'y a donc qu'UN mot possible.
+   La clé est toujours dérivée de la forme repliée des mots de la liste = exactement ce que faisaient les versions 0.6.0 et 0.6.1 : les anciens fichiers restent lisibles.
+   Si un jour la liste contenait deux mots confondables, la règle serait : le mot exact d'abord, puis les autres (voir NOTES_AGENDA.md). */
+function foldWord(w) { return String(w || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, ''); }
+var KNOWN = null;
+function known() { if (!KNOWN) { KNOWN = Object.create(null); WORDS.forEach(function (w) { KNOWN[foldWord(w)] = true; }); } return KNOWN; }
+function normWord(w) { return foldWord(w); }
+function splitWords(s) { return String(s || '').split(/\s+/).filter(function (x) { return foldWord(x); }); }
+function normPhrase(s) { return splitWords(s).map(foldWord).join(' '); }
+/* Examine une phrase tapée, sans jamais la renvoyer : { count, unknown (numéro 1..n du premier mot absent de la liste, ou 0), ok } */
+function checkPhrase(s) {
+  var ws = splitWords(s), k = known(), unknown = 0;
+  for (var i = 0; i < ws.length; i++) if (!k[foldWord(ws[i])]) { unknown = i + 1; break; }
+  return { count: ws.length, unknown: unknown, ok: ws.length === PHRASE_WORDS && !unknown };
+}
+function phraseOk(s) { return checkPhrase(s).ok; }
 
 /* ----- clés ----- */
 function deriveKek(phrase, salt, iterations) {
@@ -110,10 +123,12 @@ function parseHeader(text, appSchema) {
 }
 
 /* Ouvre un fichier avec la phrase : renvoie { header, counts, data (objet), key (clé de données non extractible, pour la reprendre après une restauration) }.
-   Erreurs (code) : damaged, notbackup, newformat, newschema, phrase (mauvaise phrase), words (pas 10 mots). */
+   Erreurs (code) : damaged, notbackup, newformat, newschema, phrase (10 mots valides mais pas la phrase de ce fichier), words (pas 10 mots, extra = nombre lu), unknownword (extra = numéro du mot). */
 function openFile(text, phrase, appSchema) {
   var h = parseHeader(text, appSchema);
-  if (!phraseOk(phrase)) return Promise.reject(bad('words'));
+  var chk = checkPhrase(phrase);
+  if (chk.count !== PHRASE_WORDS) return Promise.reject(bad('words', chk.count));
+  if (chk.unknown) return Promise.reject(bad('unknownword', chk.unknown));
   var dk;
   return unwrapKey(phrase, h).then(function (key) {
     dk = key;
@@ -146,7 +161,7 @@ function migrateData(data, appSchema) {
 
 self.AGB = {
   FORMAT: FORMAT, FORMAT_VERSION: FORMAT_VERSION, ITER: ITER, PHRASE_WORDS: PHRASE_WORDS, get WORDS() { return WORDS; },
-  drawIndex: drawIndex, drawPhrase: drawPhrase, normWord: normWord, normPhrase: normPhrase, phraseOk: phraseOk,
+  drawIndex: drawIndex, drawPhrase: drawPhrase, normWord: normWord, normPhrase: normPhrase, phraseOk: phraseOk, checkPhrase: checkPhrase, foldWord: foldWord,
   createKeyBundle: createKeyBundle, buildFile: buildFile, parseHeader: parseHeader, openFile: openFile, migrateData: migrateData,
   fileName: fileName, countsOf: countsOf, b64: b64, unb64: unb64
 };

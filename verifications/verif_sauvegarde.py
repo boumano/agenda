@@ -252,7 +252,7 @@ with sync_playwright() as p:
     ok(tag + " la phrase n'est écrite nulle part sur le téléphone (ni base, ni stockage du navigateur)", not pg.evaluate("""(async()=>{ const ph=%s; const s=JSON.stringify(await AG.snapshotAll())+JSON.stringify(Object.assign({},localStorage))+JSON.stringify(Object.assign({},sessionStorage))+JSON.stringify([await AG.getMeta('last_export'), await AG.getMeta('update_log')]); return ph.some(w=>s.includes(w)) })()""" % json.dumps(phrase3)))
     # le fichier
     hdr = json.loads(text1)
-    ok(tag + " fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours", hdr["format"] == "agenda-export" and hdr["format_version"] == 1 and hdr["app_version"] == "0.6.1" and hdr["schema"] == 5 and hdr["kdf"]["iterations"] == 600000 and hdr["exported_at"].startswith("2026-10-20T08:") and hdr["cipher"] == "AES-256-GCM", {k: hdr[k] for k in hdr if k not in ("ct", "iv", "kdf", "wrapped_key")})
+    ok(tag + " fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours", hdr["format"] == "agenda-export" and hdr["format_version"] == 1 and hdr["app_version"] == "0.6.2" and hdr["schema"] == 5 and hdr["kdf"]["iterations"] == 600000 and hdr["exported_at"].startswith("2026-10-20T08:") and hdr["cipher"] == "AES-256-GCM", {k: hdr[k] for k in hdr if k not in ("ct", "iv", "kdf", "wrapped_key")})
     leaks = [m for m in MARKERS if m in text1]
     ok(tag + " AUCUN nom, adresse, téléphone ni autre valeur de test lisible en clair dans le fichier brut", not leaks and not re.search(r"persons|rides|fuel|price_cents|last_name|Imaginaire", text1), leaks)
     ok(tag + " … le fichier est du texte JSON ordinaire (pas de données binaires brutes)", text1.isascii())
@@ -319,9 +319,9 @@ with sync_playwright() as p:
     pg.screenshot(path=SHOTS + "/sauvegarde_valide_%dx%d_%s.png" % (W, H, SCHEME))
     ok(tag + " … rien n'a été modifié sur le téléphone (données, date de dernier export identiques)", pg.evaluate(SNAP) == snap0 and pg.evaluate(META)["last"] == meta0["last"])
     tap(pg, "bk-cancel")
-    bad = phrase[:]; bad[3] = "abeille" if bad[3] != "abeille" else "abri"
+    bad = phrase[:]; bad[3] = words[(words.index(bad[3]) + 1) % len(words)]
     t = run_check(pg, textA, " ".join(bad))
-    ok(tag + " Vérifier (mauvaise phrase) : message simple, on peut réessayer", "ne correspond pas" in t and vis(pg, "#bk-phrase"), t[:200])
+    ok(tag + " Vérifier (mauvaise phrase) : message simple, on peut réessayer", "ce n’est pas la phrase de ce fichier" in t and vis(pg, "#bk-phrase"), t[:200])
     pg.fill("#bk-phrase", " ".join(phrase[:9])); tap(pg, "bk-open")
     ok(tag + " Vérifier (9 mots) : « 10 mots » demandés", "10 mots" in screen_text(pg))
     pg.fill("#bk-phrase", "  " + " ".join(phrase).upper() + "  "); tap(pg, "bk-open", 100); wait_busy_done(pg)

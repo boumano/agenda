@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -851,7 +851,7 @@ function fuelDelete(id) {
 var BK_SAFETY_DAYS = 7, BK_REMIND_DAYS = 7;
 var lastExport = null;            /* { at, date } du dernier export (ou du fichier restauré), ou null */
 var BK_PHRASE_MS = 600000;      /* la phrase affichée reste en mémoire 10 minutes au plus */
-var bk = { step: 'home', phrase: null, until: 0, renew: false, hasKey: false, ask: null, text: null, header: null, mode: null, opened: null, msg: '', msgKind: '', safety: null, tok: 0 };
+var bk = { reveal: false, step: 'home', phrase: null, until: 0, renew: false, hasKey: false, ask: null, text: null, header: null, mode: null, opened: null, msg: '', msgKind: '', safety: null, tok: 0 };
 var fmtFull = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 var fmtShort = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
 
@@ -879,7 +879,7 @@ function bkInit() {
   });
 }
 function bkReset(msg, kind) {
-  bk.tok++; bk.step = 'home'; bk.phrase = null; bk.until = 0; bk.renew = false; bk.ask = null; bk.text = null; bk.header = null; bk.mode = null; bk.opened = null; bk.msg = msg || ''; bk.msgKind = kind || '';
+  bk.tok++; bk.reveal = false; bk.step = 'home'; bk.phrase = null; bk.until = 0; bk.renew = false; bk.ask = null; bk.text = null; bk.header = null; bk.mode = null; bk.opened = null; bk.msg = msg || ''; bk.msgKind = kind || '';
 }
 function bkErr(er) {
   var c = er && er.code, m = {
@@ -887,8 +887,9 @@ function bkErr(er) {
     damaged: 'Le fichier est abîmé ou incomplet : il ne peut pas être lu. Rien n’a été modifié.',
     newformat: 'Cette sauvegarde vient d’une version plus récente d’Agenda. Mettez l’appli à jour, puis réessayez. Rien n’a été modifié.',
     newschema: 'Cette sauvegarde a une structure de données plus récente que cette appli. Mettez l’appli à jour, puis réessayez. Rien n’a été modifié.',
-    phrase: 'La phrase ne correspond pas à ce fichier. Vérifiez chaque mot, dans l’ordre.',
-    words: 'La phrase doit comporter exactement 10 mots.'
+    phrase: 'Les 10 mots sont valides, mais ce n’est pas la phrase de ce fichier. Elle vient peut-être d’un autre essai d’export.',
+    words: 'J’ai lu ' + plural(er && er.extra || 0, 'mot', 'mots') + ' : il en faut exactement 10.',
+    unknownword: 'Le mot n° ' + (er && er.extra) + ' ne figure pas dans la liste. Vérifiez son orthographe.'
   };
   return m[c] || 'Impossible de lire cette sauvegarde. Rien n’a été modifié.';
 }
@@ -899,7 +900,16 @@ function bkHead() {
 function bkBtn(cls, a, label) { return '<button class="btn ' + cls + ' full" data-a="' + a + '">' + label + '</button>'; }
 function bkBox() { return bk.msg ? '<div class="warnbox" id="bk-msg" role="status">' + esc(bk.msg) + '</div>' : ''; }
 function bkPhraseField() {
-  return '<div class="field"><label for="bk-phrase">Phrase de récupération (10 mots)</label><input class="input" id="bk-phrase" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done"></div>';
+  return '<div class="field"><label for="bk-phrase">Phrase de récupération (10 mots)</label><input class="input secret' + (bk.reveal ? ' show' : '') + '" id="bk-phrase" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="done"></div>' + bkRevealBtn();
+}
+/* « Afficher ce que je tape » : masqué par défaut (points), s'efface au masquage de l'écran ; basculer ne vide jamais le champ */
+function bkRevealBtn() {
+  return '<button class="btn line full" data-a="bk-reveal" id="bk-reveal" aria-pressed="' + (bk.reveal ? 'true' : 'false') + '">' + I(bk.reveal ? 'eyeoff' : 'eye') + '<span>' + (bk.reveal ? 'Cacher ce que je tape' : 'Afficher ce que je tape') + '</span></button>';
+}
+function bkToggleReveal() {
+  bk.reveal = !bk.reveal;
+  document.querySelectorAll('#s-sauvegarde .secret').forEach(function (e) { e.classList.toggle('show', bk.reveal); });
+  var b = $('#bk-reveal'); if (b) { b.setAttribute('aria-pressed', bk.reveal ? 'true' : 'false'); b.innerHTML = I(bk.reveal ? 'eyeoff' : 'eye') + '<span>' + (bk.reveal ? 'Cacher ce que je tape' : 'Afficher ce que je tape') + '</span>'; }
 }
 function bkBody() {
   var s = bk.step, h = '';
@@ -935,8 +945,8 @@ function bkBody() {
       bkBtn('main', 'bk-written', 'J’ai tout écrit') + bkBtn('line', 'bk-cancel', 'Annuler');
   } else if (s === 'confirm') {
     h = '<h2>Vérification</h2><p class="note">Recopiez depuis votre papier les deux mots demandés.</p><div class="card">' +
-      '<div class="field"><label for="bk-w1">Mot n° ' + bk.ask[0] + '</label><input class="input" id="bk-w1" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div>' +
-      '<div class="field"><label for="bk-w2">Mot n° ' + bk.ask[1] + '</label><input class="input" id="bk-w2" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div></div>' +
+      '<div class="field"><label for="bk-w1">Mot n° ' + bk.ask[0] + '</label><input class="input secret' + (bk.reveal ? ' show' : '') + '" id="bk-w1" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div>' +
+      '<div class="field"><label for="bk-w2">Mot n° ' + bk.ask[1] + '</label><input class="input secret' + (bk.reveal ? ' show' : '') + '" id="bk-w2" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div>' + bkRevealBtn() + '</div>' +
       bkCountHTML() + bkBtn('main', 'bk-confirm', 'Continuer') + bkBtn('line', 'bk-review', 'Revoir la phrase');
   } else if (s === 'renewed') {
     h = bkBox() + bkBtn('main', 'bk-export', 'Exporter maintenant') + bkBtn('line', 'bk-cancel', 'Plus tard');
@@ -974,7 +984,7 @@ function bkBack() {
 }
 /* masquage : on efface la page. La phrase affichée ne revient JAMAIS ; un résultat déchiffré non plus. Un fichier choisi (chiffré) ou l'étape de saisie sont gardés. */
 function bkOnMask(eye) {
-  var s = bk.step;
+  var s = bk.step; bk.reveal = false;
   if (!eye && bkPhraseLive() && bk.until - Date.now() > 0) {      /* masquage automatique ou retour d'une autre appli : la phrase reste en mémoire, l'écran est vidé */
     bk.msg = ''; if (cur === 'sauvegarde') $('#s-sauvegarde').innerHTML = ''; return;
   }
@@ -1068,7 +1078,8 @@ function bkFilePicked(file) {
 }
 function bkOpen() {
   var ph = $('#bk-phrase').value, t = bk.tok;
-  if (!AGB.phraseOk(ph)) { bk.msg = bkErr({ code: 'words' }); bk.msgKind = 'err'; renderSave(); return; }
+  var chk = AGB.checkPhrase(ph);
+  if (!chk.ok) { bk.msg = bkErr(chk.count !== AGB.PHRASE_WORDS ? { code: 'words', extra: chk.count } : { code: 'unknownword', extra: chk.unknown }); bk.msgKind = 'err'; renderSave(); return; }
   var text = bk.text; bkStart();
   AGB.openFile(text, ph, AG.schemaTarget).then(function (o) {
     if (bk.tok !== t + 1) return;
@@ -1080,7 +1091,7 @@ function bkOpen() {
   }, function (er) {
     if (bk.tok !== t + 1) return;
     bk.step = 'phrasein'; bk.text = text; bk.msg = bkErr(er); bk.msgKind = 'err';
-    if (er && er.code !== 'phrase' && er.code !== 'words') { bk.step = 'pick'; bk.text = null; bk.header = null; }       /* fichier abîmé : on repart du choix du fichier */
+    if (er && er.code !== 'phrase' && er.code !== 'words' && er.code !== 'unknownword') { bk.step = 'pick'; bk.text = null; bk.header = null; }       /* fichier abîmé : on repart du choix du fichier */
     renderSave();
   });
 }
@@ -1123,6 +1134,7 @@ function bkAction(a) {
     case 'bk-export': bkExportClick(); break;
     case 'bk-show': bk.phrase = AGB.drawPhrase(); bk.until = Date.now() + BK_PHRASE_MS; lastTouch = Date.now(); bk.ask = bkPickAsk(); bk.step = 'phrase'; bk.msg = ''; renderSave(); break;
     case 'bk-renew': bkReset(); bk.renew = true; bk.step = 'explain'; renderSave(); break;
+    case 'bk-reveal': bkToggleReveal(); break;
     case 'bk-written': bk.step = 'confirm'; bk.msg = ''; renderSave(); break;
     case 'bk-review': bk.step = 'phrase'; renderSave(); break;
     case 'bk-confirm': bkConfirm(); break;
@@ -1480,7 +1492,7 @@ startWorker();
 /* lecture seule, pour les contrôles automatiques */
 window.__ag = {
   get cur() { return cur; }, get tab() { return tab; }, get masked() { return veilOn; }, get idle() { return idleSec; },
-  get ready() { return ready; }, get lastExport() { return lastExport; }, get bk() { return { until: bk.until, renew: bk.renew, hasKey: bk.hasKey, step: bk.step, hasPhrase: !!bk.phrase, phrase: bk.phrase ? bk.phrase.slice() : null, ask: bk.ask, msg: bk.msg, safety: !!bk.safety }; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get fuelMonth() { return fuelM.y + '-' + pad(fuelM.m + 1); }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
+  get ready() { return ready; }, get lastExport() { return lastExport; }, get bk() { return { reveal: bk.reveal, until: bk.until, renew: bk.renew, hasKey: bk.hasKey, step: bk.step, hasPhrase: !!bk.phrase, phrase: bk.phrase ? bk.phrase.slice() : null, ask: bk.ask, msg: bk.msg, safety: !!bk.safety }; }, get updateReady() { return updateReady; }, get people() { return people.slice(); }, get rides() { return rides.slice(); }, get day() { return iso(day); }, get bilanMs() { return bil.ms; }, get fuelMonth() { return fuelM.y + '-' + pad(fuelM.m + 1); }, get calFrom() { return ctx.calFrom; }, get bilan() { return { view: bil.view, month: iso(bil.ref), reveal: bil.reveal }; },
   version: APP_VERSION, dbName: AG.DB_NAME, openDatabase: AG.openDatabase, dbGet: AG.dbGet, dbPut: AG.dbPut,
   migrations: AG.MIGRATIONS, schemaTarget: AG.schemaTarget
 };

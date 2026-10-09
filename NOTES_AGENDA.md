@@ -1,6 +1,6 @@
 # Agenda : notes (étapes 1 à 5)
 
-État au 9 octobre 2026 : **version 0.6.1, structure des données n° 5**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+État au 9 octobre 2026 : **version 0.6.2, structure des données n° 5**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
 Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 5.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
@@ -15,7 +15,7 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `fuel.js` | La **logique des pleins d'essence**, sans écran ni stockage : calcul du troisième chiffre, lecture « virgule ou point », 0 refusé, conversion en entiers (millilitres, millièmes d'euro, centimes), totaux du mois (valeurs inconnues comptées à part). |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.6.1`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.6.2`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
 | `garde.js` | La **garde**, chargée en premier : note dans le journal les erreurs JavaScript, vérifie que tous les fichiers sont de la même version, affiche « Un problème est survenu à l’affichage » + bouton « Recharger » au lieu d’un écran figé. |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
@@ -309,3 +309,32 @@ Prérequis : Python 3 et `pip install cryptography`. Usage : `python tools/lire_
 ### Vérifications
 `verifications/verif_phrase.py` (33 contrôles) : pause du masquage (réglage 1 minute, 5 minutes sans toucher), aller-retour hidden/visible avec grand écart d'horodatage, étape de confirmation, effacement après 10 minutes (visible et absent), œil, nouvelle phrase (confirmation ratée, expiration, réussite), qui ouvre quoi (ancienne/nouvelle × ancien/nouveau fichier), test croisé `tools/lire_export.py`, scan de tous les stockages. `verif_sauvegarde.py` mis à jour (l'ancien test « masquage automatique efface la phrase » devient « après 10 minutes »).
 - **Non testé** : un vrai téléphone (changement d'appli réel, fermeture de la page par Android, écran qui s'éteint), mise à jour 0.6.0 → 0.6.1 sans fermer l'appli sur le Galaxy A12.
+
+## Saisie de la phrase plus tolérante (0.6.2, structure n° 5, format de fichier et dérivation de clé INCHANGÉS)
+
+**Pourquoi** : sur le PC, la saisie cachée ne montrait rien, on ne savait pas si les accents comptaient, et une faute donnait seulement « La phrase ne correspond pas à ce fichier ».
+
+### Tolérance (appli et `tools/lire_export.py`, même règle)
+- Chaque mot tapé est d'abord **« replié »** : majuscules → minuscules, accents retirés (é→e, ç→c…), tout signe qui n'est pas une lettre retiré (tirets, apostrophes). Les mots sont séparés par des espaces, tabulations ou retours à la ligne, en nombre quelconque. « belier », « Bélier », « BÉLIER », « bé-lier » donnent le même résultat.
+- Le mot replié est **cherché dans la liste officielle** (`mots.js`, 2048 mots). S'il y est, la clé est dérivée de la forme repliée des mots de la liste.
+- **Les anciens fichiers restent lisibles** : les versions 0.6.0 et 0.6.1 dérivaient déjà la clé de la phrase « sans accents, en minuscules, mots séparés par un espace ». La 0.6.2 produit exactement la même chaîne. `verif_saisie.py` fabrique de vrais fichiers avec le code 0.6.0 et 0.6.1 (tirés de git) et vérifie qu'ils s'ouvrent.
+- **Mots qui se confondent après suppression des accents** : la liste actuelle n'en contient **aucun** (2048 mots repliés tous différents, vérifié). Il n'y a donc qu'un seul mot possible pour chaque saisie. Règle prévue si cela change un jour : essayer d'abord le mot exact (avec ses accents), puis les autres. Ce n'est pas codé aujourd'hui puisque inutile ; toute modification de la liste doit refaire cette vérification.
+- Partout où la phrase est tapée : « Vérifier une sauvegarde », « Restaurer », la **confirmation des 2 mots** (« belier » accepté pour « bélier »), et le script PC.
+
+### Messages (jamais la phrase)
+- Nombre de mots ≠ 10 : « J’ai lu N mots : il en faut exactement 10. » (testé avec 0, 1, 9 et 11 mots).
+- Mot absent de la liste (même sans les accents) : « Le mot n° N ne figure pas dans la liste. Vérifiez son orthographe. » (le premier mot en cause ; une faute comme « beliers » est refusée).
+- 10 mots valides mais le fichier ne s'ouvre pas : « Les 10 mots sont valides, mais ce n’est pas la phrase de ce fichier. Elle vient peut-être d’un autre essai d’export. »
+- Aucun message ne cite un mot tapé.
+
+### « Afficher ce que je tape » (appli)
+- Les champs où la phrase est tapée (vérifier, restaurer, confirmation des 2 mots) sont maintenant **cachés par des points** (réglage d'affichage `-webkit-text-security`, sans type « mot de passe » pour éviter l'enregistrement par Chrome). Le bouton œil « Afficher ce que je tape » les rend lisibles (« Cacher ce que je tape » pour revenir) **sans vider le champ**. Le masquage (œil ou automatique) et tout retour à l'accueil de Sauvegarde remettent l'affichage à « caché » ; le champ est vidé avec la page, comme avant.
+
+### Script PC `tools/lire_export.py`
+- Saisie **cachée** par défaut (le script affiche ensuite « N mots lus » pour rassurer, sans la phrase). Option **`--visible`** : la saisie s'affiche, avec l'avertissement « La phrase sera visible à l'écran et dans l'historique de la fenêtre ». `--help` : aide courte.
+- La phrase n'est **jamais** un argument de ligne de commande (donc absente de l'historique PowerShell), **jamais écrite dans un fichier**, jamais affichée hors `--visible` (testé : sortie, erreurs et JSON produit ne la contiennent pas). Seule exception volontaire, pour les essais automatiques : la variable d'environnement `AGENDA_PHRASE`.
+- Le script cherche `mots.js` dans le dossier au-dessus de `tools/` (ou à côté du script). S'il est introuvable, il le dit (sans phrase) et reste tolérant sur les accents et majuscules, mais ne peut plus contrôler la liste : **copier `tools/` avec `mots.js` si on déplace le script**.
+
+### Vérifications
+`verifications/verif_saisie.py` (47 contrôles) : fichiers 0.6.0/0.6.1/0.6.2, 7 écritures de la même phrase, mot inconnu n° N, nombre de mots, autre phrase valide, bouton « Afficher ce que je tape » (caché par défaut, bascule, masquage automatique et œil), aucun stockage ni journal, script avec et sans `--visible`.
+- **Non testé** : vrai clavier du Galaxy A12 (le correcteur automatique et la majuscule initiale sont désactivés sur ces champs, mais pas vérifiés sur le téléphone) ; saisie cachée réelle du script dans PowerShell (testée par simulation de `getpass`, pas dans une vraie console).

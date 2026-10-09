@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['db.js']='0.6.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['db.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la couche d'accès aux données. TOUT ce qui lit ou écrit dans IndexedDB passe par ici (un seul endroit).
    IndexedDB = la base de données intégrée à Chrome. Aucune donnée dans ce fichier : seulement la façon de les ranger.
 

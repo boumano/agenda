@@ -222,7 +222,7 @@ with sync_playwright() as p:
     # ---- premier export complet
     tap(pg, "bk-export"); tap(pg, "bk-show"); P4 = bkstate(pg)["phrase"]
     d = confirm_ok(pg, P4, True); text1 = save_dl(d, "un.agenda")
-    ok(tag + " premier export mené à bout : fichier produit, version 0.6.1 dans l'en-tête", json.loads(text1)["app_version"] == "0.6.1" and bkstate(pg)["hasKey"] is True)
+    ok(tag + " premier export mené à bout : fichier produit, version 0.6.1 dans l'en-tête", json.loads(text1)["app_version"] == "0.6.2" and bkstate(pg)["hasKey"] is True)
     # ---- nouvelle phrase
     ok(tag + " accueil avec phrase confirmée : bouton « Créer une nouvelle phrase », plus de ligne « papier et stylo »", pg.locator('[data-a="bk-renew"]').count() == 1 and PAPER not in screen_text(pg))
     pg.screenshot(path=SHOTS + "/phrase_accueil_%dx%d_%s.png" % (W, H, SCHEME))
