@@ -1,6 +1,6 @@
 # Agenda : notes (étapes 1 à 5)
 
-État au 9 octobre 2026 : **version 0.6.2, structure des données n° 5**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
+État au 9 octobre 2026 : **version 0.6.3, structure des données n° 5**. Dossier : `agenda/` (son propre dépôt git, publié sur GitHub Pages).
 Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), étapes 1 à 5.
 **Rien de réel dans ce dossier** : aucune donnée de personne, ni réelle ni fictive (l'appli démarre vide), aucun nom, aucune adresse, aucun téléphone. La maquette reste la référence et n'est pas copiée ici. Les contrôles automatiques n'emploient que de faux noms (« Essai », « Beta », etc.).
 
@@ -15,7 +15,7 @@ Plan de référence : `PLAN_VRAIE_VERSION.md` (dans le dossier de la maquette), 
 | `rides.js` | La **logique des courses**, sans écran ni stockage : cartes prévues calculées à partir des fiches, création d'une course (valeurs copiées), état d'un jour, **totaux d'un mois** et **vue jour par jour**. |
 | `fuel.js` | La **logique des pleins d'essence**, sans écran ni stockage : calcul du troisième chiffre, lecture « virgule ou point », 0 refusé, conversion en entiers (millilitres, millièmes d'euro, centimes), totaux du mois (valeurs inconnues comptées à part). |
 | `sw.js` | Service worker : garde les fichiers sur le téléphone pour que l'appli s'ouvre sans internet. Ne remplace jamais une version tout seul. |
-| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.6.2`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
+| `version.js` | **Le seul endroit** où est écrit le numéro de version (`0.6.3`). Les « tampons » (1re ligne de chaque fichier JavaScript, variable `--ag-version` de `style.css`, balise `ag-version` de `index.html`) en sont des copies, écrites par `python verifications/sync_version.py` (à lancer après avoir changé le numéro ; `--check` vérifie). |
 | `garde.js` | La **garde**, chargée en premier : note dans le journal les erreurs JavaScript, vérifie que tous les fichiers sont de la même version, affiche « Un problème est survenu à l’affichage » + bouton « Recharger » au lieu d’un écran figé. |
 | `manifest.json`, `icon.svg`, `icon-192.png`, `icon-512.png` | Nom (« Agenda »), couleurs, icônes : ce qui permet à Chrome de proposer « Installer ». |
 | `verifications/verif_coquille.py` | Contrôles de la coquille (71) : fichiers, manifeste, service worker, hors connexion, version, stockage, migration, œil, masquage, mise à jour, barre du bas. |
@@ -338,3 +338,31 @@ Prérequis : Python 3 et `pip install cryptography`. Usage : `python tools/lire_
 ### Vérifications
 `verifications/verif_saisie.py` (47 contrôles) : fichiers 0.6.0/0.6.1/0.6.2, 7 écritures de la même phrase, mot inconnu n° N, nombre de mots, autre phrase valide, bouton « Afficher ce que je tape » (caché par défaut, bascule, masquage automatique et œil), aucun stockage ni journal, script avec et sans `--visible`.
 - **Non testé** : vrai clavier du Galaxy A12 (le correcteur automatique et la majuscule initiale sont désactivés sur ces champs, mais pas vérifiés sur le téléphone) ; saisie cachée réelle du script dans PowerShell (testée par simulation de `getpass`, pas dans une vraie console).
+
+## Choix du fichier de sauvegarde : état conservé au retour (0.6.3, structure n° 5, format de fichier, clé et saisie de la phrase INCHANGÉS)
+
+**Constat de Pascal (Galaxy A12, Chrome, appli installée)** : « Vérifier une sauvegarde » → « Choisir le fichier » → sélecteur d'Android → fichier choisi → au retour, le mot « Agenda » (écran neutre), puis l'écran « Vérifier une sauvegarde » vide : ni nom de fichier, ni demande de phrase.
+
+### Diagnostic (lecture du code)
+- Le sélecteur d'Android met l'appli en arrière-plan : `visibilitychange` (caché) et `pagehide` appelaient `bgMask()` → `mask()` → `bkOnMask()`. À l'étape « choisir le fichier », `bkOnMask` **gardait l'étape mais vidait la page** (`#s-sauvegarde.innerHTML = ''`), donc **détruisait l'`<input type="file">`** qui se trouvait dans cette page. L'événement `change` arrivait ensuite sur un élément détaché du document : l'écouteur placé sur `document` ne le voyait jamais. Au toucher de l'écran neutre, la vue était redessinée avec une entrée neuve, vide. **C'est exactement ce que décrit Pascal** (« écran de démarrage » = l'écran neutre « Agenda », pas un vrai redémarrage).
+- Les autres suspects ont été écartés : `garde.js` (mise en page `G.layout` sur `pageshow`/`visibilitychange`) ne fait que régler la hauteur de `#app`, sans re-rendu ; le service worker ne recharge la page que sur « Mettre à jour » touché (`reloadOnce`) ; `pageshow`/`focus` ne font que `tick()` (masquage par comparaison d'heure) ; aucune écoute de `freeze`/`resume`/`blur`.
+- **Ce que le code ne peut pas savoir** : si Android a, EN PLUS, tué la page pendant le sélecteur (manque de mémoire sur le A12). Le journal ajouté (ci-dessous) le dira.
+
+### Correction
+- L'`<input type="file" id="bk-file">` est maintenant **dans `index.html`, permanent**, hors de la vue Sauvegarde : jamais recréé, jamais vidé par un masquage ou un re-rendu (le bouton « Choisir le fichier » reste un `<label for="bk-file">`).
+- **Pendant que le sélecteur est ouvert** (du clic sur « Choisir le fichier » jusqu'à `change`/`cancel`, **10 minutes au plus**, par comparaison d'horodatages), le masquage automatique et le masquage d'arrière-plan sont suspendus (`bkPicking()`). À cette étape rien de sensible n'est affiché. Quitter l'écran (Retour, autre onglet) ou annuler remet tout à la normale.
+- **Le fichier choisi est traité dès l'événement `change`**, quel que soit l'état de l'écran (visible, caché, masqué) : l'étape « saisie de la phrase » est préparée en mémoire et apparaît au retour. Le **nom du fichier** s'affiche maintenant (« Fichier : … ») en plus de la date de la sauvegarde ; il n'est gardé qu'en mémoire.
+- La valeur de l'entrée est remise à zéro après lecture : on peut rechoisir le même fichier.
+
+### Journal de diagnostic (Réglages > journal, même limite : 20 lignes)
+- « Démarrage de la version X » (inchangé) puis « **Démarrage : type de navigation …, affichage standalone|navigateur, page rejetée oui|non|inconnu** » (`performance.getEntriesByType('navigation')[0].type`, `display-mode`, `document.wasDiscarded`).
+- « Choix du fichier : ouvert » · « Choix du fichier : reçu (nom, N octets) » · « Choix du fichier : annulé ».
+- « Appli cachée » / « Appli revenue » : **écart avec la demande** — notées seulement pendant un choix de fichier et 2 minutes après, car le journal ne garde que 20 lignes et chaque aller-retour d'application aurait chassé les lignes de mise à jour.
+- Jamais de phrase, de nom de personne ni de contenu du fichier (seul le nom du fichier choisi est noté).
+
+### Si la page est vraiment tuée par Android (cas non corrigeable dans l'appli)
+Signe dans le journal : « Choix du fichier : ouvert » suivi directement de « Démarrage … type de navigation reload » (ou « page rejetée oui »), sans « reçu ». Dans ce cas la mémoire de la page est perdue et **aucune correction côté appli n'est possible** : l'appli repart de zéro (accueil), un fichier livré à ce moment est ignoré sans erreur (testé), il faut recommencer. **Piste, NON implémentée** : « Web Share Target » — déclarer dans `manifest.json` une cible de partage (`share_target`, méthode POST, `multipart/form-data`, fichiers `.agenda`) pour que Pascal choisisse le fichier depuis Fichiers/Téléchargements avec « Partager → Agenda ». Le service worker reçoit le fichier même si la page est tuée, le range dans une réserve temporaire (Cache Storage, chiffré tel quel) et ouvre l'appli sur « saisie de la phrase ». Demande : `share_target` dans le manifeste, gestionnaire `fetch` POST dans `sw.js`, lecture au démarrage, effacement du fichier temporaire après usage (ou après quelques minutes) ; à tester sur le téléphone (appli installée obligatoire).
+
+### Vérifications
+`verifications/verif_choix_fichier.py` (21 contrôles) : clic, page cachée puis visible, choix ; choix pendant que la page est cachée ; choix pendant le masquage (écran neutre) ; annulation ; « Restaurer » ; même fichier rechoisi ; **rechargement forcé** entre le clic et le choix (l'appli repart de zéro, journal « ouvert » puis « Démarrage … reload », fichier tardif ignoré sans erreur). Vérifié que le test échoue quand la correction est retirée.
+- **Non testé** : le vrai sélecteur d'Android (les essais simulent « page cachée » et le choix du fichier par Playwright).

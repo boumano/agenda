@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['fuel.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['fuel.js']='0.6.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des pleins d'essence (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3, et maquette) :
    - un plein = prix au litre, litres, montant : Pascal en remplit DEUX, le troisième se calcule (repère « calculé ») ;

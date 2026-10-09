@@ -228,7 +228,7 @@ with sync_playwright() as p:
     for v in ("060", "061"):
         pg2 = cx.new_page(); pg2.goto(BASE + "old%s.html" % v); pg2.wait_for_function("window.AGB")
         files[v] = pg2.evaluate(OLDMAKE, [PH_STR, "0.%s.%s" % (v[1], v[2])]); pg2.close()
-    files["062"] = pg.evaluate(OLDMAKE, [PH_STR, "0.6.2"])
+    files["062"] = pg.evaluate(OLDMAKE, [PH_STR, "0.6.3"])
     ok(tag + " fichiers 0.6.0, 0.6.1 (fabriqués par le vrai ancien code) et 0.6.2 : tous s'ouvrent avec la phrase exacte", all(code_of(pg, files[v], PH_STR) == "ok" for v in files), {v: code_of(pg, files[v], PH_STR) for v in files})
     hdrs = {v: json.loads(files[v]) for v in files}
     ok(tag + " … format de fichier inchangé (mêmes champs, PBKDF2 600 000 tours)", all(set(h) == set(hdrs["060"]) and h["kdf"]["iterations"] == 600000 and h["format_version"] == 1 for h in hdrs.values()))
@@ -278,7 +278,7 @@ with sync_playwright() as p:
     pg.fill("#bk-w1", strip_accents(P[a - 1]).upper()); pg.fill("#bk-w2", "  " + strip_accents(P[bq - 1]) + "  ")
     with pg.expect_download(timeout=30000) as d: tap(pg, "bk-confirm", 100)
     wait_busy_done(pg); text = save_dl(d.value, "reel.agenda")
-    ok(tag + " confirmation des 2 mots tapés sans accents / en majuscules / avec espaces : acceptée, fichier produit", json.loads(text)["app_version"] == "0.6.2" and bkstate(pg)["hasKey"] is True)
+    ok(tag + " confirmation des 2 mots tapés sans accents / en majuscules / avec espaces : acceptée, fichier produit", json.loads(text)["app_version"] == "0.6.3" and bkstate(pg)["hasKey"] is True)
     # Vérifier : écritures différentes de la même vraie phrase
     for label, s in (("sans accents et en majuscules", strip_accents(" ".join(P)).upper()), ("avec espaces en trop", "  " + "   ".join(P) + "  ")):
         t_ = run_check(pg, text, s)

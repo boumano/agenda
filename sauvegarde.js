@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['sauvegarde.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['sauvegarde.js']='0.6.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : sauvegarde chiffrée (export, vérification, lecture pour la restauration). Aucune donnée dans ce fichier, aucun accès à la base : seulement
    WebCrypto (intégré à Chrome), la liste de mots (mots.js) et le format du fichier. Tout fonctionne hors connexion.
 

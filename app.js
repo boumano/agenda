@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -851,7 +851,7 @@ function fuelDelete(id) {
 var BK_SAFETY_DAYS = 7, BK_REMIND_DAYS = 7;
 var lastExport = null;            /* { at, date } du dernier export (ou du fichier restauré), ou null */
 var BK_PHRASE_MS = 600000;      /* la phrase affichée reste en mémoire 10 minutes au plus */
-var bk = { reveal: false, step: 'home', phrase: null, until: 0, renew: false, hasKey: false, ask: null, text: null, header: null, mode: null, opened: null, msg: '', msgKind: '', safety: null, tok: 0 };
+var bk = { fileName: '', pickAt: 0, reveal: false, step: 'home', phrase: null, until: 0, renew: false, hasKey: false, ask: null, text: null, header: null, mode: null, opened: null, msg: '', msgKind: '', safety: null, tok: 0 };
 var fmtFull = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 var fmtShort = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
 
@@ -879,7 +879,7 @@ function bkInit() {
   });
 }
 function bkReset(msg, kind) {
-  bk.tok++; bk.reveal = false; bk.step = 'home'; bk.phrase = null; bk.until = 0; bk.renew = false; bk.ask = null; bk.text = null; bk.header = null; bk.mode = null; bk.opened = null; bk.msg = msg || ''; bk.msgKind = kind || '';
+  bk.tok++; bk.fileName = ''; bk.pickAt = 0; bk.reveal = false; bk.step = 'home'; bk.phrase = null; bk.until = 0; bk.renew = false; bk.ask = null; bk.text = null; bk.header = null; bk.mode = null; bk.opened = null; bk.msg = msg || ''; bk.msgKind = kind || '';
 }
 function bkErr(er) {
   var c = er && er.code, m = {
@@ -955,9 +955,9 @@ function bkBody() {
   } else if (s === 'pick') {
     h = bkBox() + '<h2>' + (bk.mode === 'restore' ? 'Restaurer une sauvegarde' : 'Vérifier une sauvegarde') + '</h2><div class="card"><p class="note" style="padding:0">' +
       (bk.mode === 'restore' ? 'Choisissez le fichier .agenda. Vous aurez ensuite besoin de la phrase de récupération.' : 'Choisissez le fichier .agenda. Rien ne sera modifié sur ce téléphone.') + '</p></div>' +
-      '<label class="btn main full" for="bk-file" role="button" tabindex="0">Choisir le fichier</label><input type="file" id="bk-file" class="vh" tabindex="-1">' + bkBtn('line', 'bk-cancel', 'Annuler');
+      '<label class="btn main full" for="bk-file" role="button" tabindex="0">Choisir le fichier</label>' + bkBtn('line', 'bk-cancel', 'Annuler');
   } else if (s === 'phrasein') {
-    h = bkBox() + '<h2>' + (bk.mode === 'restore' ? 'Restaurer une sauvegarde' : 'Vérifier une sauvegarde') + '</h2><p class="note">Sauvegarde du ' + esc(fmtFull.format(new Date(bk.header.exported_at))) + '. Tapez la phrase de récupération.</p><div class="card">' + bkPhraseField() + '</div>' +
+    h = bkBox() + '<h2>' + (bk.mode === 'restore' ? 'Restaurer une sauvegarde' : 'Vérifier une sauvegarde') + '</h2><p class="note">' + (bk.fileName ? 'Fichier : <b id="bk-fname">' + esc(bk.fileName) + '</b><br>' : '') + 'Sauvegarde du ' + esc(fmtFull.format(new Date(bk.header.exported_at))) + '. Tapez la phrase de récupération.</p><div class="card">' + bkPhraseField() + '</div>' +
       bkBtn('main', 'bk-open', bk.mode === 'restore' ? 'Continuer' : 'Vérifier') + bkBtn('line', 'bk-cancel', 'Annuler');
   } else if (s === 'result') {
     var o = bk.opened;
@@ -1068,12 +1068,12 @@ function bkConfirm() {
   }, function () { bkReset('La création a échoué : réessayez. Rien n’a été modifié.', 'err'); renderSave(); });
 }
 function bkFilePicked(file) {
-  if (!file) return;
+  if (!file || !bk.mode) return;                  /* traité quel que soit l'étape ou l'état de l'écran (masqué, revenu d'ailleurs…) */
   var t = bk.tok;
   file.text().then(function (text) {
     if (t !== bk.tok) return;
     var h; try { h = AGB.parseHeader(text, AG.schemaTarget); } catch (er) { bk.msg = bkErr(er); bk.msgKind = 'err'; renderSave(); return; }
-    bk.text = text; bk.header = h; bk.step = 'phrasein'; bk.msg = ''; renderSave();
+    bk.fileName = String(file.name || '').slice(0, 80); bk.text = text; bk.header = h; bk.step = 'phrasein'; bk.msg = ''; renderSave();
   }, function () { bk.msg = bkErr(null); bk.msgKind = 'err'; renderSave(); });
 }
 function bkOpen() {
@@ -1126,7 +1126,26 @@ function bkDoUndo() {
     bkReset('Restauration annulée : les données d’avant sont revenues.', 'ok'); renderSave();
   }, function () { bkReset('Impossible d’annuler la restauration. Rien n’a été modifié.', 'err'); renderSave(); });
 }
-document.addEventListener('change', function (e) { if (e.target && e.target.id === 'bk-file') bkFilePicked(e.target.files && e.target.files[0]); });
+/* Choix du fichier : l'entrée <input type="file" id="bk-file"> est dans index.html, PERMANENTE (jamais recréée, jamais vidée avec la page). Sur le téléphone, le sélecteur de fichiers d'Android
+   met l'appli en arrière-plan : pendant ce temps le masquage automatique est suspendu (rien de sensible n'est affiché à l'étape « choisir le fichier »), et le fichier choisi est
+   traité dès l'événement « change », même si l'écran a été masqué entre-temps. */
+var BK_PICK_MS = 600000, pickLogUntil = 0;
+function bkPicking() { return bk.pickAt > 0 && Date.now() - bk.pickAt >= -2000 && Date.now() - bk.pickAt < BK_PICK_MS; }
+function bkPickEnd() { bk.pickAt = 0; pickLogUntil = Date.now() + 120000; }
+function bkPickOpen() { bk.pickAt = Date.now(); pickLogUntil = Date.now() + BK_PICK_MS; logEvt('Choix du fichier : ouvert'); }
+document.addEventListener('click', function (e) { if (e.target && e.target.closest && e.target.closest('label[for="bk-file"]')) bkPickOpen(); });
+document.addEventListener('keydown', function (e) {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches && e.target.matches('label[for="bk-file"]')) { e.preventDefault(); bkPickOpen(); $('#bk-file').click(); }
+});
+document.addEventListener('change', function (e) {
+  if (!e.target || e.target.id !== 'bk-file') return;
+  var f = e.target.files && e.target.files[0];
+  bkPickEnd();
+  if (f) logEvt('Choix du fichier : reçu (' + String(f.name).slice(0, 60) + ', ' + f.size + ' octets)');
+  e.target.value = '';                                           /* le même fichier pourra être rechoisi ; l'objet « fichier » reste utilisable */
+  bkFilePicked(f);
+});
+$('#bk-file').addEventListener('cancel', function () { bkPickEnd(); logEvt('Choix du fichier : annulé'); });
 document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target && e.target.id === 'bk-phrase') { e.preventDefault(); bkOpen(); } });
 function bkAction(a) {
   switch (a) {
@@ -1285,6 +1304,7 @@ function tick() {
   if (veilOn) return;
   var now = Date.now();
   if (now < lastTouch - 2000) { mask(); return; }                      /* l'horloge a reculé : par prudence on masque */
+  if (bkPicking()) return;                                             /* le sélecteur de fichiers est ouvert : pas de masquage automatique */
   if (bkPhraseLive() && cur === 'sauvegarde') return;                  /* écran de la phrase ouvert : masquage automatique en pause (10 minutes au plus) */
   if (idleSec > 0 && now - lastTouch >= idleSec * 1000) mask();
 }
@@ -1303,8 +1323,9 @@ function onAct(e) {   /* chaque toucher, défilement ou frappe : on vérifie l'h
 document.addEventListener('keydown', onAct, { capture: true });
 veilEl.addEventListener('click', function () { if (swallowClick) { swallowClick = false; return; } tick(); if (veilOn) unmask(); });
 veilEl.addEventListener('keydown', function (e) { if (veilOn && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); tick(); if (veilOn) unmask(); } });
-function bgMask() { if (!veilOn) mask(); }                           /* appli en arrière-plan : écran neutre tout de suite */
+function bgMask() { if (!veilOn && !bkPicking()) mask(); }                           /* appli en arrière-plan : écran neutre tout de suite */
 document.addEventListener('visibilitychange', function () {
+  if (Date.now() < pickLogUntil) logEvt(document.hidden ? 'Appli cachée' : 'Appli revenue');       /* seulement autour d'un choix de fichier : le journal ne garde que 20 lignes */
   if (document.hidden) bgMask(); else { tick(); if (swReg) swReg.update().catch(function () {}); }
 });
 window.addEventListener('pagehide', bgMask);
@@ -1460,6 +1481,13 @@ function startupLog() {
   }).then(function () { return logEvt('Base ouverte (structure ' + schemaVersion + ')'); });
 }
 logEvt('Démarrage de la version ' + APP_VERSION);
+logEvt('Démarrage : ' + startInfo());
+function startInfo() {
+  var nav = 'inconnue', mode = 'navigateur';
+  try { var e = performance.getEntriesByType('navigation')[0]; if (e && e.type) nav = e.type; } catch (er) { /* rien */ }
+  try { if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) mode = 'standalone'; } catch (er) { /* rien */ }
+  return 'type de navigation ' + nav + ', affichage ' + mode + ', page rejetée ' + (document.wasDiscarded === undefined ? 'inconnu' : (document.wasDiscarded ? 'oui' : 'non'));
+}
 var ready = AG.init({ onBlocked: showBlocked }).then(function () {
   return AG.getMeta('schema_version').then(function (v) { schemaVersion = v; });
 }).then(function () {

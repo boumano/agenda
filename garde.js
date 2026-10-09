@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.6.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['garde.js']='0.6.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la « garde ». Chargée AVANT le reste, elle ne dépend de rien d'autre.
    Elle sert à ne jamais laisser un écran figé sans explication :
    - elle note dans le journal de mise à jour (Réglages) toute erreur JavaScript non attrapée et toute promesse rejetée ;
