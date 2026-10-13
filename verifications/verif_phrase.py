@@ -4,6 +4,7 @@ test croisé avec tools/lire_export.py). Noms et valeurs FICTIFS seulement. W et
 import os, re, json, shutil, subprocess, sys, tempfile, threading, pathlib, http.server, functools, datetime, itertools
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
+APPV = re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1)      # la version actuelle, lue dans version.js (jamais écrite à la main ici)
 (HERE / "captures").mkdir(exist_ok=True)
 SHOTS = (HERE / "captures").as_posix()
 from playwright.sync_api import sync_playwright
@@ -222,7 +223,7 @@ with sync_playwright() as p:
     # ---- premier export complet
     tap(pg, "bk-export"); tap(pg, "bk-show"); P4 = bkstate(pg)["phrase"]
     d = confirm_ok(pg, P4, True); text1 = save_dl(d, "un.agenda")
-    ok(tag + " premier export mené à bout : fichier produit, version 0.6.1 dans l'en-tête", json.loads(text1)["app_version"] == "0.6.3" and bkstate(pg)["hasKey"] is True)
+    ok(tag + " premier export mené à bout : fichier produit, version 0.6.1 dans l'en-tête", json.loads(text1)["app_version"] == APPV and bkstate(pg)["hasKey"] is True)
     # ---- nouvelle phrase
     ok(tag + " accueil avec phrase confirmée : bouton « Créer une nouvelle phrase », plus de ligne « papier et stylo »", pg.locator('[data-a="bk-renew"]').count() == 1 and PAPER not in screen_text(pg))
     pg.screenshot(path=SHOTS + "/phrase_accueil_%dx%d_%s.png" % (W, H, SCHEME))

@@ -1,0 +1,72 @@
+PASS [light 360x640] aujourd'hui (2026-10-13) : cartes triées par heure : Beta 8h, Alpha 9h30, Delta 11h15 (Gamma pas encore, Epsilon archivée absente)
+PASS [light 360x640] heures affichées comme dans la maquette : « Rendez-vous 8h », « 9h30 », « 11h15 »
+PASS [light 360x640] résumé du jour « 3 courses · 0 faite · 0 pas faite », jour en toutes lettres
+PASS [light 360x640] cartes prévues = calculées : AUCUNE course n'est enregistrée tant que Pascal n'a rien touché
+PASS [light 360x640] ouvrir une carte (voir son détail) n'enregistre rien
+PASS [light 360x640] carte ouverte : nom, heure, téléphone + « Appeler », prise en charge, destination (nom du lieu, adresse), montant et km avec « habituel »
+PASS [light 360x640] « Copier » l'adresse de destination : « 2 rue Cible, 22222 Villecible » (message « Adresse copiée »)
+PASS [light 360x640] carte refermée
+PASS [light 360x640] 14 jours avec les flèches : Alpha (tous les jours), Beta (même jour de la semaine), Gamma (« Du » +2 « Au » +4 : 3 jours), Delta (dates choisies : aujourd'hui et +3)
+PASS [light 360x640] jour passé (hier) : la carte d'Alpha s'affiche, ronds vides « pas noté » (aucun rempli), et rien d'enregistré
+PASS [light 360x640] bouton « Revenir à aujourd'hui » visible hors d'aujourd'hui, et il ramène au bon jour
+PASS [light 360x640] « Fait » sur Alpha : UNE course créée (les autres cartes restent calculées)
+PASS [light 360x640] la course : identifiant unique, date en texte, heure « 09:30 », destination copiée de la fiche
+PASS [light 360x640] prix et km COPIÉS de la fiche : 1250 centimes, 8500 mètres (entiers), repères « habituel » gardés dans la course
+PASS [light 360x640] message « Un : fait. » avec « Annuler », rond « fait » rempli, résumé « 3 courses · 1 faite · 0 pas faite »
+PASS [light 360x640] « Annuler » : la course créée va à la CORBEILLE (jamais effacée), la carte redevient « à faire »
+PASS [light 360x640] « Pas fait » sur Beta : course « pas fait », résumé « … 1 pas faite », prix et km inconnus restent vides (null, jamais 0)
+PASS [light 360x640] retoucher le rond « pas fait » le vide : « Deux : remis à faire. », la course existe encore, sans état
+PASS [light 360x640] fait → remis à faire → pas fait : toujours UNE seule course pour Beta aujourd'hui
+PASS [light 360x640] « Annuler » sur un changement d'état d'une course existante : l'état d'avant revient, la course reste
+PASS [light 360x640] carte de Delta (jamais touchée) : montant « 10 » et km « 5 » de la fiche, deux repères « habituel »
+PASS [light 360x640] montant « 0 » : refusé (« un zéro n'est pas possible »), champ marqué, aucune course créée pour Delta
+PASS [light 360x640] montant « 20.5 » (point) : la course de Delta est créée à ce moment (2050 centimes), km copié de la fiche (5000 m), repère « habituel » du prix disparu, celui des km reste, champ « 20,50 »
+PASS [light 360x640] km « 7,25 » (virgule) : 7250 mètres, les deux repères « habituel » ont disparu
+PASS [light 360x640] retaper la valeur habituelle (5) : le repère « habituel » des km revient
+PASS [light 360x640] montant effacé : « inconnu » (null), jamais 0
+PASS [light 360x640] « Changer ce jour » : petit panneau (pas une page) avec heure et destination SEULEMENT, préremplis (09:30, Lieu Cible…)
+PASS [light 360x640] heure « 25:00 » : « Heure invalide : écris par exemple 13:00, ou laisse vide. », rien enregistré
+PASS [light 360x640] enregistré : course d'Alpha créée avec heure « 14:00 » et destination « Autre lieu », marquée « changé », prix et km toujours copiés de la fiche
+PASS [light 360x640] la carte : « Rendez-vous 14h » avec la mention « changé », triée après Delta (11h15)
+PASS [light 360x640] la fiche d'Alpha n'a pas bougé (heure, destination d'origine)
+PASS [light 360x640] « Ajouter une course » : liste des personnes SANS carte ce jour-là (Gamma ; ni les 3 déjà prévues, ni l'archivée Epsilon)
+PASS [light 360x640] choisir Gamma : formulaire heure + destination (vides comme sa fiche)
+PASS [light 360x640] course exceptionnelle enregistrée : « Course ajoutée », marquée « ajoutée », heure 16:00, prix et km inconnus (null)
+PASS [light 360x640] elle apparaît dans la journée (4 courses), triée après Alpha 14h : Beta, Delta, Alpha, Gamma
+PASS [light 360x640] plus personne à ajouter : message « Toutes les personnes ont déjà une course ce jour-là. »
+PASS [light 360x640] la course exceptionnelle propose « Supprimer cette course »
+PASS [light 360x640] supprimer : « Course supprimée » avec « Annuler » ; la course va à la corbeille (jamais effacée), la carte disparaît
+PASS [light 360x640] « Annuler » : la course revient
+PASS [light 360x640] la fiche d'Alpha change (prix 99, km 1, heure 7:00, autre destination, plus aucun jour) : la course d'HIER est inchangée (heure, destination, 1250 / 8500, fait)
+PASS [light 360x640] la course d'AUJOURD'HUI (déjà enregistrée) garde aussi ses valeurs : 14:00, « Autre lieu », 1250 centimes
+PASS [light 360x640] demain, sans course : plus de carte d'Alpha (plus aucun jour habituel) — l'avenir suit la fiche, le passé non
+PASS [light 360x640] jours rétablis avec la nouvelle fiche : la carte de demain prend la NOUVELLE heure (7h) ; ouverte elle montre 99 et la nouvelle destination ; rien n'est enregistré
+PASS [light 360x640] … carte ouverte de demain : montant « 99 », km « 1 », « Nouveau lieu »
+PASS [light 360x640] personne archivée (Delta, avec une course d'aujourd'hui non notée) : plus de carte prévue ni de course non notée aujourd'hui
+PASS [light 360x640] restaurée : sa carte revient (avec sa course et son montant gardés)
+PASS [light 360x640] Epsilon (archivée) n'a aucune carte prévue dans le passé non plus
+PASS [light 360x640] une course passée NOTÉE d'une personne archivée reste visible (« Epsilon », fait)
+PASS [light 360x640] fermeture et réouverture : les courses et leurs états sont toujours là (Beta toujours à faire, Delta avec son montant)
+PASS [light 360x640] MODE AVION : Aujourd'hui s'ouvre avec ses cartes
+PASS [light 360x640] MODE AVION : « Fait » s'enregistre
+PASS [light 360x640] carte ouverte avec montant et adresses
+PASS [light 360x640] œil sur Aujourd'hui : « Agenda » seul, plein écran, rien de lisible
+PASS [light 360x640] … et les cartes sont refermées dessous : montants et adresses retirés de la page (aucun champ « Montant » dans le document)
+PASS [light 360x640] panneau « Ajouter une course » ouvert
+PASS [light 360x640] 2 minutes simulées avec le panneau ouvert : masqué tout seul, panneau couvert et inerte, rien de lisible
+PASS [light 360x640] Aujourd'hui (lignes repliées) : zones de 44 px (œil 44 x 28 comme la maquette), rien qui déborde
+PASS [light 360x640] Aujourd'hui (carte ouverte) : zones de 44 px, rien qui déborde
+PASS [light 360x640] panneau « Changer ce jour » : zones de 44 px, rien qui déborde ni se chevauche, dans l'écran
+PASS [light 360x640] « Annuler » du panneau ouvert depuis une carte : il se ferme
+PASS [light 360x640] aucune erreur JavaScript
+PASS [light 360x640] aucune requête hors de l'appli (60 requêtes)
+PASS [light 360x640] journée vide (aucune personne) : « Aucune course prévue ce jour. » et « 0 course · 0 faite · 0 pas faite »
+PASS [light 360x640] horloge simulée au samedi 24 octobre 2026 (Bruxelles) : « samedi 24 octobre », « Quotidien » seulement
+PASS [light 360x640] jour suivant : « dimanche 25 octobre » (jour du changement d'heure, 25 heures), deux cartes : Dimanche 8h puis Quotidien 15h
+PASS [light 360x640] lundi 26 octobre : « Dimanche » n'a pas de carte, « Quotidien » oui (aucun jour sauté ni compté deux fois)
+PASS [light 360x640] retour au 24 : toujours « samedi 24 octobre »
+PASS [light 360x640] dates rangées en TEXTE : course du dimanche = « 2026-10-25 » (fait), course du lundi = « 2026-10-26 » (pas fait), rien de décalé
+PASS [light 360x640] 24 h plus tard (le dimanche du changement d'heure, 11 h) : « Aujourd'hui » est bien « dimanche 25 octobre »
+PASS [light 360x640] 14 h de plus (lundi 26 octobre, 1 h du matin heure d'hiver) : « Aujourd'hui » devient « lundi 26 octobre »
+PASS [light 360x640] aucune erreur JavaScript (changement d'heure)
+TOTAL 71 ECHECS 0

@@ -1,0 +1,28 @@
+PASS [light 360x640] mois précédent affiché
+PASS [light 360x640] lieu habituel : aucune pastille
+PASS [light 360x640] lieu inconnu : pastille A, couleur 0
+PASS [light 360x640] Clinique Nord : pastille B, couleur 1
+PASS [light 360x640] même clinique écrite avec majuscules, espaces et accents différents : même pastille B (un seul lieu)
+PASS [light 360x640] Hôpital Zéro : pastille C, couleur 2
+PASS [light 360x640] course à la corbeille : aucune pastille
+PASS [light 360x640] étiquette lisible du jour : « … : transportée · hors habituel : Clinique Nord (B) »
+PASS [light 360x640] les bordures gardent leur sens (bleu transportée) malgré la pastille
+PASS [light 360x640] légende : lieu habituel rappelé
+PASS [light 360x640] légende : 4 courses hors habituel ce mois-ci (inconnu, clinique ×2, hôpital)
+PASS [light 360x640] légende : 3 lieux, dans l'ordre, avec lettre et couleur
+PASS [light 360x640] le lieu à la corbeille n'apparaît nulle part
+PASS [light 360x640] trois couleurs différentes
+PASS [light 360x640] pas de défilement de côté
+PASS [light 360x640] fenêtre du jour (hors habituel) : lieu, « changé », adresse, rappel de l'habituel
+PASS [light 360x640] fenêtre du jour : même pastille B que dans le calendrier
+PASS [light 360x640] les boutons Fait / Pas fait et les champs montant et km sont toujours là
+PASS [light 360x640] fenêtre du jour (lieu habituel) : « Lieu Cible », ni « changé » ni pastille ni rappel
+PASS [light 360x640] fenêtre du jour (destination vide) : « lieu inconnu » et rappel de l'habituel
+PASS [light 360x640] jour prévu sans course enregistrée : lieu habituel affiché
+PASS [light 360x640] regarder ne crée ni ne modifie aucune course
+PASS [light 360x640] mois en cours : Clinique Nord = même pastille B, même couleur que le mois précédent
+PASS [light 360x640] légende du mois en cours : seulement Clinique Nord, 1 course hors habituel
+PASS [light 360x640] personne sans course hors habituel : ni pastille ni légende
+PASS [light 360x640] aucune erreur dans la console
+
+[light 360x640] 26 contrôles, 0 échec(s)

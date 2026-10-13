@@ -7,6 +7,7 @@ W et H par variables d'environnement (390 x 780 par défaut), SCHEME=dark (défa
 import os, re, json, shutil, subprocess, sys, tempfile, threading, pathlib, http.server, functools, datetime, itertools
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
+APPV = re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1)      # la version actuelle, lue dans version.js
 (HERE / "captures").mkdir(exist_ok=True)
 SHOTS = (HERE / "captures").as_posix()
 from playwright.sync_api import sync_playwright
@@ -252,7 +253,7 @@ with sync_playwright() as p:
     ok(tag + " la phrase n'est écrite nulle part sur le téléphone (ni base, ni stockage du navigateur)", not pg.evaluate("""(async()=>{ const ph=%s; const s=JSON.stringify(await AG.snapshotAll())+JSON.stringify(Object.assign({},localStorage))+JSON.stringify(Object.assign({},sessionStorage))+JSON.stringify([await AG.getMeta('last_export'), await AG.getMeta('update_log')]); return ph.some(w=>s.includes(w)) })()""" % json.dumps(phrase3)))
     # le fichier
     hdr = json.loads(text1)
-    ok(tag + " fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours", hdr["format"] == "agenda-export" and hdr["format_version"] == 1 and hdr["app_version"] == "0.6.3" and hdr["schema"] == 5 and hdr["kdf"]["iterations"] == 600000 and hdr["exported_at"].startswith("2026-10-20T08:") and hdr["cipher"] == "AES-256-GCM", {k: hdr[k] for k in hdr if k not in ("ct", "iv", "kdf", "wrapped_key")})
+    ok(tag + " fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours", hdr["format"] == "agenda-export" and hdr["format_version"] == 1 and hdr["app_version"] == APPV and hdr["schema"] == 5 and hdr["kdf"]["iterations"] == 600000 and hdr["exported_at"].startswith("2026-10-20T08:") and hdr["cipher"] == "AES-256-GCM", {k: hdr[k] for k in hdr if k not in ("ct", "iv", "kdf", "wrapped_key")})
     leaks = [m for m in MARKERS if m in text1]
     ok(tag + " AUCUN nom, adresse, téléphone ni autre valeur de test lisible en clair dans le fichier brut", not leaks and not re.search(r"persons|rides|fuel|price_cents|last_name|Imaginaire", text1), leaks)
     ok(tag + " … le fichier est du texte JSON ordinaire (pas de données binaires brutes)", text1.isascii())

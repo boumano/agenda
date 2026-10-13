@@ -1,0 +1,78 @@
+PASS [light 360x640] Bilan : titre, choix « Totaux » (choisi) / « Jour par jour », mois précédent affiché avec deux chevrons, ligne « Réglages » en bas
+PASS [light 360x640] courses FAITES : 9 (« pas fait », corbeille et cartes prévues jamais touchées ne comptent pas)
+PASS [light 360x640] euros MASQUÉS tant qu'on ne touche pas : « •••• € », aucun chiffre
+PASS [light 360x640] la note « + 2 courses sans prix (total partiel) » est visible même masquée (elle ne dévoile aucun montant)
+PASS [light 360x640] touché : total en euros = somme des PRIX CONNUS seulement (49,27 €), jamais de 0 inventé pour les 2 courses sans prix
+PASS [light 360x640] km : 22,23 km (somme des km connus), note « + 2 courses sans km (total partiel) »
+PASS [light 360x640] détail par personne (ordre alphabétique des noms) : courses faites, euros, km, notes « sans prix » / « sans km » ; la personne ARCHIVÉE (Gamma) y est
+PASS [light 360x640] Alpha : 5 courses faites dont une « changée » (777 centimes, 1234 m) comptée avec ses valeurs propres
+PASS [light 360x640] Epsilon (aucune course ce mois-ci) absente de la liste du mois
+PASS [light 360x640] retoucher : les montants se recachent (liste comprise)
+PASS [light 360x640] mois d'avant : août 2026
+PASS [light 360x640] 2 courses faites, toutes sans prix ni km : « 2 courses faites », note « + 2 courses sans prix (total partiel) »
+PASS [light 360x640] total en euros : « inconnu » (pas « 0,00 € »), km : « inconnu » (pas « 0 km ») ; la personne : même chose
+PASS [light 360x640] changer de mois recache les montants
+PASS [light 360x640] mois en cours (octobre) : la course d'aujourd'hui faite est comptée, les cartes prévues des jours d'avant non (1 course)
+PASS [light 360x640] mois suivant (à venir) : 0 course faite, « Rien de fait ce mois-ci. », « 0 km », jamais d'erreur
+PASS [light 360x640] lignes « Par personne » : ce sont des boutons avec la flèche à droite (comme les autres lignes touchables), 52 px de haut au moins
+PASS [light 360x640] toucher « Alpha Un » ouvre SON calendrier, directement sur le mois du Bilan (septembre 2026), l'onglet Bilan reste allumé
+PASS [light 360x640] résumé du mois en haut : 5 courses faites, euros masqués « •••• € », km 17,73 km, notes « sans prix / sans km » visibles
+PASS [light 360x640] toucher le montant : 35,27 € (somme des prix connus, jamais de 0 inventé)
+PASS [light 360x640] mois d'avant DANS le calendrier : le résumé suit (0 course, montant de nouveau masqué)
+PASS [light 360x640] aucune course ce mois-là : « 0,00 € » et « 0 km » (vrai zéro : aucune course faite), pas « inconnu »
+PASS [light 360x640] retour au mois du Bilan : le résumé d'Alpha est revenu
+PASS [light 360x640] « Retour » depuis ce calendrier : on revient au BILAN (pas à la fiche), vue « Totaux », même mois septembre 2026, montants masqués
+PASS [light 360x640] personne ARCHIVÉE (Gamma Trois) : son calendrier s'ouvre aussi, résumé 1 course faite
+PASS [light 360x640] touche Retour d'Android depuis ce calendrier : retour au Bilan
+PASS [light 360x640] Epsilon Cinq (2 courses sans prix ni km) : résumé « inconnu » / « inconnu » et « + 2 courses sans prix… »
+PASS [light 360x640] « Retour » : Bilan sur le mois d'où l'on vient (août 2026)
+PASS [light 360x640] Beta Deux : 3,00 €, 1 km, notes « + 1 course sans prix… · + 1 course sans km… »
+PASS [light 360x640] œil sur ce calendrier (montant affiché) : « Agenda » seul, rien de lisible
+PASS [light 360x640] un toucher rouvre : le montant du résumé est de nouveau masqué (« •••• € »)
+PASS [light 360x640] calendrier ouvert depuis la FICHE : le résumé est aussi en haut (mois en cours), origine « fiche », onglet Personnes allumé
+PASS [light 360x640] « Retour » depuis la fiche : on revient à la FICHE d'Alpha (pas au Bilan)
+PASS [light 360x640] Jour par jour : une ligne par jour AVEC des personnes concernées (26 jours), « mar 6 » puis « prénom oui / non / pas noté »
+PASS [light 360x640] « 17 jours sans note » (jours passés où une course était prévue et où rien n'a été noté)
+PASS [light 360x640] jours sans course prévue ni notée (week-ends) : pas de ligne
+PASS [light 360x640] plusieurs personnes le même jour (le 2026-09-05) : NOM COMPLET « Alpha Un » et « Zeta Un » (nom puis prénom, comme « Par personne »), aucun prénom seul
+PASS [light 360x640] mise en page : la date UNE seule fois, UNE LIGNE PAR PERSONNE (l'une sous l'autre), « oui » / « non » / « pas noté » à DROITE de chaque nom
+PASS [light 360x640] « pas fait » = « non » (lisible à voix haute) ; la personne archivée garde sa course passée (« Gamma Trois oui »)
+PASS [light 360x640] la course à la corbeille (le 2026-09-10) n'existe plus : « Alpha Un » y est « pas noté » (carte prévue)
+PASS [light 360x640] mots affichés en toutes lettres (« oui », « non », « pas noté »), pas seulement des icônes
+PASS [light 360x640] toucher un jour ouvre CE jour dans Aujourd'hui (le 2026-09-09)
+PASS [light 360x640] … avec la course notée « pas fait » d'Alpha ce jour-là
+PASS [light 360x640] retour au Bilan : on retrouve « Jour par jour » et le même mois
+PASS [light 360x640] mois en cours : lignes conformes (aujourd'hui compris : « oui » pour la course faite, « à faire » pour les cartes pas encore notées), aucun jour à venir
+PASS [light 360x640] « 8 jours sans note » : aujourd'hui n'est jamais compté (la journée n'est pas finie)
+PASS [light 360x640] mois à venir : « Rien à afficher ce mois-ci. » et « 0 jour sans note »
+PASS [light 360x640] la ligne « Réglages » du Bilan ouvre toujours Réglages ; « Retour » revient au Bilan
+PASS [light 360x640] … retour au Bilan (même vue et même mois)
+PASS [light 360x640] aucun bouton ni mot « père », « copier », « envoyer », « partager », « WhatsApp » sur le Bilan
+PASS [light 360x640] code du Bilan : ni copie dans le presse-papiers, ni partage, ni envoi (clipboard, share, mailto, sms:, whatsapp, fetch)
+PASS [light 360x640] montants affichés avant masquage
+PASS [light 360x640] œil sur le Bilan (Totaux, montants affichés) : « Agenda » seul, plein écran, Bilan inerte
+PASS [light 360x640] … et les montants se sont recachés dessous (aucun chiffre d'euros dans la page)
+PASS [light 360x640] un toucher rouvre : montants toujours masqués
+PASS [light 360x640] œil sur « Jour par jour » : « Agenda » seul, aucun nom lisible
+PASS [light 360x640] 2 minutes simulées sur le Bilan : masqué tout seul, rien de lisible
+PASS [light 360x640] Jour par jour : zones de 44 px (chaque ligne de jour se touche), rien qui déborde à 360 px
+PASS [light 360x640] Totaux : zones de 44 px, rien qui déborde
+PASS [light 360x640] fermeture et réouverture : mêmes totaux (9 courses)
+PASS [light 360x640] MODE AVION : le Bilan se calcule (total 49,27 €)
+PASS [light 360x640] une seule personne, mois précédent : « jours sans note » du Bilan (22 jours sans note) = celui de son calendrier (1 transportée, 1 pas transportée, 22 jours sans note) = 22 (jours passés prévus, rien noté)
+PASS [light 360x640] calcul indépendant : jours prévus (semaine + course ajoutée un week-end) moins les jours notés = 22 ; la course à la corbeille ne change rien
+PASS [light 360x640] aucune erreur JavaScript
+PASS [light 360x640] aucune requête hors de l'appli (50 requêtes)
+PASS [light 360x640] horloge simulée au mardi 27 octobre 2026 : le Bilan s'ouvre sur « octobre 2026 »
+PASS [light 360x640] octobre 2026 : les jours 24, 25 et 26 ont chacun UNE ligne, « sam 24 », « dim 25 », « lun 26 » (rien de sauté ni compté deux fois)
+PASS [light 360x640] dimanche 25 : « Dimanche Seul oui » (course faite, 8 h) puis « Quotidien Tous oui » (15 h) ; lundi 26 : « Quotidien Tous oui » seulement (« Dimanche Seul » n'est prévu que le dimanche)
+PASS [light 360x640] mardi 27 (jour courant) : « à faire » pour les cartes pas encore notées, pas compté dans « jours sans note »
+PASS [light 360x640] Totaux d'octobre : 4 courses faites (3 de « Quotidien » + 1 de « Dimanche »), 5 km (3 x 1 + 2)
+PASS [light 360x640] aucune erreur JavaScript (changement d'heure)
+PASS [light 360x640] 6048 courses fictives sur 24 mois en base ; l'appli s'ouvre (base prête) en 0.4 s
+PASS [light 360x640] 4 mois pris au hasard sur 24 : courses faites, km, notes « sans prix / sans km » et euros EXACTEMENT ceux calculés à part sur les 6048 courses
+PASS [light 360x640] lecture par l'INDEX des dates : seules les courses du mois choisi sont lues (~252 sur 6048), jamais toute la base
+PASS [light 360x640] temps d'affichage du Bilan pour un mois : au pire 19 ms (limite 500 ms)
+PASS [light 360x640] « Jour par jour » d'un mois chargé : 31 ms (limite 500 ms), 29 lignes
+PASS [light 360x640] aucune erreur JavaScript (beaucoup de courses)
+TOTAL 77 ECHECS 0

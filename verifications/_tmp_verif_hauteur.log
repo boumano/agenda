@@ -1,0 +1,15 @@
+PASS [light 360x640] au départ (360x640) : menu du bas entièrement visible, collé au bas
+PASS [light 360x640] fenêtre changée en 360x560 après l'affichage : menu du bas toujours entièrement visible
+PASS [light 360x640] fenêtre changée en 360x640 après l'affichage : menu du bas toujours entièrement visible
+PASS [light 360x640] fenêtre changée en 360x720 après l'affichage : menu du bas toujours entièrement visible
+PASS [light 360x640] fenêtre changée en 360x560 après l'affichage : menu du bas toujours entièrement visible
+PASS [light 360x640] démarrage à 730 puis fenêtre réduite à 640 après 0 ms : menu du bas entièrement visible
+PASS [light 360x640] démarrage à 730 puis fenêtre réduite à 640 après 150 ms : menu du bas entièrement visible
+PASS [light 360x640] démarrage à 730 puis fenêtre réduite à 640 après 1200 ms : menu du bas entièrement visible
+PASS [light 360x640] rechargement normal + fenêtre réduite juste après : menu du bas entièrement visible
+PASS [light 360x640] hauteur de #app périmée (trop grande de 90 px) : la page se corrige seule, menu du bas entièrement visible
+PASS [light 360x640] … le journal note « Mise en page corrigée : fenêtre H, visible V, bas du menu B » (une seule fois)
+PASS [light 360x640] … et « Mise en page : fenêtre H, visible V, bas du menu B » au moment de « Écran affiché (menu prêt) »
+PASS [light 360x640] « Nouvelle version disponible » apparaît (9.9.8 → 9.9.9)
+PASS [light 360x640] « Mettre à jour » + changement de taille juste après le rechargement : version 9.9.9 et menu du bas entièrement visible
+TOTAL 14 ECHECS 0

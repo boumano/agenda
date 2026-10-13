@@ -1,4 +1,4 @@
-:root{--ag-version:"0.6.3"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+:root{--ag-version:"0.7.0"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
@@ -30,6 +30,8 @@
   --band-btn:#FFFFFF;   /* fond des boutons flèches du bandeau */
   --band-link:#155F9F;  /* « Retour » et chevrons de mois dans le bandeau : le bleu d'accent, ajusté pour 4,5 : 1 sur le bandeau */
   --tool:#3E5F80;       /* icônes discrètes œil / cadenas du bandeau (même gris-bleu que le sous-titre) */
+  --pl0:#A24F00;--pl1:#6B3FA0;--pl2:#1F6B40;--pl3:#A3306F;--pl4:#7A5C00;--pl5:#6B4423;  /* pastilles de lieu : 6 couleurs, ni le bleu ni le rouge des états */
+  --on-pl:#FFFFFF;
 }
 @media (prefers-color-scheme:dark){
   :root{
@@ -54,6 +56,8 @@
     --band-btn:#0F1217;
     --band-link:#6DB4EE;
     --tool:#9FB6CC;
+    --pl0:#F0B060;--pl1:#C3A3F0;--pl2:#7CC49A;--pl3:#F09AC8;--pl4:#E6CC66;--pl5:#D2A679;
+    --on-pl:#0F1217;
   }
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -346,3 +350,21 @@ button.jjrow{width:100%;border-left:0;border-right:0;border-top:0;background:non
 .sprite{position:absolute;width:0;height:0;overflow:hidden}
 .input.secret:not(.show){-webkit-text-security:disc;text-security:disc}
 #bk-reveal{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px}#bk-reveal svg{width:20px;height:20px}
+
+/* ---------- lieux : pastilles du calendrier, légende, lieu dans la fenêtre du jour ---------- */
+.pl{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;font-style:normal;font-size:10px;font-weight:700;line-height:1;color:var(--on-pl);flex:none}
+.pl.c0{background:var(--pl0)}.pl.c1{background:var(--pl1)}.pl.c2{background:var(--pl2)}.pl.c3{background:var(--pl3)}.pl.c4{background:var(--pl4)}.pl.c5{background:var(--pl5)}
+.calgrid .cell{position:relative}
+.calgrid .cell .pl{position:absolute;top:1px;right:1px;width:14px;height:14px;font-size:9px}
+.placeleg{margin-top:10px;padding:8px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:14px;color:var(--text2)}
+.placeleg .ph{margin:0 0 4px;color:var(--text2)}
+.placeleg .ph b{color:var(--text);font-weight:600}
+.placeleg ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.placeleg li{display:flex;align-items:center;gap:8px;color:var(--text)}
+.placeleg li .pl{width:20px;height:20px;font-size:12px}
+.dayplace{display:flex;align-items:flex-start;gap:8px;margin:6px 0 4px;padding:8px 10px;background:var(--block);border:1px solid var(--line);border-radius:12px;color:var(--text)}
+.dayplace .pi{flex:none;color:var(--text2);padding-top:1px}
+.dayplace .pt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dayplace .pn{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:16px}
+.dayplace .pn b{font-weight:600;overflow-wrap:anywhere}
+.dayplace .pa{font-size:13px;line-height:17px;color:var(--text2);overflow-wrap:anywhere}

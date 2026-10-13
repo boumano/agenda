@@ -1,0 +1,30 @@
+PASS [light 360x640] point de départ : les fichiers de la VRAIE version 0.2.1 (commit 35b4c67) tournent
+PASS [light 360x640] version 0.2.1 : structure 2 (sans magasin de courses indexé par date), une personne et un réglage de masquage (10 minutes) enregistrés
+PASS [light 360x640] « publication » de la version actuelle : version.js = 0.7.0
+PASS [light 360x640] dans l'appli installée (0.2.1) : « Nouvelle version disponible » apparaît, la page ne se recharge pas toute seule
+PASS [light 360x640] « Mettre à jour » : la page se recharge UNE fois et ne reste pas figée (la base est prête, menu du bas présent)
+PASS [light 360x640] … le menu du bas répond tout de suite (toucher « Personnes »)
+PASS [light 360x640] … pas de boucle de rechargements (toujours un seul 5 s plus tard)
+PASS [light 360x640] Réglages : version 0.7.0 et structure n° 5
+PASS [light 360x640] la base est en structure 5 : magasins gardés, courses indexées par date ET par personne
+PASS [light 360x640] personne et réglage de masquage (600) gardés, aucune course inventée
+PASS [light 360x640] la 2e page, restée ouverte en 0.2.1, a lâché sa connexion (elle n'a PAS bloqué) et l'explique : « Agenda a été mis à jour dans une autre fenêtre »
+PASS [light 360x640] journal : « Démarrage de la version 0.7.0 », « Base ouverte (structure 5) »
+PASS [light 360x640] journal : « Structure des données mise à niveau : 2 → 5 » ; la version 0.2.1 n'avait pas de journal : « Version précédente non notée »
+PASS [light 360x640] journal : chaque évènement a une heure (AAAA-MM-JJTHH:MM:SS) et le numéro de version de l'appli qui l'a écrit
+PASS [light 360x640] Réglages : « Journal de mise à jour » affiche les évènements, le plus récent d'abord, avec heure (jj/mm hh:mm:ss) et version
+PASS [light 360x640] journal : aucun nom, adresse ni montant (rien de la personne « Alpha »)
+PASS [light 360x640] aucune erreur JavaScript (0.2.1 → 0.7.0)
+PASS [light 360x640] 0.7.0 → 9.9.9 : « Nouvelle version disponible » détectée
+PASS [light 360x640] mise à jour avec structure 6 et une 2e page 0.7.0 ouverte : un seul rechargement, base prête, menu du bas présent, aucun message de blocage
+PASS [light 360x640] Réglages : version 9.9.9, structure n° 6
+PASS [light 360x640] la 2e page (0.7.0) a lâché sa connexion et l'explique
+PASS [light 360x640] journal (page 0.7.0 qui lance la mise à jour) : « Réserve complète » vérifiée par le nouveau service worker, entre « Nouveau service worker actif » et « Rechargement de la page » ; puis « Écran affiché (menu prêt) », sans « Erreur » ni « Fichiers de versions différentes »
+PASS [light 360x640] journal : « Nouvelle version prête », « Bouton « Mettre à jour » touché », « Nouveau service worker actif », « Rechargement de la page » (écrits AVANT le rechargement)
+PASS [light 360x640] journal : ces évènements sont dans l'ordre (prête < touché < actif < rechargement)
+PASS [light 360x640] journal : la 2e page a noté « Base fermée : une autre page demande une nouvelle structure » AVANT de lâcher sa connexion
+PASS [light 360x640] journal : après le rechargement, la nouvelle version note « Démarrage de la version 9.9.9 », la mise à niveau 5 → 6 et le changement de version 0.7.0 → 9.9.9
+PASS [light 360x640] le journal garde les 20 derniers évènements au plus (30 ajoutés d'un coup : les 20 derniers restent, du plus ancien « essai 10 » au plus récent « essai 29 »)
+PASS [light 360x640] Réglages affiche bien 20 lignes (le plus récent en haut : « essai 29 »)
+PASS [light 360x640] aucune erreur JavaScript (0.7.0 → 9.9.9)
+TOTAL 29 ECHECS 0

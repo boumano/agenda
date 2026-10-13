@@ -1,0 +1,34 @@
+PASS [light 360x640] accueil sans phrase créée : ligne « prenez un papier et un stylo, 10 minutes », pas de bouton « nouvelle phrase »
+PASS [light 360x640] écran d'explication du premier export : la même ligne est là
+PASS [light 360x640] phrase affichée : 10 mots + compte à rebours discret « encore 10 min »
+PASS [light 360x640] 5 minutes sans toucher (réglage : 1 minute) : le masquage automatique est en PAUSE, phrase intacte, « encore 5 min »
+PASS [light 360x640] … la phrase n'est dans AUCUN stockage du navigateur (IndexedDB, localStorage, sessionStorage, caches)
+PASS [light 360x640] autre application / autre onglet : l'écran est vidé (rien de lisible), la phrase reste EN MÉMOIRE
+PASS [light 360x640] … toujours aucune trace dans les stockages pendant l'absence
+PASS [light 360x640] retour après 3 minutes (grand écart d'horodatage) : la MÊME phrase, au même écran, « encore 2 min »
+PASS [light 360x640] étape de confirmation : après un aller-retour, on y est toujours (mêmes mots demandés), compte à rebours visible
+PASS [light 360x640] après 10 minutes : phrase effacée, message simple, retour à l'explication
+PASS [light 360x640] … rien d'enregistré (pas de trousseau), aucune trace de la phrase
+PASS [light 360x640] absence de 11 minutes : au retour, phrase effacée + message, la phrase n'est plus nulle part
+PASS [light 360x640] l'œil : masque tout de suite ET définitivement (phrase effacée de la mémoire)
+PASS [light 360x640] … au retour : il faut recommencer, la phrase ne revient pas
+PASS [light 360x640] premier export mené à bout : fichier produit, version 0.6.1 dans l'en-tête
+PASS [light 360x640] accueil avec phrase confirmée : bouton « Créer une nouvelle phrase », plus de ligne « papier et stylo »
+PASS [light 360x640] explication : ancienne phrase seulement pour les anciens fichiers, nouveaux exports avec la nouvelle, export juste après, papier et stylo
+PASS [light 360x640] nouvelle phrase : 10 mots, différente de l'ancienne
+PASS [light 360x640] confirmation ratée : message, même phrase, RIEN de définitif (trousseau inchangé)
+PASS [light 360x640] œil avant confirmation : on recommence, trousseau toujours celui d'avant
+PASS [light 360x640] nouvelle phrase non confirmée en 10 minutes : effacée, message, on reste dans le parcours « nouvelle phrase », trousseau inchangé
+PASS [light 360x640] confirmation réussie : trousseau remplacé (nouveau sel), aucun téléchargement automatique, bouton « Exporter maintenant »
+PASS [light 360x640] journal : « Phrase de récupération renouvelée », sans rien de lisible
+PASS [light 360x640] « Exporter maintenant » : nouveau fichier avec la NOUVELLE enveloppe seulement (autre sel, autre clé enveloppée)
+PASS [light 360x640] l'ancienne phrase ouvre l'ANCIEN fichier
+PASS [light 360x640] l'ancienne phrase n'ouvre PAS le NOUVEAU fichier
+PASS [light 360x640] la nouvelle phrase ouvre le NOUVEAU fichier
+PASS [light 360x640] la nouvelle phrase n'ouvre pas l'ancien fichier (chaque fichier = sa phrase)
+PASS [light 360x640] tools/lire_export.py : ancien fichier + ancienne phrase OK, nouveau fichier + nouvelle phrase OK
+PASS [light 360x640] … nouveau fichier + ancienne phrase REFUSÉ, ancien fichier + nouvelle phrase refusé
+PASS [light 360x640] … contenu identique dans les deux fichiers
+PASS [light 360x640] aucune des phrases n'est dans le stockage du navigateur à la fin
+PASS [light 360x640] aucune erreur de page pendant tout le parcours
+TOTAL 33 ECHECS 0

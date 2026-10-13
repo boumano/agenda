@@ -1,0 +1,28 @@
+PASS [light 360x640] tampons de version : chaque fichier JavaScript, style.css et index.html portent le numéro de version.js (0.7.0)
+PASS [light 360x640] garde.js : tampon en toute première ligne
+PASS [light 360x640] db.js : tampon en toute première ligne
+PASS [light 360x640] rides.js : tampon en toute première ligne
+PASS [light 360x640] fuel.js : tampon en toute première ligne
+PASS [light 360x640] mots.js : tampon en toute première ligne
+PASS [light 360x640] sauvegarde.js : tampon en toute première ligne
+PASS [light 360x640] app.js : tampon en toute première ligne
+PASS [light 360x640] démarrage normal : « Écran affiché (menu prêt) » dans le journal, après « Démarrage de la version 0.7.0 »
+PASS [light 360x640] démarrage normal : ni « Erreur », ni « Fichiers de versions différentes », ni message de problème, un seul chargement
+PASS [light 360x640] … le bouton « Recharger » est caché
+PASS [light 360x640] erreur JavaScript non attrapée et promesse rejetée : deux lignes « Erreur : … » courtes dans le journal
+PASS [light 360x640] … l'appli continue de fonctionner, sans message (l'erreur est survenue après l'affichage)
+PASS [light 360x640] au plus 20 lignes dans le journal, et au plus 3 lignes d'erreur par chargement (pas d'inondation)
+PASS [light 360x640] le journal ne s'affiche que dans Réglages (rien de lisible ailleurs)
+PASS [light 360x640] affichage qui échoue : le menu du bas est là (4 boutons) et répond
+PASS [light 360x640] … « Erreur : essai affichage » notée, puis « Écran pas affiché correctement : écran vide »
+PASS [light 360x640] … message « Un problème est survenu à l’affichage » + bouton « Recharger » (plus d'écran figé muet)
+PASS [light 360x640] … toucher « Recharger » : la page se recharge une fois et s'affiche normalement
+PASS [light 360x640] versions différentes (db.js et style.css anciens) : la liste figure dans le journal
+PASS [light 360x640] … UN seul rechargement (2 chargements au total), puis tout est cohérent : écran affiché, aucun message
+PASS [light 360x640] … pas de boucle de rechargements 3 s plus tard
+PASS [light 360x640] versions différentes qui persistent : deux lignes dans le journal (rechargement unique, puis « le problème reste »)
+PASS [light 360x640] … exactement 2 chargements (aucune boucle) et le message « Un problème est survenu » avec son bouton
+PASS [light 360x640] … toujours 2 chargements 3 s plus tard
+PASS [light 360x640] écran masqué : le message de problème n'apparaît PAS sous l'écran neutre
+PASS [light 360x640] … il apparaît au retour de l'écran
+TOTAL 27 ECHECS 0

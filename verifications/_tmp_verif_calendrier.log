@@ -1,0 +1,69 @@
+PASS [light 360x640] fiche : section « Courses de Un » avec « Calendrier et courses »
+PASS [light 360x640] « Calendrier et courses » : titre, nom de la personne, mois en cours, deux chevrons, onglet Personnes allumé
+PASS [light 360x640] « Retour » : on retrouve la fiche d'Alpha
+PASS [light 360x640] fiche modifiée puis « Calendrier et courses » : « Quitter sans enregistrer ? »
+PASS [light 360x640] « Rester » : la fiche et la modification sont toujours là
+PASS [light 360x640] « Quitter » : le calendrier s'ouvre, la modification n'a pas été enregistrée
+PASS [light 360x640] touche Retour d'Android depuis le calendrier : on revient à la fiche, puis à la liste
+PASS [light 360x640] … puis à la liste des personnes
+PASS [light 360x640] mois en cours (octobre) : états des 31 jours conformes (coche / croix / rond / rond vide / vide)
+PASS [light 360x640] mois en cours (octobre) : résumé « 0 transportée, 0 pas transportée, 14 à faire, 8 jours sans note »
+PASS [light 360x640] aujourd'hui entouré (pointillés)
+PASS [light 360x640] étiquette lisible d'un jour : « Mercredi 7 octobre : à faire » (jour en toutes lettres + état)
+PASS [light 360x640] « Mois précédent » : septembre 2026
+PASS [light 360x640] mois précédent : états des 30 jours conformes (coche / croix / rond / rond vide / vide)
+PASS [light 360x640] mois précédent : résumé « 3 transportée, 1 pas transportée, 21 jours sans note »
+PASS [light 360x640] résumé du mois en haut du calendrier : 3 courses faites, montant masqué « •••• € », 17 km, notes « + 1 course sans prix (total partiel) · + 1 course sans km (total partiel) » (la course sans prix n'est pas comptée comme 0)
+PASS [light 360x640] toucher le montant : « 25,00 € » (deux courses à 12,50 € ; la course sans prix n'ajoute rien) ; retouché : masqué
+PASS [light 360x640] changer de mois dans le calendrier : le résumé suit (mois en cours : 0 course faite) et le montant se recache
+PASS [light 360x640] coches (fait) et croix rouge (pas fait) dessinées : 3 coches, 1 croix, ronds vides « pas noté »
+PASS [light 360x640] la course à la corbeille du 2026-09-20 ne compte pas (jour sans course)
+PASS [light 360x640] mois suivant : états des 30 jours conformes (coche / croix / rond / rond vide / vide)
+PASS [light 360x640] mois suivant : résumé « 0 transportée, 0 pas transportée, 21 à faire, 0 jour sans note »
+PASS [light 360x640] mois suivant : que des ronds « à faire » les jours de semaine, aucun rond vide
+PASS [light 360x640] légende : Transportée, Pas transportée, À faire, Pas noté
+PASS [light 360x640] jour passé habituel, sans rien d'enregistré : panneau (pas une page) « Fait » / « Pas fait » + montant et km, avec les repères « habituel »
+PASS [light 360x640] ouvrir le panneau n'enregistre rien
+PASS [light 360x640] résumé mis à jour après « Fait » : 4 courses faites, 25,5 km (la nouvelle course a copié 8,5 km de la fiche)
+PASS [light 360x640] « Fait » : course créée à cet instant avec les valeurs de la fiche copiées (1250 / 8500), le jour passe à la coche, résumé mis à jour
+PASS [light 360x640] retoucher « Fait » : le choix est vidé (la course existe, sans état → rond vide « pas noté »)
+PASS [light 360x640] « Pas fait » : croix rouge, une seule course ce jour-là
+PASS [light 360x640] montant « 3 » saisi dans le panneau : 300 centimes enregistrés, repère « habituel » enlevé
+PASS [light 360x640] le panneau fermé, le calendrier est à jour : jour en croix et résumé
+PASS [light 360x640] jour passé NON habituel sans course : « Ajouter une course » seulement
+PASS [light 360x640] formulaire « Ajouter une course » : heure et destination de la fiche, boutons Enregistrer / Annuler
+PASS [light 360x640] « Annuler » du formulaire : retour au menu du jour (rien ajouté)
+PASS [light 360x640] enregistré : course « ajoutée » (exceptionnelle), heure 10:00, prix et km de la fiche copiés, message « Course ajoutée »
+PASS [light 360x640] ce jour a maintenant « Fait » / « Pas fait » et « Supprimer cette course »
+PASS [light 360x640] « Supprimer cette course » : « Course supprimée » avec « Annuler » ; à la corbeille (jamais effacée) ; le jour redevient une case vide
+PASS [light 360x640] « Annuler » : la course revient (rond vide)
+PASS [light 360x640] jour à venir habituel : « Comme d'habitude » (choisi) / « Changer ce jour » / « Pas de course »
+PASS [light 360x640] « Pas de course » : le jour passe à « pas fait » (croix), message « Pas de course ce jour », course marquée (pas fait + pas de course)
+PASS [light 360x640] … et plus aucune carte ce jour-là sur Aujourd'hui (jour à venir marqué « Pas de course »)
+PASS [light 360x640] le panneau montre « Pas de course » choisi
+PASS [light 360x640] « Comme d'habitude » : le jour redevient « à faire », la carte revient, rien d'autre ne change
+PASS [light 360x640] « Changer ce jour » : formulaire heure + destination seulement
+PASS [light 360x640] enregistré : « Jour changé », heure 15:30, « Autre lieu », marquée « changé » ; le jour reste « à faire »
+PASS [light 360x640] panneau : « Changer ce jour » choisi (heure changée)
+PASS [light 360x640] « Comme d'habitude » après un changement : heure 09:00 et destination de la FICHE reviennent, plus « changé »
+PASS [light 360x640] jour à venir NON habituel : « Ajouter une course »
+PASS [light 360x640] ajoutée : le jour devient « à faire »
+PASS [light 360x640] ce jour : « Changer ce jour », « Pas de course » et « Supprimer cette course »
+PASS [light 360x640] supprimée : retour à une case vide (corbeille)
+PASS [light 360x640] Alpha a 9 courses non supprimées : « Supprimer cette fiche » grisée, « Impossible : 9 courses déjà notées. »
+PASS [light 360x640] Gamma (aucune course) : « Supprimer cette fiche » active
+PASS [light 360x640] une course ajoutée à Gamma depuis son calendrier
+PASS [light 360x640] Gamma a maintenant 1 course (même pas notée) : « Impossible : 1 course déjà notée. »
+PASS [light 360x640] course mise à la corbeille : « Supprimer cette fiche » redevient active (la course de la corbeille n'empêche plus, et n'est pas effacée)
+PASS [light 360x640] panneau d'un jour ouvert
+PASS [light 360x640] œil avec le panneau ouvert : « Agenda » seul, panneau et calendrier couverts et inertes (aucun nom, aucun état lisible)
+PASS [light 360x640] un toucher rouvre : le panneau est toujours là
+PASS [light 360x640] 2 minutes simulées sur le calendrier : masqué tout seul, rien de lisible (« Agenda » seul)
+PASS [light 360x640] calendrier : toutes les zones de 44 px minimum (jours, chevrons), rien ne déborde à 360 px de large
+PASS [light 360x640] panneau d'un jour passé (avec montant et km) : zones de 44 px, rien ne déborde ni ne se chevauche, dans l'écran
+PASS [light 360x640] fermeture et réouverture : le calendrier du mois précédent montre les mêmes états
+PASS [light 360x640] MODE AVION : le calendrier s'ouvre avec ses états
+PASS [light 360x640] MODE AVION : « Fait » sur un jour s'enregistre et le calendrier se met à jour
+PASS [light 360x640] aucune erreur JavaScript
+PASS [light 360x640] aucune requête hors de l'appli (50 requêtes)
+TOTAL 68 ECHECS 0

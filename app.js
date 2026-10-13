@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.6.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -520,7 +520,7 @@ function sheetHTML() {
       '<button class="btn strong full" data-a="dssave">Enregistrer</button><button class="btn line full" data-a="dsback">Annuler</button>';
   }
   var btn = function (a, label, on) { return '<button class="btn line full' + (on ? ' sel' : '') + '" data-a="' + a + '" aria-pressed="' + (!!on) + '">' + label + '</button>'; };
-  h = '<p class="t" id="ds-title">' + esc(title) + '</p><p class="note" style="padding:0">' + who + (it && it.time ? ' · ' + esc(fmtH(it.time)) : '') + (it && it.changed ? ' · changé' : '') + '</p>';
+  h = '<p class="t" id="ds-title">' + esc(title) + '</p><p class="note" style="padding:0">' + who + (it && it.time ? ' · ' + esc(fmtH(it.time)) : '') + (it && it.changed ? ' · changé' : '') + '</p>' + dayPlaceHTML(p, it);
   if (is < T) {
     if (it || hab) h += btn('dsfait', 'Fait', st === 'done') + btn('dspas', 'Pas fait', st === 'not_done') + moneyHTML(it || AGR.virtItem(p, is), 'ds-');
     else h += btn('dsadd', 'Ajouter une course', false);
@@ -531,6 +531,14 @@ function sheetHTML() {
   } else h += btn('dsadd', 'Ajouter une course', false);
   if (r && r.added) h += '<button class="btn line full" data-a="dsdel">Supprimer cette course</button>';
   return h + '<button class="btn line full" data-a="dsclose">Fermer</button>';
+}
+/* le lieu de la course dans la fenêtre du jour (jamais vide : « lieu inconnu ») ; si ce n'est pas le lieu habituel, on le dit et on rappelle l'habituel */
+function dayPlaceHTML(p, it) {
+  if (!it) return '';
+  var info = AGR.placeInfo(p, rides), lab = AGR.placeLabel(it.dest), ak = AGR.placeKey(it.dest), off = ak !== info.usual.key, op = off ? AGR.otherPlace(info, it.r) : null;
+  var addr = hasAddr(it.dest) ? '<span class="pa">' + esc(addrPlain(it.dest)) + '</span>' : '';
+  return '<div class="dayplace' + (off ? ' off' : '') + '" id="ds-place"><span class="pi">' + I('pin') + '</span><span class="pt"><span class="pn">' + (op ? '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>' : '') + '<b>' + esc(lab || 'lieu inconnu') + '</b>' + (off ? '<span class="chg">changé</span>' : '') + '</span>' + addr +
+    (off ? '<span class="pa">habituel : ' + esc(info.usual.label || 'inconnu') + '</span>' : '') + '</span></div>';
 }
 function renderSheet() { $('#ds-panel').innerHTML = sheetHTML(); }
 function sheetSave() {
@@ -603,21 +611,32 @@ function calSummaryHTML(p, y, m) {
     '<div><div class="v" id="cal-km">' + esc(kmv) + '</div><div class="l">km</div></div></div>' +
     (notes.length ? '<p class="note" id="cal-notes">' + esc(notes.join(' · ')) + '</p>' : '') + '</div>';
 }
+/* légende des lieux : seulement les lieux « hors habituel » présents dans le mois affiché */
+function placeLegendHTML(info, used, offDays) {
+  var keys = Object.keys(used); if (!keys.length) return '';
+  var list = keys.map(function (k) { return used[k]; }).sort(function (a, b) { return a.idx - b.idx; });
+  return '<div class="placeleg" id="cal-places"><p class="ph">Lieu habituel : <b>' + esc(info.usual.label || 'inconnu') + '</b></p>' +
+    '<p class="ph" id="cal-off">' + (offDays > 1 ? offDays + ' courses hors habituel ce mois-ci' : '1 course hors habituel ce mois-ci') + '</p>' +
+    '<ul>' + list.map(function (o) { return '<li><i class="pl c' + o.color + '" aria-hidden="true">' + o.letter + '</i><span>' + esc(o.label || 'lieu inconnu') + '</span></li>'; }).join('') + '</ul></div>';
+}
 function renderCal() {
   var p = personById(ctx.calPid); if (!p) return;
   var y = ctx.calY, m = ctx.calM, first = new Date(y, m, 1), off = wd(first) - 1, L = ['L', 'M', 'M', 'J', 'V', 'S', 'D'], n = new Date(y, m + 1, 0).getDate(), T = todayISO();
-  var cnt = { t: 0, p: 0, a: 0, b: 0 }, cells = '';
+  var cnt = { t: 0, p: 0, a: 0, b: 0 }, cells = '', pinfo = AGR.placeInfo(p, rides), usedPl = {}, offDays = 0;
   for (var i = 0; i < off; i++) cells += '<div class="blank"></div>';
   for (var d = 1; d <= n; d++) {
     var is = y + '-' + pad(m + 1) + '-' + pad(d), v = AGR.state(p, rides, is, T);
     if (v === 't') cnt.t++; else if (v === 'p') cnt.p++; else if (v === 'a') cnt.a++; else if (v === 'n') cnt.b++;     /* « sans note » : seulement un jour PASSÉ prévu (ou avec une course) où rien n'a été noté ; jamais un jour sans course */
-    cells += '<button class="cell ' + v + (is === T ? ' today' : '') + '" data-a="calday" data-iso="' + is + '" aria-label="' + esc(cap(fmtDay.format(parseISO(is)))) + ' : ' + (v === 't' ? 'transportée' : (v === 'p' ? 'pas transportée' : (v === 'a' ? 'à faire' : (v === 'n' ? 'pas noté' : 'pas de course')))) + '"><span>' + d + '</span>' + (v === 't' ? I('check') : (v === 'p' ? I('x') : (v === 'a' ? I('ring') : ''))) + '</button>';
+    var op = AGR.otherPlace(pinfo, AGR.rideOf(rides, p.id, is)), pdot = '', plab = '';
+    if (op) { usedPl[op.key] = op; offDays++; pdot = '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>'; plab = ' · hors habituel : ' + (op.label || 'lieu inconnu') + ' (' + op.letter + ')'; }
+    cells += '<button class="cell ' + v + (is === T ? ' today' : '') + '" data-a="calday" data-iso="' + is + '" aria-label="' + esc(cap(fmtDay.format(parseISO(is)))) + ' : ' + (v === 't' ? 'transportée' : (v === 'p' ? 'pas transportée' : (v === 'a' ? 'à faire' : (v === 'n' ? 'pas noté' : 'pas de course')))) + esc(plab) + '"><span>' + d + '</span>' + (v === 't' ? I('check') : (v === 'p' ? I('x') : (v === 'a' ? I('ring') : ''))) + pdot + '</button>';
   }
   var h = '<header class="top"><div class="backrow"><button class="back" data-a="back">' + I('left') + 'Retour</button>' + tools() + '</div><h1 style="margin-top:6px">Calendrier et courses</h1><div class="sub">' + esc(fullName(p)) + '</div>' +
     '<div class="monthnav"><button class="chev" data-a="month" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl">' + esc(cap(fmtMonth.format(first))) + '</div><button class="chev" data-a="month" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div></header>' +
     '<div class="content">' + calSummaryHTML(p, y, m) + '<div class="card" style="padding:4px"><div class="calgrid">' + L.map(function (l) { return '<div class="dow">' + l + '</div>'; }).join('') + cells + '</div></div>' +
     '<p class="summary" id="cal-summary">' + cnt.t + ' transportée, ' + cnt.p + ' pas transportée, ' + (cnt.a ? cnt.a + ' à faire, ' : '') + plural(cnt.b, 'jour', 'jours') + ' sans note</p>' +
-    '<div class="legend"><span><i class="sw t">' + I('check') + '</i>Transportée</span><span><i class="sw p">' + I('x') + '</i>Pas transportée</span><span><i class="sw a">' + I('ring') + '</i>À faire</span><span><i class="sw n"></i>Pas noté</span></div></div>';
+    '<div class="legend"><span><i class="sw t">' + I('check') + '</i>Transportée</span><span><i class="sw p">' + I('x') + '</i>Pas transportée</span><span><i class="sw a">' + I('ring') + '</i>À faire</span><span><i class="sw n"></i>Pas noté</span></div>' +
+    placeLegendHTML(pinfo, usedPl, offDays) + '</div>';
   mount('s-calendrier', h);
 }
 

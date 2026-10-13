@@ -1,0 +1,93 @@
+PASS [light 360x640] liste de mots : 2048 mots exactement (2^11)
+PASS [light 360x640] … aucun doublon, même sans les accents
+PASS [light 360x640] … lettres seulement, 4 à 9 lettres, aucun espace ni tiret ni apostrophe
+PASS [light 360x640] … aucun mot ne ressemble à un autre à UNE lettre près (ni début d'un autre mot)
+PASS [light 360x640] … aucun mot ne contient de donnée personnelle (liste de mots courants, aucun nombre)
+PASS [light 360x640] tirage sans biais : sur les 65 536 valeurs possibles de 16 bits, chaque mot sort EXACTEMENT 32 fois
+PASS [light 360x640] la phrase vient bien de crypto.getRandomValues : 11 bits de chaque nombre désignent le mot
+PASS [light 360x640] 300 phrases tirées : toujours 10 mots de la liste, toutes différentes
+PASS [light 360x640] la phrase est comprise sans accents ni majuscules ni espaces en trop
+PASS [light 360x640] Réglages : ligne « Dernier export » = jamais, et accès « Sauvegarde et restauration »
+PASS [light 360x640] écran Sauvegarde : trois boutons et « Dernier export : jamais »
+PASS [light 360x640] premier export : écran d'explication en phrases courtes (pas encore de phrase)
+PASS [light 360x640] la phrase s'affiche : 10 mots numérotés, tirés de la liste
+PASS [light 360x640] œil pendant la phrase : la page est vidée, la phrase n'est plus en mémoire, rien de lisible
+PASS [light 360x640] … au retour la phrase NE REVIENT PAS : retour à l'accueil avec « recommencez »
+PASS [light 360x640] … et rien n'a été créé (ni trousseau, ni date d'export)
+PASS [light 360x640] au-delà de 10 minutes à l'étape de confirmation : phrase effacée, message simple
+PASS [light 360x640] … aucune trace de la phrase, rien créé
+PASS [light 360x640] confirmation : deux mots demandés, différents, entre 1 et 10
+PASS [light 360x640] mauvaise réponse : message simple, on revoit la MÊME phrase, rien de définitif créé
+PASS [light 360x640] un mot laissé vide : refusé aussi
+PASS [light 360x640] bonne réponse (majuscules et espaces tolérés) : téléchargement « agenda-AAAA-MM-JJ-HHMM.agenda » (ici 20/10/2026, 10 h)
+PASS [light 360x640] … « Dernier export » mis à jour APRÈS le téléchargement ; trousseau enregistré ; phrase effacée de la page
+PASS [light 360x640] … message de fin avec le nom du fichier et le conseil de copier sur le PC
+PASS [light 360x640] la phrase n'est écrite nulle part sur le téléphone (ni base, ni stockage du navigateur)
+PASS [light 360x640] fichier : format « agenda-export » n° 1, version de l'appli, structure 5, date, clé enveloppée, PBKDF2 600 000 tours
+PASS [light 360x640] AUCUN nom, adresse, téléphone ni autre valeur de test lisible en clair dans le fichier brut
+PASS [light 360x640] … le fichier est du texte JSON ordinaire (pas de données binaires brutes)
+PASS [light 360x640] contenu : 3 personnes (dont 1 archivée), 5 courses (dont 1 à la corbeille), 2 pleins (dont 1 à la corbeille)
+PASS [light 360x640] … personnes, courses, pleins et réglages IDENTIQUES à ce qu'il y a sur le téléphone (champ par champ)
+PASS [light 360x640] … la course à la corbeille et le plein à la corbeille y sont, avec leur date de suppression
+PASS [light 360x640] … dates en texte (AAAA-MM-JJ), montants en centimes entiers
+PASS [light 360x640] 2e export : AUCUNE phrase redemandée, le fichier est produit directement
+PASS [light 360x640] … même clé enveloppée (la phrase ouvre les deux), mais nouveau vecteur et contenu différent à chaque export
+PASS [light 360x640] … le 2e fichier s'ouvre avec la phrase du 1er export
+PASS [light 360x640] la clé de données gardée sur le téléphone n'est PAS extractible
+PASS [light 360x640] si le téléchargement ne peut pas être lancé : message, et « Dernier export » n'est PAS mis à jour
+PASS [light 360x640] test croisé : tools/lire_export.py déchiffre le fichier fait par l'appli (code 0, « Sauvegarde valide »)
+PASS [light 360x640] … contenu IDENTIQUE à celui du téléphone au moment du 1er export (personnes, courses, pleins, réglages)
+PASS [light 360x640] … le script refuse une mauvaise phrase (code ≠ 0, message simple)
+PASS [light 360x640] … et un fichier modifié d'un caractère
+PASS [light 360x640] … et le fichier du 2e export (sans phrase redemandée) avec la même phrase
+PASS [light 360x640] Vérifier (bonne phrase) : « Sauvegarde valide : date, 3 personnes, 5 courses, 2 pleins »
+PASS [light 360x640] … rien n'a été modifié sur le téléphone (données, date de dernier export identiques)
+PASS [light 360x640] Vérifier (mauvaise phrase) : message simple, on peut réessayer
+PASS [light 360x640] Vérifier (9 mots) : « 10 mots » demandés
+PASS [light 360x640] Vérifier (phrase en MAJUSCULES, espaces en trop) : acceptée
+PASS [light 360x640] Vérifier (fichier modifié d'un caractère) : « abîmé », jamais « valide »
+PASS [light 360x640] Vérifier (date de l'en-tête modifiée) : « abîmé » aussi (l'en-tête est authentifié)
+PASS [light 360x640] Vérifier (fichier tronqué) : « abîmé ou incomplet »
+PASS [light 360x640] Vérifier (fichier vide) : « abîmé ou incomplet »
+PASS [light 360x640] Vérifier (autre fichier JSON) : « pas une sauvegarde Agenda »
+PASS [light 360x640] Vérifier (structure plus récente que l'appli) : message clair, la phrase n'est même pas demandée
+PASS [light 360x640] Vérifier (format de fichier plus récent) : message clair
+PASS [light 360x640] … aucune de ces vérifications n'a rien modifié sur le téléphone
+PASS [light 360x640] œil sur « Sauvegarde valide » : page vidée, rien de lisible (ni comptes, ni date)
+PASS [light 360x640] … le résultat ne revient pas
+PASS [light 360x640] œil pendant la saisie de la phrase : le champ est vidé (la phrase tapée ne revient pas)
+PASS [light 360x640] Restaurer : résumé « dans le fichier / sur ce téléphone » et avertissement « remplace tout »
+PASS [light 360x640] … pas encore rien modifié à ce stade
+PASS [light 360x640] confirmation claire : « Cela remplace tout ce qui est sur ce téléphone »
+PASS [light 360x640] … « Garder tel quel » ne change rien
+PASS [light 360x640] restauration : TOUT est remplacé (personnes, courses y compris corbeille, pleins, réglages) et identique au téléphone d'origine
+PASS [light 360x640] … l'ancienne personne « Delta » a disparu, les archivées sont revenues
+PASS [light 360x640] … « Dernier export » = la date du FICHIER restauré
+PASS [light 360x640] … copie de sécurité interne créée ; le message propose d'annuler pendant 7 jours
+PASS [light 360x640] … les écrans voient tout de suite les données restaurées (Personnes : 2 actives + archivées)
+PASS [light 360x640] après restauration : l'export suivant se fait SANS phrase et s'ouvre avec la phrase du papier
+PASS [light 360x640] « Annuler la restauration » demande confirmation (ce qui a été noté depuis sera perdu)
+PASS [light 360x640] restauration annulée : les données d'AVANT sont revenues, à l'identique
+PASS [light 360x640] … « Dernier export » et trousseau d'avant sont revenus (jamais exporté), la copie de sécurité est consommée
+PASS [light 360x640] « Garder définitivement » : la copie de sécurité est effacée, les données restaurées restent
+PASS [light 360x640] 2e restauration du même fichier : zéro différence
+PASS [light 360x640] une fois les 7 jours passés : la copie de sécurité a disparu, plus de bouton « Annuler la restauration »
+PASS [light 360x640] restauration refusée par la base en cours de route : message « rien n'a été modifié »
+PASS [light 360x640] … ATOMIQUE : données, réglages et métadonnées strictement inchangés, aucune copie de sécurité à moitié faite
+PASS [light 360x640] fichier de structure 3 (avant les pleins d'essence) : accepté, résumé « 0 plein »
+PASS [light 360x640] … migré : 2 personnes, 3 courses, aucun plein, réglage de masquage (60) restauré ; structure de la base toujours 5
+PASS [light 360x640] … l'appli redémarre normalement sur les données migrées (menu du bas présent, aucune erreur)
+PASS [light 360x640] fichier de structure 4 : accepté
+PASS [light 360x640] Bilan, aucune donnée et jamais exporté : aucune ligne de rappel
+PASS [light 360x640] Bilan, des données mais jamais exporté : « Pas encore d’export » (discret, non bloquant)
+PASS [light 360x640] … la ligne ne bloque rien (on change de vue, on ouvre Réglages)
+PASS [light 360x640] export le 24/10 à 23h30 : nom « agenda-2026-10-24-23….agenda », « aujourd’hui »
+PASS [light 360x640] au 2026-10-25T00:30:00 : « Dernier export : il y a 1 jour », pas de rappel (changement d'heure du 25/10 sans décalage)
+PASS [light 360x640] au 2026-10-25T12:00:00 : « Dernier export : il y a 1 jour », pas de rappel (changement d'heure du 25/10 sans décalage)
+PASS [light 360x640] au 2026-10-26T00:30:00 : « Dernier export : il y a 2 jours », pas de rappel (changement d'heure du 25/10 sans décalage)
+PASS [light 360x640] au 2026-10-31T09:00:00 : « Dernier export : il y a 7 jours », pas de rappel (changement d'heure du 25/10 sans décalage)
+PASS [light 360x640] au 2026-11-01T09:00:00 : « Dernier export : il y a 8 jours » + ligne « Pas d’export depuis N jours » dans le Bilan (changement d'heure du 25/10 sans décalage)
+PASS [light 360x640] au 2026-11-20T09:00:00 : « Dernier export : il y a 27 jours » + ligne « Pas d’export depuis N jours » dans le Bilan (changement d'heure du 25/10 sans décalage)
+PASS [light 360x640] mode avion : première exportation, fichier et vérification fonctionnent sans connexion
+PASS [light 360x640] … aucune requête vers autre chose que l'appli elle-même (127.0.0.1), pendant tout le parcours
+TOTAL 92 ECHECS 0

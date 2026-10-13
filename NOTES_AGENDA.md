@@ -366,3 +366,22 @@ Signe dans le journal : « Choix du fichier : ouvert » suivi directement de « 
 ### Vérifications
 `verifications/verif_choix_fichier.py` (21 contrôles) : clic, page cachée puis visible, choix ; choix pendant que la page est cachée ; choix pendant le masquage (écran neutre) ; annulation ; « Restaurer » ; même fichier rechoisi ; **rechargement forcé** entre le clic et le choix (l'appli repart de zéro, journal « ouvert » puis « Démarrage … reload », fichier tardif ignoré sans erreur). Vérifié que le test échoue quand la correction est retirée.
 - **Non testé** : le vrai sélecteur d'Android (les essais simulent « page cachée » et le choix du fichier par Playwright).
+
+## Lieu de la course dans le calendrier d'une personne (0.7.0, structure n° 5 INCHANGÉE, aucune migration, export et restauration inchangés)
+Besoin (Pascal) : signaler à l'asbl les courses qui ne sont pas le trajet habituel. La destination est déjà copiée sur chaque course (`dest_place`, `dest_street`, `dest_zip`, `dest_city`) : rien n'est ajouté aux données, seulement de l'affichage.
+
+### Règles (`rides.js`, `AGR.placeLabel`, `placeKey`, `placeInfo`, `otherPlace`)
+- **Lieu d'une course** = nom du lieu, sinon rue, sinon ville ; vide = « lieu inconnu » (jamais un blanc ni un 0).
+- **Lieu habituel** = la destination de la fiche. Une course est « hors habituel » si sa destination est différente de celle de la fiche.
+- Comparaison **sans majuscules, accents, ponctuation ni espaces en trop** (« Clinique Nord » = « clinique   NORD »), sur nom + rue + code postal + ville.
+- **Lettre et couleur par lieu** : calculées sur TOUTES les courses non supprimées de la personne, triées par nom de lieu (sans accents) ; donc stables d'un mois à l'autre. 6 couleurs réutilisées en boucle ; la lettre (A, B, C…) lève le doute (daltonisme, couleurs réutilisées). Les courses à la corbeille ne comptent pas.
+
+### Écrans
+- **Fenêtre du jour** (touche d'une date, Aujourd'hui et calendrier) : bloc « lieu » sous le nom : nom du lieu en gras, adresse, et si hors habituel « changé » + pastille + « habituel : … ». Courses prévues non encore enregistrées : lieu habituel.
+- **Calendrier** : pastille (lettre sur fond coloré) en haut à droite de la case des jours hors habituel. Bordures et icônes (bleu / rouge / pointillé / rond) inchangées. L'étiquette lue par l'accessibilité dit « hors habituel : Lieu (B) ».
+- **Légende** sous la légende des états : « Lieu habituel : … », « N courses hors habituel ce mois-ci », puis une ligne par lieu présent dans le mois affiché. Rien si aucune course hors habituel ce mois-ci.
+- Couleurs : variables `--pl0` … `--pl5` et `--on-pl` (clair et sombre), ni bleu ni rouge des états.
+- Bilan (Totaux, Par personne, Jour par jour) : non modifié.
+
+### Vérifications
+`verifications/verif_lieux.py` (26 contrôles) : pastilles A/B/C, même lieu écrit autrement, corbeille sans effet, étiquette, légende (lieu habituel, nombre, ordre, couleurs distinctes), pas de défilement de côté, fenêtre du jour (hors habituel, habituel, lieu inconnu, jour prévu sans course), regarder ne crée ni ne modifie aucune course, couleurs stables d'un mois à l'autre, personne sans course hors habituel. Les contrôles qui attendaient un numéro de version écrit à la main (`verif_phrase`, `verif_saisie`, `verif_sauvegarde`) lisent maintenant `version.js`.

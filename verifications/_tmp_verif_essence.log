@@ -1,0 +1,60 @@
+PASS [light 360x640] Essence vide : titre, mois en cours, 2 chevrons, « 0 plein », « Aucun plein noté ce mois-ci. »
+PASS [light 360x640] total vide : « 0,00 L » et « 0,00 € », jamais « inconnu » sans plein
+PASS [light 360x640] la base est en structure 5 avec le magasin « fuel » et l'index « date »
+PASS [light 360x640] jour sans plein : le formulaire « Ajouter un plein » s'ouvre directement, clavier décimal
+PASS [light 360x640] prix 1,789 + litres 38.5 (point accepté) → montant calculé 68,88 avec le repère « calculé »
+PASS [light 360x640] enregistré : « Plein ajouté », la feuille se ferme
+PASS [light 360x640] total : 1 plein, 38,50 L, 68,88 € ; la ligne montre « 38,5 L » et « 68,88 € »
+PASS [light 360x640] rangé en entiers : 38500 mL, 1789 millièmes, 6888 centimes, date en texte, calc « total », pas de corbeille
+PASS [light 360x640] toucher la ligne : « Modifier ce plein » avec les valeurs, repère « calculé » sur le montant, bouton « Supprimer ce plein »
+PASS [light 360x640] litres changés → le montant calculé suit (71,56), le prix saisi reste
+PASS [light 360x640] « Plein modifié » ; total 40,00 L et 71,56 €
+PASS [light 360x640] modifier garde le même identifiant et ne crée pas de doublon
+PASS [light 360x640] jour avec un plein : la feuille est une liste avec « Ajouter un plein » et « Fermer »
+PASS [light 360x640] montant 50 + prix 2 → litres calculés 25 (repère « calculé » sur litres)
+PASS [light 360x640] retaper les litres : Pascal reprend la main, le repère « calculé » disparaît (trois chiffres saisis, rien n'est recalculé)
+PASS [light 360x640] montant vidé → recalculé : litres 20 × prix 2 = 40 (« calculé »)
+PASS [light 360x640] prix vidé, montant 30 + litres 20 → prix calculé 1,5
+PASS [light 360x640] 2 pleins : total 60,00 L et 101,56 €
+PASS [light 360x640] 0 refusé : « Un zéro n’est pas possible : laisse la case vide si tu ne sais pas. », rien enregistré
+PASS [light 360x640] les lettres sont retirées pendant la frappe
+PASS [light 360x640] « 1,2,3 » refusé avec l'exemple : « Litres : écris un nombre comme 38,5, ou laisse vide. »
+PASS [light 360x640] un seul chiffre : « Remplis deux des trois chiffres : le troisième se calcule. »
+PASS [light 360x640] trois chiffres incohérents : « Les trois chiffres ne correspondent pas. Garde-en deux. », rien enregistré
+PASS [light 360x640] trois chiffres justes à 1 centime près : accepté (3 pleins)
+PASS [light 360x640] aucun plein enregistré avec une valeur 0
+PASS [light 360x640] formulaire intact : « Annuler » revient à la liste sans question
+PASS [light 360x640] formulaire modifié : « Quitter sans enregistrer ? » (Rester / Quitter)
+PASS [light 360x640] « Rester » : on garde la saisie
+PASS [light 360x640] touche Retour d'Android : même question
+PASS [light 360x640] « Quitter » : retour à la liste, rien d'enregistré (3 pleins)
+PASS [light 360x640] « Fermer » sans saisie : la feuille se ferme
+PASS [light 360x640] « Supprimer ce plein ? » demande confirmation
+PASS [light 360x640] supprimé : « Plein supprimé » avec « Annuler » ; le total passe à 2 pleins
+PASS [light 360x640] jamais effacé : le plein est toujours dans la base, marqué à la corbeille (deleted_at)
+PASS [light 360x640] « Annuler » : le plein revient (3 pleins, corbeille vide)
+PASS [light 360x640] après 5 secondes le message disparaît, le plein reste à la corbeille
+PASS [light 360x640] « Annuler » dans la confirmation : rien n'est supprimé (2 pleins)
+PASS [light 360x640] un jour pas encore arrivé : « Ce jour n’est pas encore arrivé », pas de formulaire
+PASS [light 360x640] mois précédent : 3 pleins (celui à la corbeille ne compte pas)
+PASS [light 360x640] litres = somme des litres CONNUS (50,00 L), note « + 1 plein sans litres (total partiel) »
+PASS [light 360x640] montant = 45,00 € (le connu seulement), note « + 2 pleins sans montant (total partiel) » : jamais de 0 inventé
+PASS [light 360x640] la ligne d'un plein incomplet dit « litres inconnus » / « montant inconnu » (jamais 0)
+PASS [light 360x640] mois où rien n'est connu : litres et montant « inconnu » (pas « 0,00 »)
+PASS [light 360x640] retour au mois précédent : les données du mois suivent (3 pleins)
+PASS [light 360x640] mois en cours : 2 pleins ; un plein d'un autre mois n'y est jamais compté
+PASS [light 360x640] œil touché pendant un formulaire ouvert : écran neutre
+PASS [light 360x640] rien de lisible derrière l'écran neutre (ni totaux, ni formulaire, ni valeurs saisies)
+PASS [light 360x640] retour : page Essence revenue, formulaire abandonné
+PASS [light 360x640] retour : totaux revenus, 2 pleins, aucun plein de plus
+PASS [light 360x640] 6 minutes sans toucher : masquage automatique, rien de lisible
+PASS [light 360x640] retour après le masquage automatique : les totaux sont revenus
+PASS [light 360x640] fermer / rouvrir : les 2 pleins du mois sont toujours là
+PASS [light 360x640] hors connexion : la page Essence s'ouvre et les pleins s'affichent
+PASS [light 360x640] hors connexion : ajouter un plein marche (3 pleins)
+PASS [light 360x640] horloge réglée au 28 octobre 2026 : Essence affiche « octobre 2026 »
+PASS [light 360x640] pleins des 24, 25 et 26 octobre : chacun gardé à sa date (rien de décalé par le changement d'heure)
+PASS [light 360x640] le calendrier marque exactement ces 3 jours ; total 60,00 L et 120,00 €
+PASS [light 360x640] aucune erreur de page ni de console
+
+[light 360x640] 58/58 verifications reussies

@@ -1,0 +1,48 @@
+PASS [light 360x640] la liste officielle : 2048 mots, aucun ne se confond avec un autre une fois les accents retirés (règle « un seul mot possible »)
+PASS [light 360x640] fichiers 0.6.0, 0.6.1 (fabriqués par le vrai ancien code) et 0.6.2 : tous s'ouvrent avec la phrase exacte
+PASS [light 360x640] … format de fichier inchangé (mêmes champs, PBKDF2 600 000 tours)
+PASS [light 360x640] tolérance « exacte » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] tolérance « MAJUSCULES » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] tolérance « sans accents » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] tolérance « SANS ACCENTS EN MAJUSCULES » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] tolérance « espaces en trop, tabulation, retour à la ligne » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] tolérance « tirets et apostrophes dans les mots » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] tolérance « accents décomposés (e + accent) » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] « belier », « Bélier » et « BÉLIER » donnent le même résultat
+PASS [light 360x640] mot inconnu à la position 4 : code et numéro
+PASS [light 360x640] mot inconnu : le premier mot absent est celui qui est cité (positions 2 et 9 → n° 2)
+PASS [light 360x640] 9 mots → « words:9 », 11 mots → « words:11 », 1 mot, vide
+PASS [light 360x640] 10 mots valides mais autre phrase → « phrase » (ni « words » ni « unknownword »)
+PASS [light 360x640] une faute d'orthographe ne passe pas pour un mot de la liste (« beliers »)
+PASS [light 360x640] écran de la phrase : aucun champ de saisie, donc pas de bouton « Afficher ce que je tape » (il ne sert qu'aux champs)
+PASS [light 360x640] confirmation des 2 mots : bouton « Afficher ce que je tape » présent, saisie cachée par défaut
+PASS [light 360x640] « Afficher ce que je tape » : les champs deviennent lisibles, ce qui était tapé reste, le bouton propose de recacher
+PASS [light 360x640] … on peut recacher
+PASS [light 360x640] œil (masquage) : l'affichage de la saisie est remis à « caché » et la phrase effacée
+PASS [light 360x640] confirmation des 2 mots tapés sans accents / en majuscules / avec espaces : acceptée, fichier produit
+PASS [light 360x640] Vérifier avec la phrase sans accents et en majuscules : « Sauvegarde valide »
+PASS [light 360x640] Vérifier avec la phrase avec espaces en trop : « Sauvegarde valide »
+PASS [light 360x640] écran : mot inconnu → « Le mot n° 4 ne figure pas dans la liste. Vérifiez son orthographe. »
+PASS [light 360x640] écran : 9 mots → dit combien de mots ont été lus ; 11 mots ; 1 mot (singulier)
+PASS [light 360x640] écran : 10 mots valides mais autre phrase → message prévu
+PASS [light 360x640] … aucun de ces messages ne contient un mot de la phrase tapée
+PASS [light 360x640] champ « Phrase de récupération » : saisie cachée par défaut + bouton « Afficher ce que je tape »
+PASS [light 360x640] … affichée à la demande, sans vider le champ
+PASS [light 360x640] masquage automatique : la page est vidée ; au retour, la saisie est de nouveau cachée et le champ est vide
+PASS [light 360x640] la phrase tapée n'est dans aucun stockage ni journal (IndexedDB, localStorage, sessionStorage, caches)
+PASS [light 360x640] aucune erreur de page
+PASS [light 360x640] script PC, phrase « exacte » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] script PC, phrase « MAJUSCULES sans accents » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] script PC, phrase « espaces en trop » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] script PC, phrase « tirets/apostrophes » : ouvre les fichiers 0.6.0, 0.6.1 et 0.6.2
+PASS [light 360x640] script PC : mot inconnu n° 4
+PASS [light 360x640] script PC : nombre de mots incorrect (9 et 11)
+PASS [light 360x640] script PC : 10 mots valides mais autre phrase
+PASS [light 360x640] script PC : aucun mot de la phrase dans les messages d'erreur
+PASS [light 360x640] script PC --visible : avertissement affiché, la phrase est lue (accents/majuscules sans importance) et le fichier s'ouvre
+PASS [light 360x640] script PC sans --visible : la saisie passe par la saisie CACHÉE (getpass), jamais par input()
+PASS [light 360x640] script PC avec --visible : la saisie passe par input() (visible)
+PASS [light 360x640] script PC : la phrase n'apparaît jamais à l'écran (sauf saisie visible), dans aucun message ni fichier produit
+PASS [light 360x640] script PC : la phrase n'est pas un argument de la ligne de commande (seulement fichier, -o, --visible) et n'est jamais écrite dans un fichier
+PASS [light 360x640] script PC : --help court et en français
+TOTAL 47 ECHECS 0

@@ -1,0 +1,72 @@
+PASS [light 360x640] fichiers : ceux de l'étape 1, rien d'autre (ni maquette, ni notes de la maquette, ni base de données)
+PASS [light 360x640] aucune adresse internet dans les fichiers (ni police, ni script, ni image externes)
+PASS [light 360x640] aucun outil de construction ni bibliothèque : pas de package.json, pas de node_modules
+PASS [light 360x640] aucun import, require, fetch vers l'extérieur dans app.js, db.js et rides.js (JavaScript simple)
+PASS [light 360x640] numéro de version (0.7.0) écrit à UN seul endroit : version.js (hors tampons recopiés par sync_version.py)
+PASS [light 360x640] aucun nom de la maquette (0 noms comparés, lus dans la maquette au moment du test) dans les fichiers
+PASS [light 360x640] aucun numéro de téléphone ni adresse en dur (téléphones à 10 chiffres, « rue », « avenue »)
+PASS [light 360x640] manifeste : nom et nom court « Agenda », démarrage ./, affichage autonome, couleurs, deux icônes
+PASS [light 360x640] icônes : deux vrais PNG de 192 et 512 px
+PASS [light 360x640] couleurs : mêmes valeurs que la maquette, thème clair et sombre automatiques (prefers-color-scheme)
+PASS [light 360x640] mode clair / sombre : couleur du navigateur déclarée pour les deux
+PASS [light 360x640] premier lancement : le stockage persistant est demandé exactement une fois
+PASS [light 360x640] premier lancement : pas de message « Nouvelle version disponible »
+PASS [light 360x640] service worker enregistré et actif (sw.js, portée = l'appli)
+PASS [light 360x640] après rechargement : l'appli est contrôlée par le service worker
+PASS [light 360x640] 2e lancement : le stockage persistant n'est PAS redemandé
+PASS [light 360x640] page : titre « Agenda », manifeste relié, deux couleurs de thème
+PASS [light 360x640] manifeste servi (200, type JSON) et lisible par la page
+PASS [light 360x640] icônes servies et affichables (192 et 512)
+PASS [light 360x640] IndexedDB « agenda » : structure n° 5, magasins « fuel », « meta », « persons », « rides », « safety » et « settings », numéro noté dans la base
+PASS [light 360x640] migration : de la structure 1 à 2, le nouveau magasin apparaît, la donnée ancienne est gardée, le numéro passe à 2
+PASS [light 360x640] une base plus récente que l'appli est refusée proprement (code « newer »), jamais écrasée
+PASS [light 360x640] page « Aujourd’hui » : titre, jour, flèches, « Aucune course prévue ce jour. », « Ajouter une course »
+PASS [light 360x640] page « Personnes » : titre, recherche, liste vide (« Aucune personne pour l’instant »), « Nouvelle personne »
+PASS [light 360x640] page « Bilan » : titre, choix « Totaux » / « Jour par jour », mois, ligne « Réglages »
+PASS [light 360x640] page « Essence » : titre, mois, calendrier, « Total du mois » à zéro, « Aucun plein noté ce mois-ci. »
+PASS [light 360x640] barre du bas : Aujourd’hui, Personnes, Bilan, Essence, avec les icônes de la maquette
+PASS [light 360x640] 4 boutons : au moins 44 px de large et de haut, même largeur, mots entiers, dans l'écran
+PASS [light 360x640] œil : un par écran, 44 x 44 px minimum (44 x 28 sur Aujourd’hui, comme la maquette), étiquette « Masquer l’écran »
+PASS [light 360x640] aucun cadenas, aucun champ de code dans la page
+PASS [light 360x640] couleurs du thème light identiques à la maquette
+PASS [light 360x640] Bilan → « Réglages » : l'écran s'ouvre et l'onglet Bilan reste allumé
+PASS [light 360x640] Réglages : numéro de version affiché = celui de version.js (0.7.0)
+PASS [light 360x640] Réglages : structure des données n° 5
+PASS [light 360x640] Réglages : stockage persistant « accordé » (réponse simulée de Chrome)
+PASS [light 360x640] Réglages : masquage automatique 2 minutes par défaut, quatre choix
+PASS [light 360x640] Réglages : zones de 44 px, rien qui déborde ni défile en largeur
+PASS [light 360x640] touche Retour d'Android : de Réglages vers le Bilan, puis vers Aujourd'hui
+PASS [light 360x640] … puis vers Aujourd'hui
+PASS [light 360x640] bouton « Retour » de Réglages : revient au Bilan
+PASS [light 360x640] œil : écran neutre « Agenda » seul, plein écran (48/48 points couverts), pages et barre du bas inertes
+PASS [light 360x640] un toucher rouvre, sur la même page (Personnes)
+PASS [light 360x640] 1 min 55 s simulées sans toucher : pas encore masqué
+PASS [light 360x640] 2 minutes simulées sans toucher : masqué tout seul, rien de lisible (« Agenda » seul, pages inertes)
+PASS [light 360x640] écran masqué : un toucher à l'endroit de la barre du bas rouvre l'écran mais ne change pas de page
+PASS [light 360x640] délai dépassé (minuterie arrêtée) : le premier toucher masque et n'agit pas dessous (reste sur Personnes)
+PASS [light 360x640] 2 minutes simulées sur la page Réglages : masqué aussi (version et stockage illisibles)
+PASS [light 360x640] rouvert sur Réglages, même page
+PASS [light 360x640] réglage 1 minute : pas masqué à 55 s, masqué après 1 min
+PASS [light 360x640] réglage 10 minutes : pas masqué à 9 min 55 s, masqué après 10 min
+PASS [light 360x640] le réglage (10 minutes) est gardé après fermeture et réouverture
+PASS [light 360x640] réglage « Jamais » : pas de masquage, même après 3 heures simulées
+PASS [light 360x640] horloge reculée de 30 s : masqué par prudence
+PASS [light 360x640] appli passée en arrière-plan : écran neutre tout de suite
+PASS [light 360x640] « pagehide » (page quittée) : écran neutre tout de suite
+PASS [light 360x640] réserve du service worker « agenda-0.7.0 » : 14 fichiers gardés
+PASS [light 360x640] MODE AVION : l'appli s'ouvre (titre « Aujourd’hui », barre du bas)
+PASS [light 360x640] MODE AVION : Réglages, version et stockage s'affichent
+PASS [light 360x640] MODE AVION : une nouvelle fenêtre (index.html) s'ouvre aussi
+PASS [light 360x640] aucune erreur JavaScript ni message d'erreur dans la console
+PASS [light 360x640] aucune requête hors de l'appli (53 requêtes, toutes vers le serveur local)
+PASS [light 360x640] stockage persistant refusé par Chrome : affiché « non accordé » avec le bouton « Redemander à Chrome »
+PASS [light 360x640] « Redemander » : Chrome est interrogé de nouveau (2e demande)
+PASS [light 360x640] base d'une version plus récente : message « Données plus récentes que l’appli » affiché
+PASS [light 360x640] … et rien n'a été effacé ni modifié (base toujours en version 9, donnée « précieux » intacte)
+PASS [light 360x640] nouvelle version publiée : le message « Nouvelle version disponible » avec le bouton « Mettre à jour » s'affiche
+PASS [light 360x640] … aucun message contradictoire « Cette version est la plus récente » en même temps
+PASS [light 360x640] … la page n'a PAS été rechargée toute seule (la saisie en cours serait gardée) et tourne toujours en 0.7.0
+PASS [light 360x640] « Mettre à jour » : l'appli se recharge et affiche la version 9.9.9, le message a disparu, l'ancienne réserve est effacée
+PASS [light 360x640] les données restent après la mise à jour (même base, numéro de structure 5)
+PASS [light 360x640] aucune erreur JavaScript pendant la mise à jour
+TOTAL 71 ECHECS 0

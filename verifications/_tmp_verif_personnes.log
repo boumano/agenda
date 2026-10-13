@@ -1,0 +1,143 @@
+PASS [light 360x640] Personnes au départ : « 0 personne », liste vide avec message, « Nouvelle personne », pas de ligne « Archivées »
+PASS [light 360x640] recherche : champ « Nom ou prénom » et ligne « Recherche par nom et par prénom »
+PASS [light 360x640] au départ la base ne contient aucune personne ni course
+PASS [light 360x640] fiche vide : titre « Nouvelle personne », onglet Personnes allumé
+PASS [light 360x640] fiche : mêmes champs que la maquette, dans l'ordre
+PASS [light 360x640] « Quand » : « Chaque semaine » choisi, « Du » = date du jour (2026-10-13), « Au » vide, lettres L M M J V S D
+PASS [light 360x640] fiche vide : pas de « Gérer cette fiche » (rien à archiver ni supprimer)
+PASS [light 360x640] clavier : majuscules automatiques pour noms, ville et lieu ; champs numériques pour code postal, prix, km, téléphone et heure
+PASS [light 360x640] fiche vide non touchée : « Retour » revient à la liste sans question
+PASS [light 360x640] « Enregistrer » sans rien : « Indique au moins un nom », rien enregistré
+PASS [light 360x640] lettres L et J choisies (aria-pressed)
+PASS [light 360x640] création : retour à la liste, « Essai Un ajouté » avec « Annuler » (5 s)
+PASS [light 360x640] rangé dans IndexedDB : une fiche, identifiant unique aléatoire, noms, adresses, téléphone
+PASS [light 360x640] prix en CENTIMES (12,5 € = 1250), km en MÈTRES (8.5 km = 8500), entiers
+PASS [light 360x640] « Quand » rangé : semaine, jours [1, 4], heure « 09:30 » (HH:MM), « Du » = aujourd'hui, « Au » vide (null), aucune date choisie
+PASS [light 360x640] « Annuler » dans les 5 s : la personne ajoutée disparaît (elle était vide) de la liste et de la base
+PASS [light 360x640] au bout de 5 secondes le message disparaît (plus d'« Annuler »)
+PASS [light 360x640] fiche d'une personne : titre « Essai Un », champs relus (prix « 12,50 », km « 8,5 », heure « 09:30 »)
+PASS [light 360x640] jours L et J allumés, « Du » conservé, « Au » vide
+PASS [light 360x640] « Appeler » : lien téléphone avec les chiffres seulement
+PASS [light 360x640] « Gérer cette fiche » : « Archiver cette personne » et « Supprimer cette fiche » (active : aucune course)
+PASS [light 360x640] modifier (prix « 15.75 » avec un POINT, km « 9,25 » avec une virgule) : « Fiche enregistrée » sans « Annuler »
+PASS [light 360x640] modification rangée : même identifiant, ville changée, 1575 centimes, 9250 mètres, une seule fiche, date de modification mise à jour
+PASS [light 360x640] prix « 0 » / km «  » : refusé avec un message simple (« zéro »), rien enregistré, champ marqué
+PASS [light 360x640] prix « 0,00 » / km «  » : refusé avec un message simple (« zéro »), rien enregistré, champ marqué
+PASS [light 360x640] prix «  » / km « 0 » : refusé avec un message simple (« zéro »), rien enregistré, champ marqué
+PASS [light 360x640] prix « 12,345 » / km «  » : refusé avec un message simple (« Prix invalide »), rien enregistré, champ marqué
+PASS [light 360x640] prix «  » / km « 8,555 » : refusé avec un message simple (« Km invalides »), rien enregistré, champ marqué
+PASS [light 360x640] lettres refusées à la frappe : « 1a2,5 » devient « 12,5 », « x » devient vide
+PASS [light 360x640] prix et km vides : enregistrés comme INCONNUS (null), jamais 0
+PASS [light 360x640] prix et km inconnus : champs vides avec « inconnu » en gris
+PASS [light 360x640] heure « 25:00 » : « Heure invalide : écris par exemple 13:00, ou laisse vide. »
+PASS [light 360x640] heure « 13h » enregistrée « 13:00 »
+PASS [light 360x640] heure « 1300 » enregistrée « 13:00 »
+PASS [light 360x640] heure « 9h5 » enregistrée « 09:50 »
+PASS [light 360x640] heure « 13:45 » enregistrée « 13:45 »
+PASS [light 360x640] heure «  » enregistrée « None »
+PASS [light 360x640] « Au » avant « Du » : message exact et rien enregistré
+PASS [light 360x640] « Au » = « Du » : accepté (bornes incluses)
+PASS [light 360x640] « Du » et « Au » vides : depuis toujours, sans fin (null)
+PASS [light 360x640] code postal : seuls les chiffres restent (« 12a3b » → « 123 »)
+PASS [light 360x640] « Appeler » sans numéro : « Téléphone inconnu »
+PASS [light 360x640] fiche existante sans nom : « Indique au moins un nom »
+PASS [light 360x640] fiche existante MODIFIÉE puis « Retour » : « Quitter sans enregistrer ? » (comme pour une nouvelle fiche)
+PASS [light 360x640] « Rester » : la fiche et les modifications sont toujours là
+PASS [light 360x640] « Quitter » : retour à la liste, RIEN n'a été enregistré (la fiche garde son nom d'origine)
+PASS [light 360x640] fiche existante NON modifiée puis « Retour » : aucune question
+PASS [light 360x640] fiche existante : ville changée puis « Retour » : la question est posée
+PASS [light 360x640] … si on remet la valeur d'origine, plus de question (rien n'a changé)
+PASS [light 360x640] fiche existante : changer un jour de la semaine (lettre) puis « Retour » : la question est posée
+PASS [light 360x640] fiche existante : changer l'heure habituelle puis « Retour » : la question est posée
+PASS [light 360x640] fiche existante : changer le mode « Dates choisies » puis « Retour » : la question est posée
+PASS [light 360x640] fiche existante : changer le téléphone puis « Retour » : la question est posée
+PASS [light 360x640] fiche existante : changer une date « Au » puis « Retour » : la question est posée
+PASS [light 360x640] fiche existante modifiée puis un onglet de la barre du bas : même question
+PASS [light 360x640] … « Quitter » : on arrive sur le Bilan, rien n'est enregistré
+PASS [light 360x640] fiche existante modifiée puis touche Retour d'Android : même question
+PASS [light 360x640] après « Enregistrer », plus de question (la fiche est enregistrée)
+PASS [light 360x640] « Dates choisies » : calendrier du mois, heure pour toutes les dates, « Chaque semaine » caché mais gardé
+PASS [light 360x640] compteur au départ : « 0 jour choisi »
+PASS [light 360x640] pas de jours passés : 12 jour(s) désactivé(s) avant aujourd'hui, aujourd'hui entouré
+PASS [light 360x640] un jour passé ne peut pas être coché
+PASS [light 360x640] « Lun à ven » : coche les jours de semaine à partir d'aujourd'hui dans le mois (14)
+PASS [light 360x640] « Lun à ven » une seconde fois : décoche tout
+PASS [light 360x640] lettre M (mercredi) : tous les mercredis du mois à partir d'aujourd'hui (3), lettre allumée si au moins un
+PASS [light 360x640] flèche de mois suivant : le mois suivant s'affiche, aucun jour désactivé
+PASS [light 360x640] compteur sur tous les mois : 24 jours choisis (mercredis de ce mois + jours de semaine du mois suivant)
+PASS [light 360x640] retour à « Chaque semaine » sans rien perdre : lettre M (mardi), heure 7:15
+PASS [light 360x640] … et les dates cochées et l'heure des dates sont toujours là
+PASS [light 360x640] « Dates choisies » rangé : mode « dates », les deux jeux de données gardés (jours [2] + « 07:15 », et 24 dates + « 20:00 »)
+PASS [light 360x640] rouvert : « Dates choisies » affiché, compteur et heures relus
+PASS [light 360x640] doublon de nom (sans tenir compte des majuscules) : « Une fiche « Essai Un » existe déjà. Tu peux quand même enregistrer. »
+PASS [light 360x640] … ni des accents (« Éssai » = « Essai »)
+PASS [light 360x640] autre prénom : plus d'avertissement
+PASS [light 360x640] « Retour » sur une nouvelle fiche remplie : « Quitter sans enregistrer ? » (« Quitter » / « Rester »)
+PASS [light 360x640] « Rester » : la fiche et la saisie sont toujours là
+PASS [light 360x640] changer d'onglet pendant la saisie : même question
+PASS [light 360x640] « Quitter » : on arrive sur le Bilan, rien n'est enregistré
+PASS [light 360x640] touche Retour d'Android sur une fiche remplie : même question (la fiche ne se ferme pas toute seule)
+PASS [light 360x640] … « Quitter » : retour à la liste, aucune fiche « Quitte » créée
+PASS [light 360x640] un doublon peut quand même être enregistré (non bloquant)
+PASS [light 360x640] les deux « Essai Un » ont des identifiants différents
+PASS [light 360x640] doublon vide supprimé (pour la suite)
+PASS [light 360x640] liste triée par nom (sans tenir compte des accents) : Beta, Éloïse, Essai (deux), Gamma
+PASS [light 360x640] recherche « eloi » trouve « Éloïse » (accents et majuscules ignorés), mot surligné
+PASS [light 360x640] recherche aussi par PRÉNOM (« elod » trouve « Beta Élodie »)
+PASS [light 360x640] recherche d'un prénom composé
+PASS [light 360x640] « ess » : 2 résultats
+PASS [light 360x640] rien ne correspond : « Personne ne correspond. »
+PASS [light 360x640] « Archiver cette personne » : confirmation « Archiver Gamma Rose-Lise ? » avec le texte de la maquette
+PASS [light 360x640] archivée : sort de la liste, message « Gamma Rose-Lise archivé » avec « Annuler », ligne « Archivées (1) »
+PASS [light 360x640] « Annuler » : la personne revient (5 secondes)
+PASS [light 360x640] « Archivées (1) » : liste archivée SUR LA MÊME PAGE (pas de nouvelle page), « 1 archivée », « Restaurer », « Personnes actives », recherche cachée
+PASS [light 360x640] la personne archivée est rangée archived = true avec une date, rien d'effacé
+PASS [light 360x640] après fermeture et réouverture : toujours archivée (absente de la liste active)
+PASS [light 360x640] « Restaurer » : « … de nouveau dans les listes. » avec « Annuler », retour dans la liste active
+PASS [light 360x640] « Personnes actives » : retour à la liste (Gamma est de nouveau là)
+PASS [light 360x640] personne vide : « Supprimer Vide Totalement ? » et « Elle est vide, rien d’autre n’est perdu. »
+PASS [light 360x640] « Annuler » dans la confirmation : rien n'est supprimé
+PASS [light 360x640] supprimée « pour de bon » : plus dans la liste ni dans la base, message « … supprimée » avec « Annuler »
+PASS [light 360x640] « Annuler » dans les 5 s : la fiche revient identique (même identifiant)
+PASS [light 360x640] sans « Annuler » : la suppression est définitive (base vide de cette fiche)
+PASS [light 360x640] personne avec jours habituels : « Ses jours habituels seront supprimés. »
+PASS [light 360x640] personne avec une course créée mais pas notée (non supprimée) : « Supprimer cette fiche » grisée, « Impossible : 1 course déjà notée. » (règle de l'étape 3 : toute course non supprimée empêche)
+PASS [light 360x640] … refusée aussi par le code (refused = 1), la course est intacte
+PASS [light 360x640] personne dont les seules courses sont à la corbeille : suppression permise
+PASS [light 360x640] … la fiche est effacée MAIS la course de la corbeille n'est jamais effacée pour de bon (toujours dans la base)
+PASS [light 360x640] « Annuler » rend la fiche
+PASS [light 360x640] 1 course déjà notée : « Supprimer cette fiche » grisée avec « Impossible : 1 course déjà notée. »
+PASS [light 360x640] … toucher le bouton grisé ne fait rien (pas de confirmation)
+PASS [light 360x640] … et « Archiver » reste possible
+PASS [light 360x640] 2 courses déjà notées (faite et pas faite) : « Impossible : 2 courses déjà notées. »
+PASS [light 360x640] même en forçant par le code : la suppression est refusée (refused = 2), rien n'est effacé
+PASS [light 360x640] fermeture et réouverture de l'appli : les 10 personnes sont toujours là, dans le même ordre
+PASS [light 360x640] MODE AVION : l'appli s'ouvre et la liste des personnes s'affiche
+PASS [light 360x640] MODE AVION : la fiche s'ouvre avec ses données
+PASS [light 360x640] MODE AVION : une modification s'enregistre
+PASS [light 360x640] œil avec la fiche ouverte : écran neutre « Agenda » seul (aucun nom ni adresse), plein écran, fiche inerte et cachée aux lecteurs d'écran
+PASS [light 360x640] un toucher rouvre : la saisie est toujours là
+PASS [light 360x640] 2 minutes simulées avec la fiche ouverte : masqué tout seul, rien de lisible
+PASS [light 360x640] rouvert : même fiche, même saisie
+PASS [light 360x640] fenêtre « Quitter sans enregistrer ? » ouverte
+PASS [light 360x640] masqué avec la fenêtre de confirmation ouverte : elle est couverte et inerte
+PASS [light 360x640] liste des personnes masquée : « Agenda » seul, aucun nom lisible
+PASS [light 360x640] message avec « Annuler » affiché
+PASS [light 360x640] œil : le message (qui contient un nom) disparaît avec l'écran masqué
+PASS [light 360x640] Personnes : zones de 44 px, rien qui déborde
+PASS [light 360x640] Fiche (semaine) : zones de 44 px, rien qui déborde ni défile en largeur
+PASS [light 360x640] Fiche (dates choisies) : zones de 44 px, rien qui déborde (le calendrier tient à 360 px)
+PASS [light 360x640] « Enregistrer » et « Gérer cette fiche » atteignables en bas de la fiche, au-dessus de la barre
+PASS [light 360x640] liste archivée : zones de 44 px
+PASS [light 360x640] « Aujourd’hui » : écran de l'étape 3 (jour, flèches)
+PASS [light 360x640] « Essence » : écran de l'étape 5 (pleins du mois)
+PASS [light 360x640] « Bilan » : écran de l'étape 4 (Totaux / Jour par jour) et la ligne « Réglages »
+PASS [light 360x640] Réglages : numéro de version = celui de version.js, structure n° 5
+PASS [light 360x640] migration 1 → 5 sur une base d'essai : structure 1 avant (meta, settings), structure 5 après (+ persons, rides, fuel, safety)
+PASS [light 360x640] … les données de la version 1 sont gardées (réglage 600, « stockage demandé », date de création) et le numéro noté passe à 5
+PASS [light 360x640] … les nouveaux magasins sont vides, courses indexées par date et par personne, clé = id
+PASS [light 360x640] VRAIE base de la version 0.1 (structure 1) ouverte par l'appli actuelle : passe à la structure 5, ses données restent (date de création d'origine)
+PASS [light 360x640] … le réglage de masquage (1 minute) est conservé, le stockage persistant n'est PAS redemandé, aucune personne inventée
+PASS [light 360x640] aucune erreur JavaScript ni message d'erreur dans la console
+PASS [light 360x640] aucune requête hors de l'appli (70 requêtes, toutes vers le serveur local)
+TOTAL 142 ECHECS 0

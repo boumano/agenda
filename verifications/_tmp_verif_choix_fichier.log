@@ -1,0 +1,22 @@
+PASS [light 360x640] « Démarrage » : version, puis ligne de diagnostic (type de navigation, affichage, page rejetée)
+PASS [light 360x640] l'entrée « fichier » est permanente : dans index.html, hors de la vue Sauvegarde
+PASS [light 360x640] clic sur « Choisir le fichier » : journal « Choix du fichier : ouvert »
+PASS [light 360x640] A. pendant que le sélecteur est ouvert, l'appli cachée N'EST PAS masquée (le sélecteur d'Android ne la fait plus repartir de zéro)
+PASS [light 360x640] A. retour après 3 minutes : toujours pas masquée, étape « choisir le fichier » intacte, même entrée <input> (jamais recréée)
+PASS [light 360x640] A. fichier choisi : son NOM s'affiche et la phrase est demandée
+PASS [light 360x640] A. journal : ouvert, appli cachée, appli revenue, reçu (nom et taille)
+PASS [light 360x640] A. suite : la phrase ouvre le fichier (« Sauvegarde valide »)
+PASS [light 360x640] A. la phrase tapée n'est ni dans le journal ni dans un stockage
+PASS [light 360x640] B. fichier reçu pendant que l'appli est cachée : au retour, nom + demande de phrase
+PASS [light 360x640] C. écran masqué : rien de lisible sous l'écran neutre (ni nom ni phrase)
+PASS [light 360x640] C. après avoir touché l'écran neutre : le fichier choisi n'est PAS perdu (nom + demande de phrase)
+PASS [light 360x640] D. annulation : journal « Choix du fichier : annulé », on reste à l'étape « choisir le fichier »
+PASS [light 360x640] D. après l'annulation le masquage automatique reprend (1 minute)
+PASS [light 360x640] E. « Restaurer » : même comportement (nom + demande de phrase)
+PASS [light 360x640] F. le même fichier rechoisi une 2e fois est bien reçu
+PASS [light 360x640] aucune erreur de page (scénarios A à F)
+PASS [light 360x640] G. après rechargement : journal « Choix du fichier : ouvert » PUIS « Démarrage … type de navigation reload »
+PASS [light 360x640] G. après rechargement : l'appli repart de zéro (accueil de la sauvegarde, aucun état de choix en cours, pas d'erreur)
+PASS [light 360x640] G. un fichier livré à la page rechargée (aucun « Vérifier » en cours) est ignoré sans erreur ; il faut recommencer « Choisir le fichier »
+PASS [light 360x640] G. … et en recommençant après le rechargement, tout fonctionne
+TOTAL 21 ECHECS 0

@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.6.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.7.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des courses (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3) :
    - une « carte prévue » est CALCULÉE à partir des fiches (mode « Chaque semaine » avec « Du » / « Au », ou « Dates choisies ») ; elle n'est pas enregistrée ;
@@ -141,6 +141,36 @@ AGR.overview = function (people, rides, y, m, todayIso) {
     days.push({ iso: is, items: items, noted: noted });
   }
   return { days: days, noNote: noNote };
+};
+
+/* ---------- Lieux (calendrier d'une personne) ----------
+   Le « lieu » d'une course = nom du lieu, sinon rue, sinon ville ; la comparaison ignore majuscules, accents et espaces en trop.
+   Le lieu HABITUEL = la destination de la fiche. Une course est « hors habituel » si sa destination est différente de celle de la fiche. */
+function squash(s) { return norm(s).replace(/[^a-z0-9]+/g, ' ').trim(); }
+AGR.placeLabel = function (d) { d = d || {}; return String(d.place || d.street || d.city || '').trim(); };
+AGR.placeKey = function (d) { d = d || {}; return [d.place, d.street, d.zip, d.city].map(squash).join('|'); };
+AGR.PLACE_COLORS = 6;
+/* Pour une personne : { usual: {label, key}, others: [{key, label, idx, letter, color}] }.
+   L'ordre (donc la lettre et la couleur) est calculé sur TOUTES ses courses non supprimées, triées par nom : stable d'un mois à l'autre. */
+AGR.placeInfo = function (p, rides) {
+  var uk = AGR.placeKey(AGR.destOf(p)), seen = {}, list = [];
+  rides.forEach(function (r) {
+    if (r.deleted_at || r.person_id !== p.id) return;
+    var d = { place: r.dest_place, street: r.dest_street, zip: r.dest_zip, city: r.dest_city }, k = AGR.placeKey(d);
+    if (k === uk || seen[k]) return;
+    seen[k] = true; list.push({ key: k, label: AGR.placeLabel(d) });
+  });
+  list.sort(function (a, b) { var x = squash(a.label), y = squash(b.label); return x < y ? -1 : (x > y ? 1 : (a.key < b.key ? -1 : (a.key > b.key ? 1 : 0))); });
+  list.forEach(function (o, i) { o.idx = i; o.letter = String.fromCharCode(65 + (i % 26)); o.color = i % AGR.PLACE_COLORS; });
+  return { usual: { label: AGR.placeLabel(AGR.destOf(p)), key: uk }, others: list };
+};
+/* le lieu « hors habituel » d'une course ce jour-là, ou null (course absente, carte prévue, ou lieu habituel) */
+AGR.otherPlace = function (info, ride) {
+  if (!ride || ride.deleted_at) return null;
+  var k = AGR.placeKey({ place: ride.dest_place, street: ride.dest_street, zip: ride.dest_zip, city: ride.dest_city });
+  if (k === info.usual.key) return null;
+  for (var i = 0; i < info.others.length; i++) if (info.others[i].key === k) return info.others[i];
+  return null;
 };
 
 self.AGR = AGR;

@@ -1,0 +1,20 @@
+PASS [light 360x640] ancienne page qui garde la base ouverte : la mise à niveau est retenue (l'ouverture reste « en attente », rien n'est perdu)
+PASS [light 360x640] message affiché tout de suite (évènement « bloqué ») : « Fermez et rouvrez l’appli pour finir la mise à jour »
+PASS [light 360x640] … avec une phrase simple en dessous (rien n'a été effacé, fermer complètement l'appli)
+PASS [light 360x640] le message couvre tout l'écran, barre du bas comprise (pas d'écran muet avec menu absent ni de menu qui ne répond pas)
+PASS [light 360x640] dès que le blocage se lève : la mise à niveau se termine toute seule, le message disparaît, sans rien rouvrir
+PASS [light 360x640] … les données d'avant sont gardées (réglage de masquage 1 minute), la barre du bas répond
+PASS [light 360x640] aucune erreur JavaScript (cas bloqué)
+PASS [light 360x640] base pas prête à 3,5 s : pas encore de message (on laisse le temps)
+PASS [light 360x640] base pas prête après 5 secondes : le même message « Fermez et rouvrez l’appli pour finir la mise à jour » apparaît (au lieu d'un écran figé)
+PASS [light 360x640] une autre page demande la structure 9 : l'appli ouverte lâche sa connexion, la demande n'est PAS bloquée (7 ms)
+PASS [light 360x640] l'appli ouverte explique : « Agenda a été mis à jour dans une autre fenêtre » (rien d'effacé)
+PASS [light 360x640] nouvelle version + nouvelle structure publiées : « Nouvelle version disponible » apparaît, la page ne se recharge pas toute seule
+PASS [light 360x640] « Mettre à jour » : UN SEUL rechargement (1), pas de boucle (on attend encore 5 s)
+PASS [light 360x640] … toujours un seul rechargement 5 s plus tard
+PASS [light 360x640] migration réelle 5 → 6 faite malgré la 2e page ouverte : version 9.9.9, structure n° 6, aucun message de blocage
+PASS [light 360x640] la base est bien en structure 6 avec le nouveau magasin, les anciens magasins gardés
+PASS [light 360x640] la nouvelle page affiche son menu du bas et répond (4 onglets, un toucher change de page)
+PASS [light 360x640] la 2e page restée ouverte a lâché sa connexion et l'explique (« mis à jour dans une autre fenêtre »), sans bloquer
+PASS [light 360x640] aucune erreur JavaScript pendant la mise à jour avec migration
+TOTAL 19 ECHECS 0

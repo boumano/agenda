@@ -1,0 +1,29 @@
+PASS [light 360x640] [normal] « Nouvelle version disponible » apparaît
+PASS [light 360x640] [normal] menu du bas + écran présents après le rechargement, version 0.7.0
+PASS [light 360x640] [normal] TOUS les fichiers servis sont ceux de la version 0.7.0 (aucun mélange de versions)
+PASS [light 360x640] [normal] pas d'erreur JavaScript
+PASS [light 360x640] [normal] le menu du bas répond
+PASS [light 360x640] [normal, 2e page ouverte] « Nouvelle version disponible » apparaît
+PASS [light 360x640] [normal, 2e page ouverte] menu du bas + écran présents après le rechargement, version 0.7.0
+PASS [light 360x640] [normal, 2e page ouverte] TOUS les fichiers servis sont ceux de la version 0.7.0 (aucun mélange de versions)
+PASS [light 360x640] [normal, 2e page ouverte] pas d'erreur JavaScript
+PASS [light 360x640] [normal, 2e page ouverte] le menu du bas répond
+FAIL [light 360x640] [réseau lent (1,5 s par fichier) pendant l'installation] « Nouvelle version disponible » apparaît | 
+PASS [light 360x640] [réseau lent sur app.js et style.css seulement] « Nouvelle version disponible » apparaît
+PASS [light 360x640] [réseau lent sur app.js et style.css seulement] menu du bas + écran présents après le rechargement, version 0.7.0
+PASS [light 360x640] [réseau lent sur app.js et style.css seulement] TOUS les fichiers servis sont ceux de la version 0.7.0 (aucun mélange de versions)
+PASS [light 360x640] [réseau lent sur app.js et style.css seulement] pas d'erreur JavaScript
+PASS [light 360x640] [réseau lent sur app.js et style.css seulement] le menu du bas répond
+FAIL [light 360x640] [réseau coupé juste après le toucher] « Nouvelle version disponible » apparaît | 
+PASS [light 360x640] [réseau coupé juste après le toucher, 2e page ouverte] « Nouvelle version disponible » apparaît
+PASS [light 360x640] [réseau coupé juste après le toucher, 2e page ouverte] menu du bas + écran présents après le rechargement, version 0.7.0
+PASS [light 360x640] [réseau coupé juste après le toucher, 2e page ouverte] TOUS les fichiers servis sont ceux de la version 0.7.0 (aucun mélange de versions)
+PASS [light 360x640] [réseau coupé juste après le toucher, 2e page ouverte] pas d'erreur JavaScript
+PASS [light 360x640] [réseau coupé juste après le toucher, 2e page ouverte] le menu du bas répond
+PASS [light 360x640] [fichier manquant] l'installation échoue en entier : pas de « Nouvelle version disponible » à moitié prête
+PASS [light 360x640] [fichier manquant] l'appli continue de servir la version 0.4.1 ENTIÈRE
+PASS [light 360x640] [fichier manquant] l'écran reste utilisable
+PASS [light 360x640] [cache partiel] après une installation interrompue, fuel.js (absent de 0.4.1) n'est PAS servi depuis une réserve incomplète de la nouvelle version
+PASS [light 360x640] [cache partiel] aucune réserve incomplète ne reste après l'échec
+FAIL [light 360x640] [cache partiel] au nouvel essai, l'installation aboutit et « Nouvelle version disponible » apparaît | 
+TOTAL 28 ECHECS 3
