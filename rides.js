@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.7.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.7.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des courses (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3) :
    - une « carte prévue » est CALCULÉE à partir des fiches (mode « Chaque semaine » avec « Du » / « Au », ou « Dates choisies ») ; elle n'est pas enregistrée ;
@@ -46,6 +46,7 @@ AGR.newRide = function (p, is, o) {
     changed: !!o.changed,    /* heure ou destination changée pour CE jour */
     added: !!o.added,        /* course exceptionnelle (jour non prévu) */
     skip: false,             /* « Pas de course » */
+    retour: true,            /* false = le retour n'est pas fait (la personne revient avec quelqu'un d'autre) : prix et km divisés par 2 */
     created_at: t, updated_at: t, deleted_at: null
   };
 };
@@ -59,12 +60,12 @@ function byId(people) { var m = {}; people.forEach(function (p) { m[p.id] = p; }
 
 AGR.rideItem = function (p, r, is) {
   return { key: r.id, virt: false, date: is, p: p, r: r, pid: p.id, time: r.time || null, dest: { place: r.dest_place, street: r.dest_street, zip: r.dest_zip, city: r.dest_city },
-    price: r.price_cents, km: r.km_m, upr: r.usual_price_cents, ukm: r.usual_km_m, status: r.status, changed: !!r.changed, added: !!r.added, skip: !!r.skip };
+    price: r.price_cents, km: r.km_m, upr: r.usual_price_cents, ukm: r.usual_km_m, status: r.status, changed: !!r.changed, added: !!r.added, skip: !!r.skip, retour: r.retour !== false };
 };
 AGR.virtItem = function (p, is) {    /* carte prévue calculée : rien n'est enregistré */
   var up = p.usual_price_cents == null ? null : p.usual_price_cents, uk = p.usual_km_m == null ? null : p.usual_km_m;
   return { key: 'v|' + p.id, virt: true, date: is, p: p, r: null, pid: p.id, time: AGR.timeFor(p), dest: { place: p.dest_place || '', street: p.dest_street || '', zip: p.dest_zip || '', city: p.dest_city || '' },
-    price: up, km: uk, upr: up, ukm: uk, status: null, changed: false, added: false, skip: false };
+    price: up, km: uk, upr: up, ukm: uk, status: null, changed: false, added: false, skip: false, retour: true };
 };
 /* la carte d'une personne pour un jour (course enregistrée, même cachée, ou carte prévue), ou null */
 AGR.itemFor = function (people, rides, pid, is) {

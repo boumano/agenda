@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -336,9 +336,11 @@ function confirmOk() {
     AG.deletePerson(p.id).then(function (out) {
       if (out.refused) { toast('Impossible : ' + plural(out.refused, 'course déjà notée', 'courses déjà notées') + '.'); return; }
       people = people.filter(function (x) { return x.id !== p.id; });
+      out.prevRides = rides.filter(function (r) { return r.person_id === p.id; });       /* pour « Annuler » : elles reviennent telles quelles */
+      rides = rides.filter(function (r) { return r.person_id !== p.id; });
       go('personnes');
       toast(fullName(p) + ' supprimée', function () {
-        AG.restoreDeleted(out).then(function () { people.push(out.person); if (cur === 'personnes') renderPers(); });
+        AG.restoreDeleted(out).then(function () { people.push(out.person); rides = rides.concat(out.prevRides); if (cur === 'personnes') renderPers(); });
       });
     });
   }
@@ -366,6 +368,37 @@ function ensureRide(it, is) {
   return AG.putRide(r).then(function () { return r; }, function (e) { rides.splice(rides.indexOf(r), 1); throw e; });
 }
 function saveRide(r) { r.updated_at = nowIso(); return AG.putRide(r); }
+/* ----- Retour : la personne revient avec quelqu'un d'autre. Retour décoché = prix et km divisés par 2 (l'original est gardé pour remettre) ----- */
+function retourHTML(it, act) {
+  if (!it || it.status === 'not_done') return '';
+  var on = it.retour !== false;
+  return '<button class="rtbox' + (on ? ' on' : '') + '" data-a="' + act + '" data-key="' + esc(it.key) + '" aria-pressed="' + on + '">' +
+    '<span class="rtck" aria-hidden="true">' + (on ? I('check') : '') + '</span><span class="rtt">' + (on ? 'Retour compté' : 'Retour non compté') + (on ? '' : '<small>prix et km divisés par 2</small>') + '</span></button>';
+}
+function setRetour(it, is) {
+  if (!it) return;
+  ensureRide(it, is).then(function (ride) {
+    var prev = { retour: ride.retour, price_cents: ride.price_cents, km_m: ride.km_m, aller_retour_orig: ride.aller_retour_orig }, back = ride.retour === false;
+    if (back) {
+      var o = ride.aller_retour_orig || {};
+      if (o.price_cents !== undefined) ride.price_cents = o.price_cents;
+      if (o.km_m !== undefined) ride.km_m = o.km_m;
+      ride.retour = true; ride.aller_retour_orig = null;
+    } else {
+      ride.aller_retour_orig = { price_cents: ride.price_cents, km_m: ride.km_m };
+      ride.price_cents = ride.price_cents == null ? null : Math.round(ride.price_cents / 2);
+      ride.km_m = ride.km_m == null ? null : Math.round(ride.km_m / 2);
+      ride.retour = false;
+    }
+    return saveRide(ride).then(function () {
+      if (dsh) renderSheet(); refreshUnder();
+      toast(back ? 'Retour compté : montant et km remis.' : 'Retour non compté : montant et km divisés par 2.', function () {
+        ride.retour = prev.retour; ride.price_cents = prev.price_cents; ride.km_m = prev.km_m; ride.aller_retour_orig = prev.aller_retour_orig;
+        saveRide(ride).then(function () { if (dsh) renderSheet(); refreshUnder(); });
+      });
+    });
+  }, function () { toast('Enregistrement impossible : réessaie'); });
+}
 function refreshUnder() { if (cur === 'aujourdhui') renderAuj(); else if (cur === 'calendrier') renderCal(); }
 function hasAddr(a) { return !!(a.street || a.zip || a.city); }
 function addrHTML2(a) {
@@ -460,7 +493,7 @@ function openCardHTML(it) {
     '<div class="rdv' + (it.time ? '' : ' none') + '">' + rdvtxt + (it.changed ? '<span class="chg">changé</span>' : '') + '</div>' +
     meta +
     '<div class="states"><div class="pair">' + b.ok + b.ko + '</div><span class="lab">' + stateWord(v) + '</span></div>' +
-    block(it, 'pick') + block(it, 'dest') + moneyHTML(it, 'm-') +
+    block(it, 'pick') + block(it, 'dest') + moneyHTML(it, 'm-') + retourHTML(it, 'aretour') +
     '<div class="cardact"><button class="btn quiet full" data-a="dschg" data-key="' + esc(it.key) + '">Changer ce jour</button>' +
     (it.added && it.r ? '<button class="btn line full" data-a="dsdel" data-key="' + esc(it.key) + '">Supprimer cette course</button>' : '') + '</div>' +
     '<button class="foldbtn" data-a="afold" data-key="' + esc(it.key) + '" aria-expanded="true" aria-label="Refermer la carte">' + I('up') + '</button></article>';
@@ -520,7 +553,7 @@ function sheetHTML() {
       '<button class="btn strong full" data-a="dssave">Enregistrer</button><button class="btn line full" data-a="dsback">Annuler</button>';
   }
   var btn = function (a, label, on) { return '<button class="btn line full' + (on ? ' sel' : '') + '" data-a="' + a + '" aria-pressed="' + (!!on) + '">' + label + '</button>'; };
-  h = '<p class="t" id="ds-title">' + esc(title) + '</p><p class="note" style="padding:0">' + who + (it && it.time ? ' · ' + esc(fmtH(it.time)) : '') + (it && it.changed ? ' · changé' : '') + '</p>' + dayPlaceHTML(p, it);
+  h = '<p class="t" id="ds-title">' + esc(title) + '</p><p class="note" style="padding:0">' + who + (it && it.time ? ' · ' + esc(fmtH(it.time)) : '') + (it && it.changed ? ' · changé' : '') + '</p>' + dayPlaceHTML(p, it) + retourHTML(it, 'aretour');
   if (is < T) {
     if (it || hab) h += btn('dsfait', 'Fait', st === 'done') + btn('dspas', 'Pas fait', st === 'not_done') + moneyHTML(it || AGR.virtItem(p, is), 'ds-');
     else h += btn('dsadd', 'Ajouter une course', false);
@@ -622,20 +655,21 @@ function placeLegendHTML(info, used, offDays) {
 function renderCal() {
   var p = personById(ctx.calPid); if (!p) return;
   var y = ctx.calY, m = ctx.calM, first = new Date(y, m, 1), off = wd(first) - 1, L = ['L', 'M', 'M', 'J', 'V', 'S', 'D'], n = new Date(y, m + 1, 0).getDate(), T = todayISO();
-  var cnt = { t: 0, p: 0, a: 0, b: 0 }, cells = '', pinfo = AGR.placeInfo(p, rides), usedPl = {}, offDays = 0;
+  var cnt = { t: 0, p: 0, a: 0, b: 0 }, cells = '', pinfo = AGR.placeInfo(p, rides), usedPl = {}, offDays = 0, retDays = 0;
   for (var i = 0; i < off; i++) cells += '<div class="blank"></div>';
   for (var d = 1; d <= n; d++) {
     var is = y + '-' + pad(m + 1) + '-' + pad(d), v = AGR.state(p, rides, is, T);
     if (v === 't') cnt.t++; else if (v === 'p') cnt.p++; else if (v === 'a') cnt.a++; else if (v === 'n') cnt.b++;     /* « sans note » : seulement un jour PASSÉ prévu (ou avec une course) où rien n'a été noté ; jamais un jour sans course */
-    var op = AGR.otherPlace(pinfo, AGR.rideOf(rides, p.id, is)), pdot = '', plab = '';
-    if (op) { usedPl[op.key] = op; offDays++; pdot = '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>'; plab = ' · hors habituel : ' + (op.label || 'lieu inconnu') + ' (' + op.letter + ')'; }
-    cells += '<button class="cell ' + v + (is === T ? ' today' : '') + '" data-a="calday" data-iso="' + is + '" aria-label="' + esc(cap(fmtDay.format(parseISO(is)))) + ' : ' + (v === 't' ? 'transportée' : (v === 'p' ? 'pas transportée' : (v === 'a' ? 'à faire' : (v === 'n' ? 'pas noté' : 'pas de course')))) + esc(plab) + '"><span>' + d + '</span>' + (v === 't' ? I('check') : (v === 'p' ? I('x') : (v === 'a' ? I('ring') : ''))) + pdot + '</button>';
+    var ro = AGR.rideOf(rides, p.id, is), op = AGR.otherPlace(pinfo, ro), rt = !!(ro && ro.retour === false), pdot = '', plab = '';
+    if (rt) { retDays++; plab += ' · retour non compté (prix et km divisés par 2)'; }
+    if (op) { usedPl[op.key] = op; offDays++; pdot = '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>'; plab += ' · hors habituel : ' + (op.label || 'lieu inconnu') + ' (' + op.letter + ')'; }
+    cells += '<button class="cell ' + v + (rt ? ' rt' : '') + (is === T ? ' today' : '') + '" data-a="calday" data-iso="' + is + '" aria-label="' + esc(cap(fmtDay.format(parseISO(is)))) + ' : ' + (v === 't' ? 'transportée' : (v === 'p' ? 'pas transportée' : (v === 'a' ? 'à faire' : (v === 'n' ? 'pas noté' : 'pas de course')))) + esc(plab) + '"><span>' + d + '</span>' + (v === 't' ? I('check') : (v === 'p' ? I('x') : (v === 'a' ? I('ring') : ''))) + pdot + '</button>';
   }
   var h = '<header class="top"><div class="backrow"><button class="back" data-a="back">' + I('left') + 'Retour</button>' + tools() + '</div><h1 style="margin-top:6px">Calendrier et courses</h1><div class="sub">' + esc(fullName(p)) + '</div>' +
     '<div class="monthnav"><button class="chev" data-a="month" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl">' + esc(cap(fmtMonth.format(first))) + '</div><button class="chev" data-a="month" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div></header>' +
     '<div class="content">' + calSummaryHTML(p, y, m) + '<div class="card" style="padding:4px"><div class="calgrid">' + L.map(function (l) { return '<div class="dow">' + l + '</div>'; }).join('') + cells + '</div></div>' +
     '<p class="summary" id="cal-summary">' + cnt.t + ' transportée, ' + cnt.p + ' pas transportée, ' + (cnt.a ? cnt.a + ' à faire, ' : '') + plural(cnt.b, 'jour', 'jours') + ' sans note</p>' +
-    '<div class="legend"><span><i class="sw t">' + I('check') + '</i>Transportée</span><span><i class="sw p">' + I('x') + '</i>Pas transportée</span><span><i class="sw a">' + I('ring') + '</i>À faire</span><span><i class="sw n"></i>Pas noté</span></div>' +
+    '<div class="legend"><span><i class="sw t">' + I('check') + '</i>Transportée</span><span><i class="sw p">' + I('x') + '</i>Pas transportée</span><span><i class="sw a">' + I('ring') + '</i>À faire</span><span><i class="sw n"></i>Pas noté</span>' + (retDays ? '<span><i class="sw r"></i>Retour non compté</span>' : '') + '</div>' +
     placeLegendHTML(pinfo, usedPl, offDays) + '</div>';
   mount('s-calendrier', h);
 }
@@ -1400,6 +1434,10 @@ document.addEventListener('click', function (e) {
       break;
     case 'afold': var fk = openKey; openKey = null; renderAuj(); var fr = document.querySelector('#s-aujourdhui .frow[data-key="' + fk + '"] .fmain'); if (fr) fr.focus({ preventScroll: true }); break;
     case 'aset': setStatus(b.dataset.key, b.dataset.v); break;
+    case 'aretour':
+      if (dsh) setRetour(itemFor(personById(dsh.pid), dsh.iso), dsh.iso);
+      else setRetour(findItem(b.dataset.key, iso(day)), iso(day));
+      break;
     case 'copyitem': var ci = findItem(b.dataset.key, iso(day)); if (ci) copyText(addrPlain(b.dataset.kind === 'dest' ? ci.dest : AGR.pickOf(ci.p)), function (good) { flashCopied(b, good); }); break;
     case 'aadd': sheetOpen({ iso: iso(day), mode: 'pick', direct: true }); break;
     case 'calfiche': if (ficheDirty()) { openConfirm('leave', null, { cal: id }); break; } openCalendar(id, 'fiche'); break;

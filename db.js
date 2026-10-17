@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['db.js']='0.7.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['db.js']='0.7.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la couche d'accès aux données. TOUT ce qui lit ou écrit dans IndexedDB passe par ici (un seul endroit).
    IndexedDB = la base de données intégrée à Chrome. Aucune donnée dans ce fichier : seulement la façon de les ranger.
 
@@ -131,15 +131,20 @@ function ridesInRange(from, to) {
   return req2p(db.transaction('rides').objectStore('rides').index('date').getAll(IDBKeyRange.bound(from, to))).then(function (list) { lastRange = list.length; return list; });
 }
 function putRide(r) { var tx = db.transaction('rides', 'readwrite'); tx.objectStore('rides').put(r); return done(tx); }
-/* courses non supprimées d'une personne (faites, pas faites, ou créées mais pas notées) : elles empêchent de supprimer la fiche */
+/* Une course « notée » = faite ou pas faite. Une course créée mais pas notée (statut vide) ne bloque pas la suppression. */
+function isNoted(r) { return !r.deleted_at && (r.status === 'done' || r.status === 'not_done'); }
+/* courses d'une personne : notées (elles empêchent de supprimer la fiche) et non notées (elles partent à la corbeille avec la fiche) */
 function countRides(personId) {
   return ridesOf(personId).then(function (list) {
-    return { noted: list.filter(function (r) { return !r.deleted_at; }).length, planned: 0 };
+    return {
+      noted: list.filter(isNoted).length,
+      planned: list.filter(function (r) { return !r.deleted_at && !isNoted(r); }).length
+    };
   });
 }
-/* Efface une personne pour de bon, SEULEMENT s'il n'existe aucune course non supprimée.
-   Les courses déjà à la corbeille ne sont pas touchées. Renvoie la fiche effacée (pour « Annuler » pendant quelques secondes),
-   ou { refused: n } s'il y a des courses. */
+/* Efface une personne pour de bon, SEULEMENT s'il n'existe aucune course notée.
+   Les courses non notées sont mises à la corbeille (deleted_at), pas effacées ; celles déjà à la corbeille ne bougent pas.
+   Renvoie la fiche et les courses telles qu'elles étaient (pour « Annuler »), ou { refused: n } s'il y a des courses notées. */
 function deletePerson(id) {
   return new Promise(function (resolve, reject) {
     var tx = db.transaction(['persons', 'rides'], 'readwrite'), ps = tx.objectStore('persons'), rs = tx.objectStore('rides'), out = { person: null, rides: [] }, refused = 0;
@@ -147,9 +152,15 @@ function deletePerson(id) {
       out.person = e.target.result || null;
       rs.index('person_id').getAll(id).onsuccess = function (e2) {
         var list = e2.target.result || [];
-        refused = list.filter(function (r) { return !r.deleted_at; }).length;
+        refused = list.filter(isNoted).length;
         if (refused) { tx.abort(); return; }
         ps.delete(id);
+        var now = new Date().toISOString();
+        list.forEach(function (r) {
+          if (r.deleted_at) return;
+          out.rides.push(r);                                         /* l'original, pour « Annuler » */
+          rs.put(Object.assign({}, r, { deleted_at: now, updated_at: now }));
+        });
       };
     };
     tx.oncomplete = function () { resolve(out); };

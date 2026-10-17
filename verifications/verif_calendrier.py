@@ -187,7 +187,7 @@ with sync_playwright() as p:
     to_month(PM)
     X = free_weekday(PM, 14)
     tap(cell(X))
-    btns = [x.strip() for x in pg.locator("#ds-panel button").all_inner_texts()]
+    btns = [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()]
     ok(tag + " jour passé habituel, sans rien d'enregistré : panneau (pas une page) « Fait » / « Pas fait » + montant et km, avec les repères « habituel »", pg.locator("#daysheet.on").count() == 1 and btns[:2] == ["Fait", "Pas fait"] and pg.input_value("#ds-montant") == "12,50" and pg.input_value("#ds-km") == "8,5" and pg.locator("#ds-hab-p").count() == 1 and pg.locator("#ds-hab-k").count() == 1 and cur() == "calendrier", btns)
     ok(tag + " ouvrir le panneau n'enregistre rien", len(live()) == 5, len(live()))
     tap('#ds-panel [data-a="dsfait"]'); model[X] = "done"
@@ -207,7 +207,7 @@ with sync_playwright() as p:
     # ================= 4. jour passé non habituel : ajouter une course =================
     Y = free_weekend(PM, 15)
     tap(cell(Y))
-    ok(tag + " jour passé NON habituel sans course : « Ajouter une course » seulement", [x.strip() for x in pg.locator("#ds-panel button").all_inner_texts()] == ["Ajouter une course", "Fermer"])
+    ok(tag + " jour passé NON habituel sans course : « Ajouter une course » seulement", [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()] == ["Ajouter une course", "Fermer"])
     tap('[data-a="dsadd"]')
     ok(tag + " formulaire « Ajouter une course » : heure et destination de la fiche, boutons Enregistrer / Annuler", pg.locator("#ds-title").inner_text() == "Ajouter une course" and pg.input_value("#ds-heure") == "09:00" and pg.input_value("#ds-lieu") == "Lieu Cible")
     tap('[data-a="dsback"]')
@@ -226,7 +226,7 @@ with sync_playwright() as p:
     to_month(NM)
     F = free_weekday(NM, 8); G = free_weekend(NM, 8)
     tap(cell(F))
-    btns = [x.strip() for x in pg.locator("#ds-panel button").all_inner_texts()]
+    btns = [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()]
     ok(tag + " jour à venir habituel : « Comme d'habitude » (choisi) / « Changer ce jour » / « Pas de course »", btns[:3] == ["Comme d’habitude", "Changer ce jour", "Pas de course"] and pg.locator('#ds-panel [data-a="dscomme"][aria-pressed="true"]').count() == 1, btns)
     tap('#ds-panel [data-a="dspas"]'); model[F] = "not_done"
     rF = [r for r in live() if r["date"] == F.isoformat()][0]
@@ -249,20 +249,20 @@ with sync_playwright() as p:
     rF = [r for r in live() if r["date"] == F.isoformat()][0]
     ok(tag + " « Comme d'habitude » après un changement : heure 09:00 et destination de la FICHE reviennent, plus « changé »", rF["time"] == "09:00" and rF["dest_place"] == "Lieu Cible" and rF["changed"] is False)
     tap(cell(G))
-    ok(tag + " jour à venir NON habituel : « Ajouter une course »", [x.strip() for x in pg.locator("#ds-panel button").all_inner_texts()] == ["Ajouter une course", "Fermer"])
+    ok(tag + " jour à venir NON habituel : « Ajouter une course »", [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()] == ["Ajouter une course", "Fermer"])
     tap('[data-a="dsadd"]'); tap('[data-a="dssave"]'); model[G] = None
     ok(tag + " ajoutée : le jour devient « à faire »", cells() == expected_cells(NM) and [c for c in cells() if c[0] == G.isoformat()][0][1] == "a")
     tap(cell(G))
-    ok(tag + " ce jour : « Changer ce jour », « Pas de course » et « Supprimer cette course »", [x.strip() for x in pg.locator("#ds-panel button").all_inner_texts()] == ["Changer ce jour", "Pas de course", "Supprimer cette course", "Fermer"])
+    ok(tag + " ce jour : « Changer ce jour », « Pas de course » et « Supprimer cette course »", [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()] == ["Changer ce jour", "Pas de course", "Supprimer cette course", "Fermer"])
     tap('#ds-panel [data-a="dsdel"]'); del model[G]
     ok(tag + " supprimée : retour à une case vide (corbeille)", cells() == expected_cells(NM) and [r for r in db_all("rides") if r["date"] == G.isoformat()][0]["deleted_at"])
     tap('#toast [data-a="undo"]'); model[G] = None
 
     # ================= 6. suppression d'une personne =================
     goto("personnes"); tap('#plist .list-item:has-text("Alpha")')
-    n_live = len(live())
+    n_noted = len([r for r in live() if r["status"] in ("done", "not_done")])     # seules les courses NOTÉES (faites / pas faites) bloquent
     dis = pg.locator("#s-fiche .list-item[disabled]")
-    ok(tag + " Alpha a %d courses non supprimées : « Supprimer cette fiche » grisée, « Impossible : %d courses déjà notées. »" % (n_live, n_live), dis.count() == 1 and ("Impossible : %d courses déjà notées." % n_live) in dis.inner_text(), dis.inner_text() if dis.count() else "")
+    ok(tag + " Alpha a %d courses notées : « Supprimer cette fiche » grisée, « Impossible : %d courses déjà notées. » (la course pas notée ne compte pas)" % (n_noted, n_noted), dis.count() == 1 and ("Impossible : %d courses déjà notées." % n_noted) in dis.inner_text(), dis.inner_text() if dis.count() else "")
     goto("personnes"); tap('#plist .list-item:has-text("Gamma")')
     ok(tag + " Gamma (aucune course) : « Supprimer cette fiche » active", pg.locator('[data-a="deleteask"]').count() == 1)
     tap('[data-a="calfiche"]'); to_month(PM)
@@ -271,7 +271,7 @@ with sync_playwright() as p:
     ok(tag + " une course ajoutée à Gamma depuis son calendrier", len(live(GAMMA["id"])) == 1 and "Course ajoutée" == toast_msg())
     tap('.screen.on [data-a="back"]')
     dis = pg.locator("#s-fiche .list-item[disabled]")
-    ok(tag + " Gamma a maintenant 1 course (même pas notée) : « Impossible : 1 course déjà notée. »", dis.count() == 1 and "Impossible : 1 course déjà notée." in dis.inner_text())
+    ok(tag + " Gamma a maintenant 1 course créée mais PAS NOTÉE : « Supprimer cette fiche » reste active (rien à protéger)", dis.count() == 0 and pg.locator('[data-a="deleteask"]').count() == 1)
     tap('[data-a="calfiche"]'); to_month(PM); tap(cell(Z)); tap('#ds-panel [data-a="dsdel"]')
     tap('.screen.on [data-a="back"]')
     ok(tag + " course mise à la corbeille : « Supprimer cette fiche » redevient active (la course de la corbeille n'empêche plus, et n'est pas effacée)", pg.locator('[data-a="deleteask"]').count() == 1 and len(db_all("rides")) >= 6 and len(live(GAMMA["id"])) == 0)

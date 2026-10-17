@@ -385,3 +385,26 @@ Besoin (Pascal) : signaler à l'asbl les courses qui ne sont pas le trajet habit
 
 ### Vérifications
 `verifications/verif_lieux.py` (26 contrôles) : pastilles A/B/C, même lieu écrit autrement, corbeille sans effet, étiquette, légende (lieu habituel, nombre, ordre, couleurs distinctes), pas de défilement de côté, fenêtre du jour (hors habituel, habituel, lieu inconnu, jour prévu sans course), regarder ne crée ni ne modifie aucune course, couleurs stables d'un mois à l'autre, personne sans course hors habituel. Les contrôles qui attendaient un numéro de version écrit à la main (`verif_phrase`, `verif_saisie`, `verif_sauvegarde`) lisent maintenant `version.js`.
+
+## Retour (0.7.1, structure n° 5 INCHANGÉE, aucune migration ; export et restauration inchangés)
+Besoin (Pascal) : la personne est conduite quelque part et revient avec quelqu'un d'autre (son fils) : le retour ne compte pas et est payé la moitié.
+
+### Règles
+- **Une case « Retour compté »** dans la fenêtre du jour et dans la carte ouverte d'Aujourd'hui, placée après le lieu. Cochée par défaut. Absente si la course est « pas faite ».
+- **Retour décoché** (`retour: false` sur la course) : montant **et** km divisés par 2 (arrondi au centime / au mètre). L'original est gardé dans `aller_retour_orig` pour pouvoir remettre exactement.
+- **Recoché** : montant et km d'origine remis. Absent ou `true` = compté (les anciennes courses sont comptées comme avant).
+- Montant ou km « inconnu » : reste « inconnu » (jamais 0).
+- La course compte toujours comme **une** course faite dans les totaux ; seul le montant et les km changent (ils suivent donc le Bilan sans rien changer au Bilan).
+- Un message « Annuler » (5 s) annule le changement.
+
+### Écrans
+- **Calendrier** : fond violet très pâle (`--retbg`, clair et sombre) sur la case du jour ; l'étiquette lue par l'accessibilité ajoute « retour non compté ». Pas de pastille en plus. Légende « Retour non compté » seulement si le mois en contient une.
+- **Message « Annuler »** au-dessus du panneau d'un jour (`#toast` au-dessus, sinon le panneau le cachait).
+
+### Suppression d'une fiche (corrigée dans 0.7.1)
+- Seules les courses **notées** (faites ou pas faites) empêchent la suppression. Une course créée mais pas notée ne bloque plus.
+- Les courses non notées sont mises à la **corbeille** (`deleted_at`), jamais effacées ; « Annuler » les remet telles quelles, dans la base et dans l'écran.
+
+### Vérifications
+`verifications/verif_retour.py` (17 contrôles) : case cochée par défaut, décochée = moitié (base), original gardé, « Annuler », remise exacte, inconnu reste inconnu, pas de case sur « pas faite », fond violet et légende, message. Dark 390×780 et light 360×640.
+`verif_calendrier.py` et `verif_personnes.py` mis à jour pour la nouvelle règle de suppression et la case Retour dans la liste des boutons.
