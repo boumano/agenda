@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -1570,6 +1570,26 @@ var ready = AG.init({ onBlocked: showBlocked }).then(function () {
   else if (er && er.code === 'newer') fatal('Données plus récentes que l’appli', 'Les données de ce téléphone ont été écrites par une version plus récente d’Agenda. Rien n’a été effacé. Ferme l’appli, rouvre-la avec internet pour la mettre à jour, puis réessaie.');
   else fatal('Stockage indisponible', 'Agenda ne peut pas ouvrir son stockage sur ce téléphone. Rien n’a été effacé. Ferme et rouvre l’appli ; si le message revient, ne saisis rien et préviens celui qui t’aide.');
 });
+
+/* ========= glisser le doigt entre les quatre écrans (gauche : suivant, droite : précédent) ========= */
+(function () {
+  var views = document.getElementById('views'), sx = 0, sy = 0, st = 0, skip = true;
+  if (!views) return;
+  views.addEventListener('touchstart', function (e) {
+    var t = e.touches[0];
+    skip = e.touches.length !== 1 || !!(e.target.closest && e.target.closest('input,textarea,select,[contenteditable],.calgrid,.daynav,[data-noswipe]'));
+    sx = t.clientX; sy = t.clientY; st = Date.now();
+  }, { passive: true });
+  views.addEventListener('touchend', function (e) {
+    if (skip || veilOn || !isReady || TABS.indexOf(cur) < 0 || !e.changedTouches.length) return;
+    var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Date.now() - st > 700 || Math.abs(dx) < 60 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+    var i = TABS.indexOf(cur) + (dx < 0 ? 1 : -1);
+    if (i < 0 || i >= TABS.length) return;
+    if (ficheDirty()) return;
+    go(TABS[i]);
+  }, { passive: true });
+})();
 
 try { go('aujourdhui'); } catch (er) { AGG.caught(er, 'go'); }
 startWorker();

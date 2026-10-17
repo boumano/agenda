@@ -91,7 +91,7 @@ Voir les étapes numérotées du rapport de l'étape 2.
 - (Étape 5 faite : la page Essence est complète ; voir plus bas.)
 
 ## Écarts par rapport au plan et à la maquette
-- Pas de glissement gauche / droite entre les écrans et pas de transition animée (la maquette les avait).
+- Pas de transition animée entre les écrans (la maquette en prévoyait). Le glissement gauche / droite entre les quatre écrans principaux existe depuis 0.7.2 (sans animation).
 - La fiche n'a pas encore le lien « Calendrier et courses » ni « Copier l'adresse » (étape 3 pour le calendrier ; la copie d'adresse n'était pas demandée).
 - Le code postal est coupé à 360 px de large dans le champ (« Code posta… ») : même disposition que la maquette.
 - `theme_color` et `background_color` du manifeste sont fixes (bleu sombre / fond sombre) ; la page suit le thème clair / sombre. Le champ date déclare `color-scheme` clair et sombre pour que son icône reste visible en mode sombre (seul ajout de style).
@@ -408,3 +408,9 @@ Besoin (Pascal) : la personne est conduite quelque part et revient avec quelqu'u
 ### Vérifications
 `verifications/verif_retour.py` (17 contrôles) : case cochée par défaut, décochée = moitié (base), original gardé, « Annuler », remise exacte, inconnu reste inconnu, pas de case sur « pas faite », fond violet et légende, message. Dark 390×780 et light 360×640.
 `verif_calendrier.py` et `verif_personnes.py` mis à jour pour la nouvelle règle de suppression et la case Retour dans la liste des boutons.
+
+
+## Glisser entre les écrans (0.7.2, structure n° 5 INCHANGÉE, aucune migration)
+- Glisser le doigt vers la gauche : écran suivant ; vers la droite : précédent. Ordre : Aujourd’hui, Personnes, Bilan, Essence.
+- Seuil : au moins 60 px, plus horizontal que vertical, geste de moins de 0,7 s. Pas de glissement aux extrémités, sur un champ de saisie, dans la grille du calendrier ou la barre des jours, ni pendant le masquage ou avec une fiche modifiée non enregistrée.
+- Contrôle : test de navigation par gestes synthétiques (Playwright), sans erreur de page.
