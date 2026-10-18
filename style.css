@@ -1,4 +1,4 @@
-:root{--ag-version:"0.7.3"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+:root{--ag-version:"0.7.4"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
@@ -407,3 +407,4 @@ button.jjrow{width:100%;border-left:0;border-right:0;border-top:0;background:non
 .wk-ride .t2{font-size:14px;color:var(--text2);margin-top:2px}
 .wk-none{margin:0;padding:10px 14px;color:var(--text2);font-size:14px}
 .wk-hint{font-size:13px;color:var(--text2);text-align:center;margin:4px 0 0}
+.wk-ride .t3{font-size:12px;color:var(--text-warning);margin-top:4px}

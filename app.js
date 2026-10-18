@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.4'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -771,6 +771,11 @@ function bilanMonthTilesHTML(t) {
     '<button class="card tile" data-a="reveal" aria-label="Afficher ou masquer les montants"><div class="v" id="bil-eur">' + eur + '</div><div class="l" id="bil-eur-note">' + esc(eurNote) + '</div><div class="hint">' + I('eye') + (bil.reveal ? 'Toucher pour masquer' : 'Toucher pour afficher') + '</div></button>' +
     '<div class="card tile"><div class="v" id="bil-km">' + esc(kmv) + '</div><div class="l" id="bil-km-note">' + esc(kmNote) + '</div></div>';
 }
+/* retour non compté : le prix est déjà divisé par 2 ; on indique le montant aller-retour d'origine */
+function retourNoteHTML(r) {
+  var o = r && r.retour === false && r.aller_retour_orig && r.aller_retour_orig.price_cents != null ? r.aller_retour_orig.price_cents : null;
+  return o == null ? '' : '<div class="t3">Retour non compté · ' + esc(fmtEuros(o)) + ' aller-retour</div>';
+}
 function bilanSemHTML(rs, wk, y, m) {
   var wEnd = addDaysISO(wk, 6), pre = y + '-' + pad(m + 1) + '-', T = todayISO(), pmap = {};
   var M = AGR.totals(people, rs.filter(function (r) { return r.date.indexOf(pre) === 0; })).total;
@@ -795,7 +800,7 @@ function bilanSemHTML(rs, wk, y, m) {
         var amt = it.price == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(it.price) : '•••• €');
         return '<div class="wk-ride">' + (op ? '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>' : '<span class="wk-nopl" aria-hidden="true"></span>') +
           '<div class="txt"><div class="t1">' + esc((it.time || 'heure inconnue') + ' · ' + (AGR.placeLabel(it.dest) || 'lieu inconnu')) + (op ? ' <span class="off">· hors habituel</span>' : '') + '</div>' +
-          '<div class="t2">' + nameHTML(it.p) + ' · ' + esc(amt) + '</div></div></div>';
+          '<div class="t2">' + nameHTML(it.p) + ' · ' + esc(amt) + '</div>' + retourNoteHTML(it.r) + '</div></div>';
       }).join('') : '<p class="wk-none">Aucune course ce jour-là.</p>') + '</div>';
     }
   }
