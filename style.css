@@ -1,4 +1,4 @@
-:root{--ag-version:"0.7.2"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+:root{--ag-version:"0.7.3"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
@@ -383,3 +383,27 @@ button.jjrow{width:100%;border-left:0;border-right:0;border-top:0;background:non
 .rtbox:not(.on){background:var(--retbg);border-color:transparent}
 /* « Annuler » reste visible et tapable même quand le panneau d'un jour est ouvert (ex. après « Retour ») */
 #toast{position:relative;z-index:50}
+
+/* Bilan « Par semaine » : une semaine (lundi à dimanche), jours repliés, un tap déplie les courses */
+.wk{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;touch-action:pan-y;min-width:0}
+.wk-head{display:flex;align-items:center;gap:6px;padding:6px 6px;background:var(--band);color:var(--band-title);border-bottom:1px solid var(--band-line)}
+.wk-head .chev{color:var(--band-link)}
+.wk-head .wk-lbl{flex:1;min-width:0;text-align:center;line-height:1.25}
+.wk-head .wk-lbl b{display:block;font-size:16px;font-weight:600}
+.wk-head .wk-lbl small{display:block;font-size:13px;color:var(--band-sub)}
+.wk-day{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;min-height:48px;background:none;border:0;border-bottom:1px solid var(--line);color:inherit;font:inherit;text-align:left}
+.wk-day .dn{font-weight:600}
+.wk-day .dv{display:flex;align-items:center;gap:8px;color:var(--text2);font-size:14px;text-align:right}
+.wk-day .dv .i{width:18px;height:18px;flex:none}
+.wk-day[aria-expanded="true"]{background:var(--block)}
+.wk-rides{border-bottom:1px solid var(--line)}
+.wk-ride{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-top:1px solid var(--line)}
+.wk-ride:first-child{border-top:0}
+.wk-ride .pl{width:20px;height:20px;font-size:12px;margin-top:1px}
+.wk-nopl{width:20px;flex:none}
+.wk-ride .txt{flex:1;min-width:0}
+.wk-ride .t1{line-height:1.3}
+.wk-ride .t1 .off{color:var(--text2);font-size:13px}
+.wk-ride .t2{font-size:14px;color:var(--text2);margin-top:2px}
+.wk-none{margin:0;padding:10px 14px;color:var(--text2);font-size:14px}
+.wk-hint{font-size:13px;color:var(--text2);text-align:center;margin:4px 0 0}

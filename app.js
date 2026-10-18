@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.7.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -699,7 +699,7 @@ function refreshLog() {
    Le père ne reçoit RIEN de l'appli (ni bouton de copie, ni envoi, ni partage) : Pascal lit l'écran à voix haute.
    Le mois choisi est calculé à partir de l'INDEX des courses par date (on ne relit pas tout). */
 var JJ = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
-var bil = { view: 'tot', ref: new Date(today().getFullYear(), today().getMonth(), 1), reveal: false, ms: 0 }, bilTok = 0;
+var bil = { view: 'tot', ref: new Date(today().getFullYear(), today().getMonth(), 1), reveal: false, ms: 0, wk: null, open: {} }, bilTok = 0;
 function fmtEuros(c) { return Math.floor(c / 100) + ',' + pad(c % 100) + ' €'; }
 /* kilomètres d'un total : au plus 2 décimales (8400 m = « 8,4 »), plus facile à lire à voix haute */
 function fmtKm2(m) { return (Math.floor(m / 10 + 0.5) / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ','); }
@@ -711,7 +711,7 @@ function bilanHeader() {
 }
 function bilanControls() {
   var ref = bil.ref;
-  return '<div class="toggle" role="group" aria-label="Vue du Bilan"><button data-a="bview" data-v="tot" class="' + (bil.view === 'tot' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'tot') + '">Totaux</button><button data-a="bview" data-v="jj" class="' + (bil.view === 'jj' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'jj') + '">Jour par jour</button></div>' +
+  return '<div class="toggle" role="group" aria-label="Vue du Bilan" style="grid-template-columns:1fr 1fr 1fr"><button data-a="bview" data-v="tot" class="' + (bil.view === 'tot' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'tot') + '">Totaux</button><button data-a="bview" data-v="sem" class="' + (bil.view === 'sem' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'sem') + '">Par semaine</button><button data-a="bview" data-v="jj" class="' + (bil.view === 'jj' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'jj') + '">Jour par jour</button></div>' +
     '<div class="period"><button class="chev" data-a="bmonth" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl" id="bil-month">' + esc(cap(fmtMonth.format(ref))) + '</div><button class="chev" data-a="bmonth" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div>';
 }
 function bilanTotauxHTML(rs) {
@@ -750,13 +750,79 @@ function bilanJourHTML(rs, y, m) {
   });
   return h + '</div>';
 }
+/* ---------- Bilan « Par semaine » : une semaine à la fois (lundi à dimanche), glisser ou flèches ; jours repliés, un tap déplie ----------
+   Les montants et la lettre de lieu reprennent les règles du calendrier et de « Totaux ». */
+var bil_wk_fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+function weekStartOf(d) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function addDaysISO(s, n) { var d = parseISO(s); d.setDate(d.getDate() + n); return iso(d); }
+/* lundi de la semaine affichée : celui choisi, sinon la semaine d'aujourd'hui si elle est dans le mois, sinon la première semaine du mois */
+function wkStart() {
+  if (bil.wk) return bil.wk;
+  var t = today(), r = bil.ref, base = (t.getFullYear() === r.getFullYear() && t.getMonth() === r.getMonth()) ? t : r;
+  return iso(weekStartOf(base));
+}
+function setWeek(s) { bil.wk = s; var d = parseISO(s); bil.ref = new Date(d.getFullYear(), d.getMonth(), 1); bil.open = {}; renderBilan(); }
+function bilanMonthTilesHTML(t) {
+  var eur = bil.reveal ? totalTxt(t.cents, t.noPrice, t.count, fmtEuros) : '•••• €';
+  var eurNote = t.noPrice > 0 ? '+ ' + coursesSans(t.noPrice, 'prix') + ' (total partiel)' : 'total du mois';
+  var kmv = totalTxt(t.meters, t.noKm, t.count, function (m) { return fmtKm2(m) + ' km'; });
+  var kmNote = t.noKm > 0 ? '+ ' + coursesSans(t.noKm, 'km') + ' (total partiel)' : 'total du mois';
+  return '<div class="card tile"><div class="v" id="bil-count">' + t.count + '</div><div class="l">' + (t.count > 1 ? 'courses faites' : 'course faite') + '</div></div>' +
+    '<button class="card tile" data-a="reveal" aria-label="Afficher ou masquer les montants"><div class="v" id="bil-eur">' + eur + '</div><div class="l" id="bil-eur-note">' + esc(eurNote) + '</div><div class="hint">' + I('eye') + (bil.reveal ? 'Toucher pour masquer' : 'Toucher pour afficher') + '</div></button>' +
+    '<div class="card tile"><div class="v" id="bil-km">' + esc(kmv) + '</div><div class="l" id="bil-km-note">' + esc(kmNote) + '</div></div>';
+}
+function bilanSemHTML(rs, wk, y, m) {
+  var wEnd = addDaysISO(wk, 6), pre = y + '-' + pad(m + 1) + '-', T = todayISO(), pmap = {};
+  var M = AGR.totals(people, rs.filter(function (r) { return r.date.indexOf(pre) === 0; })).total;
+  var W = rs.filter(function (r) { return r.date >= wk && r.date <= wEnd; }), WT = AGR.totals(people, W).total;
+  function pinfoOf(p) { return pmap[p.id] || (pmap[p.id] = AGR.placeInfo(p, rides)); }
+  var wkEur = bil.reveal ? totalTxt(WT.cents, WT.noPrice, WT.count, fmtEuros) : '•••• €';
+  var wkKm = totalTxt(WT.meters, WT.noKm, WT.count, function (v) { return fmtKm2(v) + ' km'; });
+  var wkSub = WT.count ? WT.count + ' ' + (WT.count > 1 ? 'courses' : 'course') + ' · ' + wkKm + ' · ' + wkEur : 'Aucune course faite';
+  var h = bilanMonthTilesHTML(M) +
+    '<div class="wk" id="bil-week" data-noswipe><div class="wk-head"><button class="chev" data-a="bweek" data-d="-7" aria-label="Semaine précédente">' + I('left') + '</button>' +
+    '<div class="wk-lbl"><b>' + esc(bil_wk_fmt.format(parseISO(wk)) + ' – ' + bil_wk_fmt.format(parseISO(wEnd))) + '</b><small>' + esc(wkSub) + '</small></div>' +
+    '<button class="chev" data-a="bweek" data-d="7" aria-label="Semaine suivante">' + I('right') + '</button></div>';
+  for (var d = 0; d < 7; d++) {
+    var is = addDaysISO(wk, d), dt = parseISO(is), items = AGR.items(people, rides, is, T), open = !!bil.open[is];
+    var dayT = AGR.totals(people, W.filter(function (r) { return r.date === is; })).total, notRec = items.filter(function (it) { return it.status === 'not_done'; }).length;
+    var sum = dayT.count ? plural(dayT.count, 'course', 'courses') + ' · ' + (bil.reveal ? totalTxt(dayT.cents, dayT.noPrice, dayT.count, fmtEuros) : '•••• €')
+      : (!items.length ? 'aucune course' : (notRec === items.length ? 'pas transportée' : (is < T ? 'pas notée' : 'à faire')));
+    h += '<button class="wk-day" data-a="bweekday" data-iso="' + is + '" aria-expanded="' + open + '"><span class="dn">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="dv">' + esc(sum) + I(open ? 'up' : 'down') + '</span></button>';
+    if (open) {
+      h += '<div class="wk-rides">' + (items.length ? items.map(function (it) {
+        var op = it.r ? AGR.otherPlace(pinfoOf(it.p), it.r) : null;
+        var amt = it.price == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(it.price) : '•••• €');
+        return '<div class="wk-ride">' + (op ? '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>' : '<span class="wk-nopl" aria-hidden="true"></span>') +
+          '<div class="txt"><div class="t1">' + esc((it.time || 'heure inconnue') + ' · ' + (AGR.placeLabel(it.dest) || 'lieu inconnu')) + (op ? ' <span class="off">· hors habituel</span>' : '') + '</div>' +
+          '<div class="t2">' + nameHTML(it.p) + ' · ' + esc(amt) + '</div></div></div>';
+      }).join('') : '<p class="wk-none">Aucune course ce jour-là.</p>') + '</div>';
+    }
+  }
+  return h + '</div><p class="wk-hint">Glisser pour la semaine suivante ou précédente</p>';
+}
+/* balayage horizontal sur la semaine (la barre d'onglets, elle, ne bouge pas : data-noswipe) */
+function bindWeekSwipe(wk) {
+  var el = document.getElementById('bil-week'); if (!el) return;
+  var sx = null, sy = 0, st = 0;
+  el.addEventListener('touchstart', function (e) { if (e.touches.length !== 1) { sx = null; return; } sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); }, { passive: true });
+  el.addEventListener('touchend', function (e) {
+    if (sx === null || !e.changedTouches.length) return;
+    var t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
+    if (Date.now() - st > 700 || Math.abs(dx) < 60 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+    setWeek(addDaysISO(wk, dx < 0 ? 7 : -7));
+  }, { passive: true });
+}
 function renderBilan() {
-  var tok = ++bilTok, t0 = performance.now(), y = bil.ref.getFullYear(), m = bil.ref.getMonth();
+  var tok = ++bilTok, t0 = performance.now(), y = bil.ref.getFullYear(), m = bil.ref.getMonth(), sem = bil.view === 'sem', wk = sem ? wkStart() : null;
   var from = y + '-' + pad(m + 1) + '-01', to = y + '-' + pad(m + 1) + '-' + pad(new Date(y, m + 1, 0).getDate());
+  if (sem) { if (wk < from) from = wk; if (addDaysISO(wk, 6) > to) to = addDaysISO(wk, 6); }   /* la semaine peut déborder sur le mois voisin */
   (AG.db ? AG.ridesInRange(from, to) : Promise.resolve([])).then(function (rs) {
     if (tok !== bilTok || cur !== 'bilan') return;
-    mount('s-bilan', bilanHeader() + '<div class="content">' + bilanControls() + (bil.view === 'tot' ? bilanTotauxHTML(rs) : bilanJourHTML(rs, y, m)) +
+    var body = sem ? bilanSemHTML(rs, wk, y, m) : (bil.view === 'tot' ? bilanTotauxHTML(rs) : bilanJourHTML(rs, y, m));
+    mount('s-bilan', bilanHeader() + '<div class="content">' + bilanControls() + body +
       exportReminderHTML() + '<div class="card" style="padding-top:2px;padding-bottom:2px"><button class="list-item" data-a="reglages"><span>Réglages</span>' + I('right') + '</button></div></div>');
+    if (sem) bindWeekSwipe(wk);
     bil.ms = Math.round(performance.now() - t0);
   }, function () { /* base fermée : rien à calculer */ });
 }
@@ -1466,7 +1532,9 @@ document.addEventListener('click', function (e) {
       }
       sheetAction(a); break;
     case 'bview': bil.view = b.dataset.v; bil.reveal = false; renderBilan(); break;
-    case 'bmonth': bil.ref = new Date(bil.ref.getFullYear(), bil.ref.getMonth() + (+b.dataset.d), 1); bil.reveal = false; renderBilan(); break;
+    case 'bmonth': bil.ref = new Date(bil.ref.getFullYear(), bil.ref.getMonth() + (+b.dataset.d), 1); bil.reveal = false; bil.wk = iso(weekStartOf(bil.ref)); bil.open = {}; renderBilan(); break;
+    case 'bweek': setWeek(addDaysISO(wkStart(), +b.dataset.d)); break;
+    case 'bweekday': bil.open[b.dataset.iso] = !bil.open[b.dataset.iso]; renderBilan(); break;
     case 'reveal': bil.reveal = !bil.reveal; renderBilan(); break;
     case 'bday': day = parseISO(b.dataset.iso); openKey = null; go('aujourdhui'); break;       /* ouvre ce jour dans Aujourd'hui */
     case 'confirmcancel': closeConfirm(); break;
