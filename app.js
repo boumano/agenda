@@ -543,6 +543,7 @@ function jointCardHTML(j) {
   var priceTxt = jopen[j.id] ? (j.price_cents == null ? 'prix inconnu' : fmtPrice(j.price_cents) + ' €') : 'Afficher le prix';
   return '<div class="card jcard" data-jid="' + esc(j.id) + '" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:16px;font-weight:600;margin-bottom:4px">Course composée</div>' +
     '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
+    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line' + (j.status === 'done' ? ' sel' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'done') + '">Fait</button><button class="btn line' + (j.status === 'not_done' ? ' sel' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'not_done') + '">Pas fait</button></div>' +
     kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div></div>';
 }
 
@@ -786,6 +787,9 @@ function fmtEuros(c) { return Math.floor(c / 100) + ',' + pad(c % 100) + ' €';
 function fmtKm2(m) { return (Math.floor(m / 10 + 0.5) / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ','); }
 function coursesSans(n, what) { return n + ' ' + (n > 1 ? 'courses' : 'course') + ' sans ' + what; }
 /* total d'une colonne : jamais un 0 inventé. Si TOUTES les courses faites ont cette valeur inconnue : « inconnu ». */
+/* courses composées d'une période (dates AAAA-MM-JJ incluses) */
+function jointsInRange(a, b) { return joints.filter(function (j) { return !j.deleted_at && j.date >= a && j.date <= b; }); }
+function monthBounds(y, m) { return [y + '-' + pad(m + 1) + '-01', y + '-' + pad(m + 1) + '-31']; }
 function totalTxt(sum, unknown, count, fmt) { return (count > 0 && unknown === count) ? 'inconnu' : fmt(sum); }
 function bilanHeader() {
   return '<header class="top"><div class="hrow"><div><h1>Bilan</h1></div>' + tools() + '</div></header>';
@@ -796,7 +800,7 @@ function bilanControls() {
     '<div class="period"><button class="chev" data-a="bmonth" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl" id="bil-month">' + esc(cap(fmtMonth.format(ref))) + '</div><button class="chev" data-a="bmonth" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div>';
 }
 function bilanTotauxHTML(rs) {
-  var T = AGR.totals(people, rs), t = T.total, h;
+  var T = AGR.totals(people, rs), mb = monthBounds(bil.ref.getFullYear(), bil.ref.getMonth()), t = AGR.addTotals(T.total, AGR.jointTotals(jointsInRange(mb[0], mb[1]))), h;
   var eur = bil.reveal ? totalTxt(t.cents, t.noPrice, t.count, fmtEuros) : '•••• €';
   var eurNote = t.noPrice > 0 ? '+ ' + coursesSans(t.noPrice, 'prix') + ' (total partiel)' : 'total du mois';
   var kmv = totalTxt(t.meters, t.noKm, t.count, function (m) { return fmtKm2(m) + ' km'; });
@@ -862,8 +866,8 @@ function retourNoteHTML(r) {
 }
 function bilanSemHTML(rs, wk, y, m) {
   var wEnd = addDaysISO(wk, 6), pre = y + '-' + pad(m + 1) + '-', T = todayISO(), pmap = {};
-  var M = AGR.totals(people, rs.filter(function (r) { return r.date.indexOf(pre) === 0; })).total;
-  var W = rs.filter(function (r) { return r.date >= wk && r.date <= wEnd; }), WT = AGR.totals(people, W).total;
+  var mbw = monthBounds(y, m), M = AGR.addTotals(AGR.totals(people, rs.filter(function (r) { return r.date.indexOf(pre) === 0; })).total, AGR.jointTotals(jointsInRange(mbw[0], mbw[1])));
+  var W = rs.filter(function (r) { return r.date >= wk && r.date <= wEnd; }), WT = AGR.addTotals(AGR.totals(people, W).total, AGR.jointTotals(jointsInRange(wk, wEnd)));
   function pinfoOf(p) { return pmap[p.id] || (pmap[p.id] = AGR.placeInfo(p, rides)); }
   var wkEur = bil.reveal ? totalTxt(WT.cents, WT.noPrice, WT.count, fmtEuros) : '•••• €';
   var wkKm = totalTxt(WT.meters, WT.noKm, WT.count, function (v) { return fmtKm2(v) + ' km'; });
@@ -874,7 +878,7 @@ function bilanSemHTML(rs, wk, y, m) {
     '<button class="chev" data-a="bweek" data-d="7" aria-label="Semaine suivante">' + I('right') + '</button></div>';
   for (var d = 0; d < 7; d++) {
     var is = addDaysISO(wk, d), dt = parseISO(is), items = AGR.items(people, rides, is, T), open = !!bil.open[is];
-    var dayT = AGR.totals(people, W.filter(function (r) { return r.date === is; })).total, notRec = items.filter(function (it) { return it.status === 'not_done'; }).length;
+    var dayT = AGR.addTotals(AGR.totals(people, W.filter(function (r) { return r.date === is; })).total, AGR.jointTotals(jointsInRange(is, is))), notRec = items.filter(function (it) { return it.status === 'not_done'; }).length;
     var sum = dayT.count ? plural(dayT.count, 'course', 'courses') + ' · ' + (bil.reveal ? totalTxt(dayT.cents, dayT.noPrice, dayT.count, fmtEuros) : '•••• €')
       : (!items.length ? 'aucune course' : (notRec === items.length ? 'pas transportée' : (is < T ? 'pas notée' : 'à faire')));
     h += '<button class="wk-day" data-a="bweekday" data-iso="' + is + '" aria-expanded="' + open + '"><span class="dn">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="dv">' + esc(sum) + I(open ? 'up' : 'down') + '</span></button>';
@@ -1612,6 +1616,11 @@ document.addEventListener('click', function (e) {
       dsh.stops.push({ kind: 'pass', person_id: null, place: pl }); dsh.mode = 'joint'; renderSheet(); break;
     case 'jdel': if (!dsh) break; jKeep(); dsh.stops.splice(+b.dataset.i, 1); renderSheet(); break;
     case 'jprice': jopen[id] = !jopen[id]; renderAuj(); break;
+    case 'jstat': var js = joints.filter(function (x) { return x.id === id; })[0]; if (!js) break;
+      var jprev = js.status; js.status = jprev === b.dataset.v ? null : b.dataset.v; js.updated_at = nowIso();
+      AG.putJointRide(js).then(function () { renderAuj(); toast(js.status === 'done' ? 'Course composée : faite.' : 'Course composée : remise à faire.', function () { js.status = jprev; AG.putJointRide(js).then(renderAuj); }); },
+        function () { js.status = jprev; toast('Enregistrement impossible : réessaie.'); });
+      break;
     case 'jkmsave': var jk = joints.filter(function (x) { return x.id === id; })[0]; if (!jk) break;
       var kmv = [], kmErr = false;
       jk.km_legs.forEach(function (_, i) { var r = parseDecimal(document.getElementById('jk-' + id + '-' + i).value, 2); if (r.err) kmErr = true; kmv.push(r.v == null ? null : Math.round(r.v * 1000)); });

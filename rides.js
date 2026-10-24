@@ -208,5 +208,23 @@ AGR.newJoint = function (date, stops, price_cents, returnKm) {
   return j;
 };
 
+/* Totaux des courses composées faites (status « done ») : prix une fois par course, km = somme des tronçons connus + retour.
+   Une course avec un km manquant compte dans « km inconnus » (total partiel), comme les autres courses. */
+AGR.jointTotals = function (list) {
+  var tot = { count: 0, cents: 0, noPrice: 0, meters: 0, noKm: 0 };
+  (list || []).forEach(function (j) {
+    if (j.deleted_at || j.status !== 'done') return;
+    tot.count++;
+    if (j.price_cents == null) tot.noPrice++; else tot.cents += j.price_cents;
+    var legs = (j.km_legs || []).concat([j.return_km_m]), miss = false;
+    legs.forEach(function (m) { if (m == null) miss = true; else tot.meters += m; });
+    if (miss) tot.noKm++;
+  });
+  return tot;
+};
+AGR.addTotals = function (a, b) {
+  return { count: a.count + b.count, cents: a.cents + b.cents, noPrice: a.noPrice + b.noPrice, meters: a.meters + b.meters, noKm: a.noKm + b.noKm };
+};
+
 self.AGR = AGR;
 })();
