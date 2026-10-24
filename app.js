@@ -138,8 +138,8 @@ function renderPers() {
 function personToForm(p) {
   var s = p && p.schedule || {};
   return p ? { nom: p.last_name, pre: p.first_name, rue: p.pickup_street, cp: p.pickup_zip, ville: p.pickup_city, lieu: p.dest_place, lrue: p.dest_street, lcp: p.dest_zip, lville: p.dest_city,
-               tel: p.phone, prix: fmtPrice(p.usual_price_cents), km: fmtKm(p.usual_km_m), heure: s.time_weekly || '', heureD: s.time_dates || '' }
-           : { nom: '', pre: '', rue: '', cp: '', ville: '', lieu: '', lrue: '', lcp: '', lville: '', tel: '', prix: '', km: '', heure: '', heureD: '' };
+               tel: p.phone, lie: p.linked_with || '', prix: fmtPrice(p.usual_price_cents), km: fmtKm(p.usual_km_m), heure: s.time_weekly || '', heureD: s.time_dates || '' }
+           : { nom: '', pre: '', rue: '', cp: '', ville: '', lieu: '', lrue: '', lcp: '', lville: '', tel: '', lie: '', prix: '', km: '', heure: '', heureD: '' };
 }
 function backBar(title) {
   return '<header class="top"><div class="backrow"><button class="back" data-a="back">' + I('left') + 'Retour</button>' + tools() + '</div><h1 style="margin-top:6px">' + title + '</h1></header>';
@@ -184,6 +184,27 @@ function gererHTML(p) {
     : '<button class="list-item" data-a="deleteask" data-id="' + esc(p.id) + '"><span class="name">Supprimer cette fiche<small>Ses jours habituels et ses courses prévues seront supprimés.</small></span></button>';
   return '<h2 style="margin-top:20px">Gérer cette fiche</h2><div class="card" style="padding-top:2px;padding-bottom:2px"><button class="list-item" data-a="archiveask" data-id="' + esc(p.id) + '"><span class="name">Archiver cette personne<small>Elle disparaît des listes, son historique reste.</small></span></button>' + del + '</div>';
 }
+/* lien entre deux personnes : un seul partenaire, symétrique (A lié à B = B lié à A) */
+function linkOptions(p) {
+  var cur0 = p && p.linked_with || '';
+  return '<option value="">Aucun</option>' + sortPeople(activePeople()).filter(function (x) { return !p || x.id !== p.id; }).map(function (x) {
+    return '<option value="' + esc(x.id) + '"' + (x.id === cur0 ? ' selected' : '') + '>' + esc(fullName(x)) + '</option>';
+  }).join('');
+}
+/* renvoie les personnes à enregistrer pour que le lien soit symétrique */
+function linkChanges(p, newId) {
+  var out = [], old = p.linked_with || null, nv = newId || null;
+  if (old === nv) return out;
+  if (old) { var o = personById(old); if (o && o.linked_with === p.id) { o = Object.assign({}, o, { linked_with: null, updated_at: nowIso() }); out.push(o); } }
+  if (nv) {
+    var n = personById(nv), prevOfN = n && n.linked_with || null;
+    if (prevOfN && prevOfN !== p.id) { var pp = personById(prevOfN); if (pp && pp.linked_with === n.id) out.push(Object.assign({}, pp, { linked_with: null, updated_at: nowIso() })); }
+    if (n) out.push(Object.assign({}, n, { linked_with: p.id, updated_at: nowIso() }));
+  }
+  p.linked_with = nv;
+  return out;
+}
+
 function renderFiche() {
   var p = ctx.person, d = personToForm(p), el = $('#s-fiche'), sc = $('.content', el), st = sc ? sc.scrollTop : 0;
   var h = backBar(p ? nameHTML(p) : 'Nouvelle personne') + '<div class="content">' +
@@ -192,6 +213,7 @@ function renderFiche() {
     '<div class="card"><div class="field"><label for="f-lieu">Destination habituelle</label><input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div></div>' +
     '<div class="card"><div class="field"><label>Prix et km habituels (facultatif)</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field"><label for="f-prix">Prix de la course (€)</label><input class="input" id="f-prix" value="' + esc(d.prix) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div><div class="field"><label for="f-km">Km de la course</label><input class="input" id="f-km" value="' + esc(d.km) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div><div class="warnbox" id="f-pk-err" role="alert" hidden></div><p class="note" style="padding:6px 0 0">Repris sur les nouvelles courses créées. Les courses déjà créées ne changent pas.</p></div>' +
     '<div class="card"><div class="field"><label for="f-tel">Téléphone (facultatif)</label><div class="call-row"><input class="input" id="f-tel" type="tel" inputmode="tel" value="' + esc(d.tel) + '" placeholder="inconnu" autocomplete="off"><a class="btn soft" id="f-call" data-a="callfiche"' + (d.tel ? ' href="' + esc(telHref(d.tel)) + '"' : '') + '>' + I('phone') + 'Appeler</a></div></div></div>' +
+    '<div class="card"><div class="field"><label for="f-lie">Couple ou lien (facultatif)</label><select class="input" id="f-lie">' + linkOptions(p) + '</select><p class="note" style="padding:6px 0 0">Pour les courses composées : une personne liée est proposée avec elle.</p></div></div>' +
     quandHTML(d) +
     '<button class="btn strong full" data-a="savefiche">Enregistrer</button>' +
     (p ? '<h2>Courses de ' + esc(p.first_name || p.last_name) + '</h2><div class="card" style="padding-top:2px;padding-bottom:2px"><button class="list-item" data-a="calfiche" data-id="' + esc(p.id) + '"><span class="name">Calendrier et courses<small>voir le mois, noter une course</small></span>' + I('right') + '</button></div>' : '') +
@@ -216,7 +238,7 @@ function openNew() {
 }
 function readFiche() {
   var g = function (i) { return document.getElementById(i).value.trim(); };
-  return { nom: g('f-nom'), pre: g('f-pre'), rue: g('f-rue'), cp: g('f-cp'), ville: g('f-ville'), lieu: g('f-lieu'), lrue: g('f-lrue'), lcp: g('f-lcp'), lville: g('f-lville'), tel: g('f-tel'), heure: g('f-heure'), heureD: g('f-heured'), du: g('f-du'), au: g('f-au'), prix: g('f-prix'), km: g('f-km') };
+  return { nom: g('f-nom'), pre: g('f-pre'), rue: g('f-rue'), cp: g('f-cp'), ville: g('f-ville'), lieu: g('f-lieu'), lrue: g('f-lrue'), lcp: g('f-lcp'), lville: g('f-lville'), tel: g('f-tel'), lie: g('f-lie'), heure: g('f-heure'), heureD: g('f-heured'), du: g('f-du'), au: g('f-au'), prix: g('f-prix'), km: g('f-km') };
 }
 /* « Quitter sans enregistrer ? » : seulement pour une nouvelle personne dont on a déjà rempli quelque chose (comme la maquette) */
 /* « signature » de la fiche : tout ce qui peut être modifié. Elle est notée à l'ouverture ; si elle a changé, on demande avant de quitter. */
@@ -276,7 +298,9 @@ function saveFiche() {
     },
     updated_at: nowIso
   });
-  AG.putPerson(p).then(function () {
+  var partners = linkChanges(p, v.lie);
+  Promise.all([AG.putPerson(p)].concat(partners.map(function (x) { return AG.putPerson(x); }))).then(function () {
+    partners.forEach(function (x) { var k = people.findIndex(function (y) { return y.id === x.id; }); if (k >= 0) people[k] = x; });
     if (q0) people[people.indexOf(q0)] = p; else people.push(p);
     ctx.leaving = true; go('personnes'); ctx.leaving = false;
     if (q0) toast('Fiche enregistrée');
@@ -1577,6 +1601,10 @@ document.addEventListener('click', function (e) {
     case 'jback': if (!dsh) break; dsh.mode = 'joint'; renderSheet(); break;
     case 'jperson': if (!dsh) break; var jp = personById(id); if (!jp) break; jKeep();
       dsh.stops.push({ kind: dsh.kind, person_id: jp.id, place: dsh.kind === 'pick' ? Object.assign({ name: '' }, AGR.pickOf(jp)) : AGR.destOf(jp) });
+      var jpart = jp.linked_with ? personById(jp.linked_with) : null;      /* personne liée : proposée avec elle, même arrêt */
+      if (jpart && !jpart.archived && !dsh.stops.some(function (st) { return st.person_id === jpart.id && st.kind === dsh.kind; })) {
+        dsh.stops.push({ kind: dsh.kind, person_id: jpart.id, place: dsh.kind === 'pick' ? Object.assign({ name: '' }, AGR.pickOf(jpart)) : AGR.destOf(jpart) });
+      }
       dsh.mode = 'joint'; renderSheet(); break;
     case 'jplaceok': if (!dsh) break;
       var pl = { name: document.getElementById('j-pl-nom').value.trim(), street: document.getElementById('j-pl-rue').value.trim(), zip: document.getElementById('j-pl-cp').value.trim(), city: document.getElementById('j-pl-ville').value.trim() };
