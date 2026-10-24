@@ -512,10 +512,14 @@ function jointCardHTML(j) {
     var a = st.place && addrPlain(st.place);
     return '<li style="display:flex;gap:8px;padding:4px 0"><span class="jn" style="min-width:20px;color:var(--accent);font-weight:600">' + (i + 1) + '</span><span>' + esc(stopLabel(st)) + (a ? '<span class="pa" style="display:block;color:var(--text2);font-size:13px">' + esc(a) + '</span>' : '') + '</span></li>';
   }).join('');
+  var kmRows = j.km_legs.map(function (km, i) {
+    return '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">De l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-' + i + '" value="' + esc(km == null ? '' : fmtKm(km)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km de l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '"></div>';
+  }).join('') + '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">Retour aux domiciles</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-r" value="' + esc(j.return_km_m == null ? '' : fmtKm(j.return_km_m)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km du retour aux domiciles"></div>' +
+    '<button class="btn line" style="margin-top:8px" data-a="jkmsave" data-id="' + esc(j.id) + '">Enregistrer les km</button>';
   var priceTxt = jopen[j.id] ? (j.price_cents == null ? 'prix inconnu' : fmtPrice(j.price_cents) + ' €') : 'Afficher le prix';
   return '<div class="card jcard" data-jid="' + esc(j.id) + '" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:16px;font-weight:600;margin-bottom:4px">Course composée</div>' +
     '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
-    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div></div>';
+    kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div></div>';
 }
 
 function renderAuj() {
@@ -1580,6 +1584,16 @@ document.addEventListener('click', function (e) {
       dsh.stops.push({ kind: 'pass', person_id: null, place: pl }); dsh.mode = 'joint'; renderSheet(); break;
     case 'jdel': if (!dsh) break; jKeep(); dsh.stops.splice(+b.dataset.i, 1); renderSheet(); break;
     case 'jprice': jopen[id] = !jopen[id]; renderAuj(); break;
+    case 'jkmsave': var jk = joints.filter(function (x) { return x.id === id; })[0]; if (!jk) break;
+      var kmv = [], kmErr = false;
+      jk.km_legs.forEach(function (_, i) { var r = parseDecimal(document.getElementById('jk-' + id + '-' + i).value, 2); if (r.err) kmErr = true; kmv.push(r.v == null ? null : Math.round(r.v * 1000)); });
+      var kr = parseDecimal(document.getElementById('jk-' + id + '-r').value, 2); if (kr.err) kmErr = true;
+      if (kmErr) { toast('Km refusés : un nombre positif, en km.'); break; }
+      var kmPrev = { legs: jk.km_legs.slice(), ret: jk.return_km_m };
+      jk.km_legs = kmv; jk.return_km_m = kr.v == null ? null : Math.round(kr.v * 1000); jk.updated_at = nowIso();
+      AG.putJointRide(jk).then(function () { renderAuj(); toast('Km enregistrés.', function () { jk.km_legs = kmPrev.legs; jk.return_km_m = kmPrev.ret; AG.putJointRide(jk).then(renderAuj); }); },
+        function () { toast('Enregistrement impossible : réessaie.'); });
+      break;
     case 'jsave': if (!dsh) break; jKeep();
       var jerr = document.getElementById('j-err'), jpr = parseDecimal(dsh.price, 2), jcents = jpr.err ? null : (jpr.v == null ? null : Math.round(jpr.v * 100));
       if (jpr.err) { jerr.textContent = 'Prix refusé : un nombre en euros, sans 0.'; jerr.hidden = false; break; }
