@@ -52,7 +52,8 @@ function parseTime(v) {
 }
 
 /* ========= état de l'interface ========= */
-var schemaVersion = null, people = [], rides = [];
+var schemaVersion = null, people = [], rides = [], joints = [];   /* joints : courses composées (structure 6) */
+var jopen = {};   /* courses composées dont le prix est affiché (le reste reste masqué) */
 var cur = 'aujourdhui', tab = 'aujourdhui';
 var idleSec = 120;                       /* réglable : 0 (jamais), 60, 120, 600 */
 var veilEl = $('#veil'), veilOn = false, lastTouch = Date.now(), swallowClick = false;
@@ -498,6 +499,25 @@ function openCardHTML(it) {
     (it.added && it.r ? '<button class="btn line full" data-a="dsdel" data-key="' + esc(it.key) + '">Supprimer cette course</button>' : '') + '</div>' +
     '<button class="foldbtn" data-a="afold" data-key="' + esc(it.key) + '" aria-expanded="true" aria-label="Refermer la carte">' + I('up') + '</button></article>';
 }
+/* ----- courses composées (structure 6) : affichage et création -----
+   Une course composée = arrêts dans l'ordre + un prix commun. Les arrêts sont copiés (AGR.newJoint). */
+function jointsOfDay(is) { return joints.filter(function (j) { return j.date === is && !j.deleted_at; }); }
+function stopLabel(st) {
+  if (st.kind === 'pass') return 'Passage : ' + ((st.place && st.place.name) || (st.place && addrPlain(st.place)) || 'lieu inconnu');
+  var p = st.person_id ? personById(st.person_id) : null, nm = p ? fullName(p) : 'personne inconnue';
+  return (st.kind === 'pick' ? 'Monte : ' : 'Dépose : ') + nm;
+}
+function jointCardHTML(j) {
+  var rowsH = j.stops.map(function (st, i) {
+    var a = st.place && addrPlain(st.place);
+    return '<li style="display:flex;gap:8px;padding:4px 0"><span class="jn" style="min-width:20px;color:var(--accent);font-weight:600">' + (i + 1) + '</span><span>' + esc(stopLabel(st)) + (a ? '<span class="pa" style="display:block;color:var(--text2);font-size:13px">' + esc(a) + '</span>' : '') + '</span></li>';
+  }).join('');
+  var priceTxt = jopen[j.id] ? (j.price_cents == null ? 'prix inconnu' : fmtPrice(j.price_cents) + ' €') : 'Afficher le prix';
+  return '<div class="card jcard" data-jid="' + esc(j.id) + '" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:16px;font-weight:600;margin-bottom:4px">Course composée</div>' +
+    '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
+    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div></div>';
+}
+
 function renderAuj() {
   var is = iso(day), list = dayItems(is), T = todayISO();
   if (openDay !== is || (openKey !== null && !list.some(function (x) { return x.key === openKey; }))) { openKey = null; openDay = is; }   /* à l'arrivée et à chaque changement de jour : tout est replié */
@@ -511,7 +531,8 @@ function renderAuj() {
   var body = '<div class="content">';
   if (!list.length) body += '<div class="card empty">Aucune course prévue ce jour.</div>';
   list.forEach(function (it) { body += it.key !== openKey ? rowHTML(it) : openCardHTML(it); });
-  body += '<button class="btn line full" data-a="aadd">Ajouter une course</button></div>';
+  jointsOfDay(is).forEach(function (j) { body += jointCardHTML(j); });
+  body += '<button class="btn line full" data-a="aadd">Ajouter une course</button><button class="btn line full" data-a="jadd">Ajouter une course composée</button></div>';
   mount('s-aujourdhui', h + body);
 }
 function setStatus(key, v) {
@@ -535,6 +556,7 @@ var dsh = null;    /* {pid, iso, mode: 'menu'|'form'|'pick', add: bool, direct: 
 function sheetOpen(o) { dsh = o; renderSheet(); $('#daysheet').classList.add('on'); }
 function sheetClose() { dsh = null; fsh = null; $('#daysheet').classList.remove('on'); }
 function sheetHTML() {
+  if (dsh.mode === 'joint' || dsh.mode === 'jpersons' || dsh.mode === 'jplace') return jointSheetHTML();
   var is = dsh.iso, title = cap(fmtDay.format(parseISO(is))), T = todayISO(), h;
   if (dsh.mode === 'pick') {
     var avail = sortPeople(activePeople().filter(function (p) { return !itemFor(p, is); }));
@@ -565,6 +587,37 @@ function sheetHTML() {
   if (r && r.added) h += '<button class="btn line full" data-a="dsdel">Supprimer cette course</button>';
   return h + '<button class="btn line full" data-a="dsclose">Fermer</button>';
 }
+/* fenêtre « course composée » : liste des arrêts, prix, ajout d'un arrêt */
+function jointSheetHTML() {
+  var is = dsh.iso, title = cap(fmtDay.format(parseISO(is))), h;
+  if (dsh.mode === 'jpersons') {
+    var lst = sortPeople(activePeople());
+    h = '<p class="t" id="ds-title">' + (dsh.kind === 'pick' ? 'Prise en charge' : 'Dépose') + '</p><p class="note" style="padding:0">' + esc(title) + ' · choisis la personne</p>';
+    if (!lst.length) h += '<p class="note" style="padding:0">Aucune personne active.</p>';
+    else h += '<div class="card" style="padding-top:2px;padding-bottom:2px">' + lst.map(function (p) { return '<button class="list-item" data-a="jperson" data-id="' + esc(p.id) + '"><span class="name">' + nameHTML(p) + '</span>' + I('right') + '</button>'; }).join('') + '</div>';
+    return h + '<button class="btn line full" data-a="jback">Retour</button>';
+  }
+  if (dsh.mode === 'jplace') {
+    return '<p class="t" id="ds-title">Passage</p><p class="note" style="padding:0">' + esc(title) + ' · lieu où l’on passe</p>' +
+      '<div class="field"><label for="j-pl-nom">Nom du lieu</label><input class="input" id="j-pl-nom" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="j-pl-rue" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="j-pl-cp" placeholder="Code postal" aria-label="Code postal" inputmode="numeric" maxlength="5" autocomplete="off"><input class="input" id="j-pl-ville" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div>' +
+      '<div class="warnbox" id="j-err" role="alert" hidden></div><button class="btn strong full" data-a="jplaceok">Ajouter le passage</button><button class="btn line full" data-a="jback">Retour</button>';
+  }
+  var rowsH = dsh.stops.length ? dsh.stops.map(function (st, i) {
+    return '<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)"><span style="min-width:20px;color:var(--accent);font-weight:600">' + (i + 1) + '</span><span style="flex:1">' + esc(stopLabel(st)) + '</span><button class="btn line" data-a="jdel" data-i="' + i + '">Retirer</button></div>';
+  }).join('') : '<p class="note" style="padding:0">Aucun arrêt pour l’instant.</p>';
+  return '<p class="t" id="ds-title">Course composée</p><p class="note" style="padding:0">' + esc(title) + '</p>' +
+    '<div class="card" style="padding:4px 12px">' + rowsH + '</div>' +
+    '<div class="field"><label for="j-prix">Prix de la course (€)</label><input class="input" id="j-prix" value="' + esc(dsh.price || '') + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div>' +
+    '<div class="warnbox" id="j-err" role="alert" hidden></div>' +
+    '<button class="btn line full" data-a="jpick" data-k="pick">Ajouter une prise en charge</button>' +
+    '<button class="btn line full" data-a="jpick" data-k="drop">Ajouter une dépose</button>' +
+    '<button class="btn line full" data-a="jplace">Ajouter un passage</button>' +
+    '<button class="btn strong full" data-a="jsave">Enregistrer la course</button>' +
+    '<button class="btn line full" data-a="dsclose">Fermer</button>';
+}
+/* garde ce qui est tapé dans le prix avant de changer de fenêtre */
+function jKeep() { var el = document.getElementById('j-prix'); if (el) dsh.price = el.value; }
+
 /* le lieu de la course dans la fenêtre du jour (jamais vide : « lieu inconnu ») ; si ce n'est pas le lieu habituel, on le dit et on rappelle l'habituel */
 function dayPlaceHTML(p, it) {
   if (!it) return '';
@@ -1224,8 +1277,8 @@ function bkOpen() {
 }
 /* état en mémoire relu depuis la base (après une restauration ou son annulation) */
 function bkReloadState() {
-  return Promise.all([AG.allPersons(), AG.allRides(), AG.getSetting('idle_sec'), AG.getMeta('last_export'), AG.getSafety(), AG.getMeta('backup_key')]).then(function (r) {
-    people = r[0]; rides = r[1]; if (typeof r[2] === 'number') idleSec = r[2]; lastExport = r[3] || null; bk.safety = r[4] || null; bk.hasKey = !!r[5];
+  return Promise.all([AG.allPersons(), AG.allRides(), AG.getSetting('idle_sec'), AG.getMeta('last_export'), AG.getSafety(), AG.getMeta('backup_key'), AG.allJointRides()]).then(function (r) {
+    people = r[0]; rides = r[1]; joints = r[6] || []; if (typeof r[2] === 'number') idleSec = r[2]; lastExport = r[3] || null; bk.safety = r[4] || null; bk.hasKey = !!r[5];
     day = today(); openKey = null; showArch = false; query = '';
   });
 }
@@ -1514,6 +1567,32 @@ document.addEventListener('click', function (e) {
       break;
     case 'copyitem': var ci = findItem(b.dataset.key, iso(day)); if (ci) copyText(addrPlain(b.dataset.kind === 'dest' ? ci.dest : AGR.pickOf(ci.p)), function (good) { flashCopied(b, good); }); break;
     case 'aadd': sheetOpen({ iso: iso(day), mode: 'pick', direct: true }); break;
+    case 'jadd': sheetOpen({ iso: iso(day), mode: 'joint', stops: [], price: '' }); break;
+    case 'jpick': if (!dsh || dsh.mode.indexOf('j') !== 0) break; jKeep(); dsh.mode = 'jpersons'; dsh.kind = b.dataset.k; renderSheet(); break;
+    case 'jplace': if (!dsh) break; jKeep(); dsh.mode = 'jplace'; renderSheet(); break;
+    case 'jback': if (!dsh) break; dsh.mode = 'joint'; renderSheet(); break;
+    case 'jperson': if (!dsh) break; var jp = personById(id); if (!jp) break; jKeep();
+      dsh.stops.push({ kind: dsh.kind, person_id: jp.id, place: dsh.kind === 'pick' ? Object.assign({ name: '' }, AGR.pickOf(jp)) : AGR.destOf(jp) });
+      dsh.mode = 'joint'; renderSheet(); break;
+    case 'jplaceok': if (!dsh) break;
+      var pl = { name: document.getElementById('j-pl-nom').value.trim(), street: document.getElementById('j-pl-rue').value.trim(), zip: document.getElementById('j-pl-cp').value.trim(), city: document.getElementById('j-pl-ville').value.trim() };
+      if (!pl.name && !pl.street && !pl.city) { var pe = document.getElementById('j-err'); pe.textContent = 'Écris au moins le nom du lieu ou son adresse.'; pe.hidden = false; break; }
+      dsh.stops.push({ kind: 'pass', person_id: null, place: pl }); dsh.mode = 'joint'; renderSheet(); break;
+    case 'jdel': if (!dsh) break; jKeep(); dsh.stops.splice(+b.dataset.i, 1); renderSheet(); break;
+    case 'jprice': jopen[id] = !jopen[id]; renderAuj(); break;
+    case 'jsave': if (!dsh) break; jKeep();
+      var jerr = document.getElementById('j-err'), jpr = parseDecimal(dsh.price, 2), jcents = jpr.err ? null : (jpr.v == null ? null : Math.round(jpr.v * 100));
+      if (jpr.err) { jerr.textContent = 'Prix refusé : un nombre en euros, sans 0.'; jerr.hidden = false; break; }
+      var jnew = AGR.newJoint(dsh.iso, dsh.stops, jcents, null), jmsg = AGR.checkJoint(jnew);
+      if (jmsg) { jerr.textContent = jmsg; jerr.hidden = false; break; }
+      AG.putJointRide(jnew).then(function () { joints.push(jnew); sheetClose(); renderAuj(); toast('Course composée enregistrée.'); },
+        function () { jerr.textContent = 'Enregistrement impossible : réessaie.'; jerr.hidden = false; });
+      break;
+    case 'jdelc': var jd = joints.filter(function (x) { return x.id === id; })[0]; if (!jd) break;
+      jd.deleted_at = nowIso(); jd.updated_at = jd.deleted_at;
+      AG.putJointRide(jd).then(function () { renderAuj(); toast('Course composée supprimée.', function () {
+        jd.deleted_at = null; jd.updated_at = nowIso(); AG.putJointRide(jd).then(renderAuj); }); });
+      break;
     case 'calfiche': if (ficheDirty()) { openConfirm('leave', null, { cal: id }); break; } openCalendar(id, 'fiche'); break;
     case 'bperson': openCalendar(b.dataset.pid, 'bilan', bil.ref.getFullYear(), bil.ref.getMonth()); break;       /* depuis « Par personne » : directement sur le mois du Bilan */
     case 'calreveal': ctx.calReveal = !ctx.calReveal; renderCal(); break;
@@ -1629,9 +1708,9 @@ var ready = AG.init({ onBlocked: showBlocked }).then(function () {
   if (typeof n === 'number') idleSec = n;
   return AG.allPersons();
 }).then(function (list) {
-  people = list; return AG.allRides();
+  people = list; return Promise.all([AG.allRides(), AG.allJointRides()]);
 }).then(function (rs) {
-  rides = rs;
+  rides = rs[0]; joints = rs[1] || [];
   [['renderPers', renderPers], ['renderAuj', renderAuj]].forEach(function (s) { try { s[1](); } catch (er) { AGG.caught(er, s[0]); } });      /* une partie qui échoue n'empêche pas le reste de s'afficher */
   setTimeout(function () { AGG.displayed(); }, 60);
   return startupLog();
