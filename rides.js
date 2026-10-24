@@ -174,5 +174,39 @@ AGR.otherPlace = function (info, ride) {
   return null;
 };
 
+/* ----- courses composées (structure 6) -----
+   Une course composée = une suite ordonnée d'arrêts + UN prix commun + les km par tronçon.
+   stops : [{ kind: 'pick' | 'pass' | 'drop', person_id (si personne), place: {name, street, zip, city} }]
+   Les km se notent par tronçon : km_legs[i] = distance entre l'arrêt i et l'arrêt i+1 (null = inconnu) ; le retour aux domiciles est return_km_m.
+   Le prix est UNIQUE pour la course (couple lié, même trajet) : price_cents (null = inconnu). */
+AGR.JOINT_KINDS = ['pick', 'pass', 'drop'];
+
+/* Vérifie une course composée avant enregistrement. Renvoie un message clair, ou null si tout va. */
+AGR.checkJoint = function (j) {
+  if (!j.stops || j.stops.length < 2) return 'Une course composée a au moins deux arrêts.';
+  for (var i = 0; i < j.stops.length; i++) {
+    var st = j.stops[i];
+    if (AGR.JOINT_KINDS.indexOf(st.kind) < 0) return 'Type d\'arrêt inconnu.';
+    if (st.kind !== 'pass' && !st.person_id) return 'Une prise en charge ou une dépose doit désigner une personne.';
+  }
+  if (j.price_cents !== null && j.price_cents !== undefined && (!Number.isInteger(j.price_cents) || j.price_cents < 0)) return 'Prix refusé : un nombre positif, en euros.';
+  if (j.price_cents === 0) return 'Un prix de 0 n\'est pas accepté : laisse vide si tu ne le connais pas.';
+  return null;
+};
+
+/* Crée (en mémoire) une course composée. Les arrêts sont COPIÉS : changer une fiche plus tard ne réécrit jamais la course. */
+AGR.newJoint = function (date, stops, price_cents, returnKm) {
+  var t = nowIso();
+  var j = {
+    id: self.AG.uuid(), date: date,
+    stops: stops.map(function (st, i) { return { order: i + 1, kind: st.kind, person_id: st.person_id || null, place: st.place || null }; }),
+    price_cents: price_cents === undefined ? null : price_cents,
+    km_legs: stops.slice(1).map(function () { return null; }),      /* un tronçon entre deux arrêts consécutifs */
+    return_km_m: returnKm === undefined ? null : returnKm,
+    status: null, deleted_at: null, created_at: t, updated_at: t
+  };
+  return j;
+};
+
 self.AGR = AGR;
 })();

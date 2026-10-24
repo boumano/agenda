@@ -38,6 +38,12 @@ var MIGRATIONS = [
     /* sauvegarde : « safety » = la copie de sécurité interne gardée avant une restauration (un seul niveau, clé 'current').
        Le trousseau de chiffrement et la date du dernier export vont dans « meta » (déjà là). Rien d'existant ne bouge. */
     db.createObjectStore('safety', { keyPath: 'key' });
+  } },
+  { version: 6, up: function (db, tx) {
+    /* courses composées : une course avec plusieurs arrêts (prises en charge, passages, dépose) et un prix commun.
+       Magasin à part : les courses simples (« rides ») ne bougent pas. Index par date, comme les courses. */
+    var j = db.createObjectStore('joint_rides', { keyPath: 'id' });
+    j.createIndex('date', 'date', { unique: false });
   } }
 ];
 function latest(migrations) { return migrations[migrations.length - 1].version; }
@@ -131,6 +137,10 @@ function ridesInRange(from, to) {
   return req2p(db.transaction('rides').objectStore('rides').index('date').getAll(IDBKeyRange.bound(from, to))).then(function (list) { lastRange = list.length; return list; });
 }
 function putRide(r) { var tx = db.transaction('rides', 'readwrite'); tx.objectStore('rides').put(r); return done(tx); }
+/* ----- courses composées (structure 6) : jamais effacées pour de bon (corbeille = deleted_at) ----- */
+function allJointRides() { return req2p(db.transaction('joint_rides').objectStore('joint_rides').getAll()); }
+function jointRidesInRange(from, to) { return req2p(db.transaction('joint_rides').objectStore('joint_rides').index('date').getAll(IDBKeyRange.bound(from, to))); }
+function putJointRide(r) { var tx = db.transaction('joint_rides', 'readwrite'); tx.objectStore('joint_rides').put(r); return done(tx); }
 /* Une course « notée » = faite ou pas faite. Une course créée mais pas notée (statut vide) ne bloque pas la suppression. */
 function isNoted(r) { return !r.deleted_at && (r.status === 'done' || r.status === 'not_done'); }
 /* courses d'une personne : notées (elles empêchent de supprimer la fiche) et non notées (elles partent à la corbeille avec la fiche) */
@@ -195,10 +205,11 @@ function appendLogOn(d, entries) {
 
 /* ----- sauvegarde : lire tout, remplacer tout (en UNE transaction : tout ou rien), copie de sécurité ----- */
 function snapshotAll() {
-  var tx = db.transaction(['persons', 'rides', 'fuel', 'settings'], 'readonly'), out = {};
+  var tx = db.transaction(['persons', 'rides', 'joint_rides', 'fuel', 'settings'], 'readonly'), out = {};
   out.persons = req2p(tx.objectStore('persons').getAll()); out.rides = req2p(tx.objectStore('rides').getAll());
+  out.joint_rides = req2p(tx.objectStore('joint_rides').getAll());
   out.fuel = req2p(tx.objectStore('fuel').getAll()); out.settings = req2p(tx.objectStore('settings').getAll());
-  return Promise.all([out.persons, out.rides, out.fuel, out.settings]).then(function (r) { return { persons: r[0], rides: r[1], fuel: r[2], settings: r[3] }; });
+  return Promise.all([out.persons, out.rides, out.joint_rides, out.fuel, out.settings]).then(function (r) { return { persons: r[0], rides: r[1], joint_rides: r[2], fuel: r[3], settings: r[4] }; });
 }
 /* data = { persons, rides, fuel, settings:[{key,value}] } ; metaPuts = { clé: valeur | undefined (undefined = effacer) } ;
    opts.safetyPut = enregistrement à garder dans « safety » ; opts.safetyDelete = true pour l'effacer.
@@ -206,11 +217,12 @@ function snapshotAll() {
 function replaceAll(data, metaPuts, opts) {
   opts = opts || {};
   return new Promise(function (resolve, reject) {
-    var tx = db.transaction(['persons', 'rides', 'fuel', 'settings', 'meta', 'safety'], 'readwrite');
+    var tx = db.transaction(['persons', 'rides', 'joint_rides', 'fuel', 'settings', 'meta', 'safety'], 'readwrite');
     try {
-      ['persons', 'rides', 'fuel', 'settings'].forEach(function (s) { tx.objectStore(s).clear(); });
+      ['persons', 'rides', 'joint_rides', 'fuel', 'settings'].forEach(function (s) { tx.objectStore(s).clear(); });
       data.persons.forEach(function (x) { tx.objectStore('persons').put(x); });
       data.rides.forEach(function (x) { tx.objectStore('rides').put(x); });
+      (data.joint_rides || []).forEach(function (x) { tx.objectStore('joint_rides').put(x); });   /* sauvegarde d'avant la structure 6 : aucune course composée */
       data.fuel.forEach(function (x) { tx.objectStore('fuel').put(x); });
       (data.settings || []).forEach(function (x) { tx.objectStore('settings').put(x); });
       Object.keys(metaPuts || {}).forEach(function (k) {
@@ -229,7 +241,7 @@ function deleteSafety() { var tx = db.transaction('safety', 'readwrite'); tx.obj
 self.AG = {
   DB_NAME: DB_NAME, MIGRATIONS: MIGRATIONS, latest: latest, openDatabase: openDatabase, init: init, closeDb: closeDb,
   dbGet: dbGet, dbPut: dbPut, getMeta: getMeta, putMeta: putMeta, getSetting: getSetting, putSetting: putSetting,
-  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allFuel: allFuel, fuelInRange: fuelInRange, putFuel: putFuel, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted, snapshotAll: snapshotAll, replaceAll: replaceAll, getSafety: getSafety, deleteSafety: deleteSafety,
+  uuid: uuid, allPersons: allPersons, putPerson: putPerson, allFuel: allFuel, fuelInRange: fuelInRange, putFuel: putFuel, allRides: allRides, ridesInRange: ridesInRange, get lastRangeCount() { return lastRange; }, putRide: putRide, allJointRides: allJointRides, jointRidesInRange: jointRidesInRange, putJointRide: putJointRide, getLog: getLog, appendLog: appendLog, LOG_MAX: LOG_MAX, countRides: countRides, deletePerson: deletePerson, restoreDeleted: restoreDeleted, snapshotAll: snapshotAll, replaceAll: replaceAll, getSafety: getSafety, deleteSafety: deleteSafety,
   get db() { return db; }, set onClosed(f) { onClosed = f; }, get schemaTarget() { return latest(MIGRATIONS); }
 };
 })();
