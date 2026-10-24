@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.8.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.8.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -623,7 +623,13 @@ function jointSheetHTML() {
     var lst = sortPeople(activePeople());
     h = '<p class="t" id="ds-title">' + (dsh.kind === 'pick' ? 'Prise en charge' : 'Dépose') + '</p><p class="note" style="padding:0">' + esc(title) + ' · choisis la personne</p>';
     if (!lst.length) h += '<p class="note" style="padding:0">Aucune personne active.</p>';
-    else h += '<div class="card" style="padding-top:2px;padding-bottom:2px">' + lst.map(function (p) { return '<button class="list-item" data-a="jperson" data-id="' + esc(p.id) + '"><span class="name">' + nameHTML(p) + '</span>' + I('right') + '</button>'; }).join('') + '</div>';
+    else if (dsh.kind === 'drop') {
+      /* une dépose peut être au domicile OU à la destination habituelle (le lieu où la personne va) */
+      h += '<div class="card" style="padding-top:2px;padding-bottom:2px">' + lst.map(function (p) {
+        return '<button class="list-item" data-a="jperson" data-where="home" data-id="' + esc(p.id) + '"><span class="name">' + nameHTML(p) + '<small>au domicile</small></span>' + I('right') + '</button>' +
+          '<button class="list-item" data-a="jperson" data-where="dest" data-id="' + esc(p.id) + '"><span class="name">' + nameHTML(p) + '<small>à la destination habituelle</small></span>' + I('right') + '</button>';
+      }).join('') + '</div>';
+    } else h += '<div class="card" style="padding-top:2px;padding-bottom:2px">' + lst.map(function (p) { return '<button class="list-item" data-a="jperson" data-where="home" data-id="' + esc(p.id) + '"><span class="name">' + nameHTML(p) + '</span>' + I('right') + '</button>'; }).join('') + '</div>';
     return h + '<button class="btn line full" data-a="jback">Retour</button>';
   }
   if (dsh.mode === 'jplace') {
@@ -643,6 +649,11 @@ function jointSheetHTML() {
     '<button class="btn line full" data-a="jplace">Ajouter un passage</button>' +
     '<button class="btn strong full" data-a="jsave">Enregistrer la course</button>' +
     '<button class="btn line full" data-a="dsclose">Fermer</button>';
+}
+/* lieu d'un arrêt pour une personne : « dest » = destination habituelle (fiche), sinon « home » = prise en charge (domicile) */
+function jPlaceOf(p, where) {
+  if (where === 'dest') return AGR.destOf(p);
+  return Object.assign({ name: 'Domicile de ' + (p.first_name || p.last_name) }, AGR.pickOf(p));
 }
 /* garde ce qui est tapé dans le prix avant de changer de fenêtre */
 function jKeep() { var el = document.getElementById('j-prix'); if (el) dsh.price = el.value; }
@@ -1604,10 +1615,10 @@ document.addEventListener('click', function (e) {
     case 'jplace': if (!dsh) break; jKeep(); dsh.mode = 'jplace'; renderSheet(); break;
     case 'jback': if (!dsh) break; dsh.mode = 'joint'; renderSheet(); break;
     case 'jperson': if (!dsh) break; var jp = personById(id); if (!jp) break; jKeep();
-      dsh.stops.push({ kind: dsh.kind, person_id: jp.id, place: dsh.kind === 'pick' ? Object.assign({ name: '' }, AGR.pickOf(jp)) : AGR.destOf(jp) });
+      dsh.stops.push({ kind: dsh.kind, person_id: jp.id, place: jPlaceOf(jp, b.dataset.where) });
       var jpart = jp.linked_with ? personById(jp.linked_with) : null;      /* personne liée : proposée avec elle, même arrêt */
       if (jpart && !jpart.archived && !dsh.stops.some(function (st) { return st.person_id === jpart.id && st.kind === dsh.kind; })) {
-        dsh.stops.push({ kind: dsh.kind, person_id: jpart.id, place: dsh.kind === 'pick' ? Object.assign({ name: '' }, AGR.pickOf(jpart)) : AGR.destOf(jpart) });
+        dsh.stops.push({ kind: dsh.kind, person_id: jpart.id, place: jPlaceOf(jpart, b.dataset.where) });
       }
       dsh.mode = 'joint'; renderSheet(); break;
     case 'jplaceok': if (!dsh) break;
