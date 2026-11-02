@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.8.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -205,13 +205,74 @@ function linkChanges(p, newId) {
   return out;
 }
 
+/* ========= Lieux de la personne (autres que le lieu habituel) ========= */
+function placesListHTML() {
+  if (!ctx.places.length) return '<p class="note" style="padding:0 0 6px">Aucun autre lieu pour l’instant.</p>';
+  return ctx.places.map(function (x) { return '<div class="plrow"><span class="nm">' + esc(x.place || 'Sans nom') + '</span><span class="ad">' + esc(addrPlain(x)) + '</span></div>'; }).join('');
+}
+function lieuxHTML() {
+  return '<div class="card"><div class="field"><label>Autres lieux</label></div><div id="f-places">' + placesListHTML() + '</div>' +
+    '<button class="btn line full" data-a="fxshow" id="f-xshow">+ Ajouter un lieu</button>' +
+    '<div id="f-xform" hidden style="margin-top:8px"><div class="field"><label for="f-xnom">Nom du lieu</label><input class="input" id="f-xnom" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-xrue" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-xcp" placeholder="Code postal" aria-label="Code postal" inputmode="numeric" maxlength="5" autocomplete="off"><input class="input" id="f-xville" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div>' +
+    '<div class="warnbox" id="f-x-err" role="alert" hidden></div><button class="btn strong full" data-a="fxadd">Ajouter ce lieu</button><button class="btn line full" data-a="fxcancel">Annuler</button></div>' +
+    '<p class="note" style="padding:6px 0 0">Le lieu est gardé quand tu enregistres la fiche.</p></div>';
+}
+function fxShow() { document.getElementById('f-xform').hidden = false; document.getElementById('f-xshow').hidden = true; document.getElementById('f-xnom').focus(); }
+function fxCancel() {
+  ['f-xnom', 'f-xrue', 'f-xcp', 'f-xville'].forEach(function (i) { document.getElementById(i).value = ''; });
+  document.getElementById('f-x-err').hidden = true; document.getElementById('f-xform').hidden = true; document.getElementById('f-xshow').hidden = false;
+}
+function fxAdd() {
+  var g = function (i) { return document.getElementById(i).value.trim(); }, er = document.getElementById('f-x-err');
+  function fail(m, id) { er.textContent = m; er.hidden = false; if (id) document.getElementById(id).focus(); }
+  var x = { place: g('f-xnom'), street: g('f-xrue'), zip: g('f-xcp'), city: g('f-xville') };
+  if (!x.place && !x.street && !x.city) return fail('Écris au moins le nom du lieu ou son adresse.', 'f-xnom');
+  if (x.zip && !/^[0-9]{4,5}$/.test(x.zip)) return fail('Code postal : 4 ou 5 chiffres.', 'f-xcp');
+  var k = AGR.placeKey(x), v = readFiche();
+  var habKey = AGR.placeKey({ place: v.lieu, street: v.lrue, zip: v.lcp, city: v.lville });
+  if (k === habKey || ctx.places.some(function (y) { return AGR.placeKey(y) === k; })) return fail('Ce lieu est déjà dans la liste.', 'f-xnom');
+  ctx.places.push({ id: AG.uuid(), place: x.place, street: x.street, zip: x.zip, city: x.city });
+  document.getElementById('f-places').innerHTML = placesListHTML();
+  fxCancel();
+  toast('Lieu ajouté : enregistre la fiche pour le garder');
+}
+/* panneau d'un jour : menu des lieux (habituel, autres lieux, nouveau) */
+function dsChoiceHTML(p, d) {
+  var k = AGR.placeKey(d), usual = AGR.destOf(p), uk = AGR.placeKey(usual), extra = p.places || [], sel = 'new';
+  if (k === uk) sel = 'hab'; else extra.forEach(function (x, i) { if (AGR.placeKey(x) === k) sel = String(i); });
+  var ul = AGR.placeLabel(usual);
+  return '<div class="field"><label for="ds-choix">Lieu de destination</label><select class="input" id="ds-choix">' +
+    '<option value="hab"' + (sel === 'hab' ? ' selected' : '') + '>Lieu habituel' + (ul ? ' : ' + esc(ul) : '') + '</option>' +
+    extra.map(function (x, i) { return '<option value="' + i + '"' + (sel === String(i) ? ' selected' : '') + '>' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>'; }).join('') +
+    '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>Nouveau lieu…</option></select>' +
+    '<label class="keepbox" id="ds-keepwrap"' + (sel === 'new' ? '' : ' hidden') + '><input type="checkbox" id="ds-keep" checked> Garder dans la liste de la personne</label></div>';
+}
+function dsChoose(v) {
+  var p = personById(dsh.pid), set = function (d) {
+    document.getElementById('ds-lieu').value = d.place || ''; document.getElementById('ds-rue').value = d.street || '';
+    document.getElementById('ds-cp').value = d.zip || ''; document.getElementById('ds-ville').value = d.city || '';
+  };
+  if (v === 'hab') set(AGR.destOf(p)); else if (v === 'new') set({}); else set(p.places[+v] || {});
+  document.getElementById('ds-keepwrap').hidden = v !== 'new';
+  if (v === 'new') document.getElementById('ds-lieu').focus();
+}
+document.addEventListener('change', function (e) { if (e.target && e.target.id === 'ds-choix' && dsh) dsChoose(e.target.value); });
+/* garde le lieu saisi dans la liste de la personne (si demandé, et s'il n'y est pas déjà) */
+function rememberPlace(p, d, keep) {
+  if (!keep || !(d.place || d.street || d.city)) return Promise.resolve();
+  var k = AGR.placeKey(d);
+  if (k === AGR.placeKey(AGR.destOf(p)) || (p.places || []).some(function (x) { return AGR.placeKey(x) === k; })) return Promise.resolve();
+  var q = Object.assign({}, p, { places: (p.places || []).concat([{ id: AG.uuid(), place: d.place, street: d.street, zip: d.zip, city: d.city }]), updated_at: nowIso() });
+  return AG.putPerson(q).then(function () { people[people.indexOf(p)] = q; });
+}
+
 function renderFiche() {
   var p = ctx.person, d = personToForm(p), el = $('#s-fiche'), sc = $('.content', el), st = sc ? sc.scrollTop : 0;
   var h = backBar(p ? nameHTML(p) : 'Nouvelle personne') + '<div class="content">' +
     '<div class="card"><div class="field"><label for="f-nom">Nom</label><input class="input" id="f-nom" value="' + esc(d.nom) + '" autocomplete="off" autocapitalize="words"><label for="f-pre" style="margin-top:4px">Prénom</label><input class="input" id="f-pre" value="' + esc(d.pre) + '" autocomplete="off" autocapitalize="words">' + (p ? '' : '<div class="warnbox" id="dup-warn" role="status" hidden></div>') + '</div></div>' +
     '<div class="card"><div class="field"><label for="f-rue">Prise en charge (et retour)</label><input class="input" id="f-rue" value="' + esc(d.rue) + '" placeholder="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-cp" value="' + esc(d.cp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-ville" value="' + esc(d.ville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div></div>' +
-    '<div class="card"><div class="field"><label for="f-lieu">Destination habituelle</label><input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div></div>' +
-    '<div class="card"><div class="field"><label>Prix et km habituels (facultatif)</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field"><label for="f-prix">Prix de la course (€)</label><input class="input" id="f-prix" value="' + esc(d.prix) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div><div class="field"><label for="f-km">Km de la course</label><input class="input" id="f-km" value="' + esc(d.km) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div><div class="warnbox" id="f-pk-err" role="alert" hidden></div><p class="note" style="padding:6px 0 0">Repris sur les nouvelles courses créées. Les courses déjà créées ne changent pas.</p></div>' +
+    '<div class="card"><div class="field"><label for="f-lieu">Lieu habituel</label><input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div></div>' +
+    lieuxHTML() + '<div class="card"><div class="field"><label>Prix et km habituels (facultatif)</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field"><label for="f-prix">Prix de la course (€)</label><input class="input" id="f-prix" value="' + esc(d.prix) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div><div class="field"><label for="f-km">Km de la course</label><input class="input" id="f-km" value="' + esc(d.km) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div><div class="warnbox" id="f-pk-err" role="alert" hidden></div><p class="note" style="padding:6px 0 0">Repris sur les nouvelles courses créées. Les courses déjà créées ne changent pas.</p></div>' +
     '<div class="card"><div class="field"><label for="f-tel">Téléphone (facultatif)</label><div class="call-row"><input class="input" id="f-tel" type="tel" inputmode="tel" value="' + esc(d.tel) + '" placeholder="inconnu" autocomplete="off"><a class="btn soft" id="f-call" data-a="callfiche"' + (d.tel ? ' href="' + esc(telHref(d.tel)) + '"' : '') + '>' + I('phone') + 'Appeler</a></div></div></div>' +
     '<div class="card"><div class="field"><label for="f-lie">Couple ou lien (facultatif)</label><select class="input" id="f-lie">' + linkOptions(p) + '</select><p class="note" style="padding:6px 0 0">Pour les courses composées : une personne liée est proposée avec elle.</p></div></div>' +
     quandHTML(d) +
@@ -224,7 +285,7 @@ function openFiche(id) {
   var p = null; people.forEach(function (x) { if (x.id === id) p = x; });
   if (!p) return;
   var s = p.schedule || {};
-  ctx.pid = id; ctx.person = p; ctx.jours = (s.weekdays || []).slice(); ctx.mode = s.mode === 'dates' ? 'dat' : 'sem';
+  ctx.pid = id; ctx.person = p; ctx.places = (p.places || []).map(function (x) { return Object.assign({}, x); }); ctx.jours = (s.weekdays || []).slice(); ctx.mode = s.mode === 'dates' ? 'dat' : 'sem';
   ctx.du = s.from || ''; ctx.au = s.to || ''; ctx.dates = {}; (s.dates || []).forEach(function (d) { ctx.dates[d] = true; });
   var t = today(); ctx.dm = { y: t.getFullYear(), m: t.getMonth() };
   AG.countRides(id).then(function (c) { ctx.noted = c.noted; ctx.planned = c.planned; }, function () { ctx.noted = 0; ctx.planned = 0; }).then(function () {
@@ -233,7 +294,7 @@ function openFiche(id) {
 }
 function openNew() {
   var t = today();
-  ctx.pid = null; ctx.person = null; ctx.jours = []; ctx.mode = 'sem'; ctx.du = iso(t); ctx.au = ''; ctx.dates = {}; ctx.dm = { y: t.getFullYear(), m: t.getMonth() }; ctx.noted = 0; ctx.planned = 0;
+  ctx.pid = null; ctx.person = null; ctx.places = []; ctx.jours = []; ctx.mode = 'sem'; ctx.du = iso(t); ctx.au = ''; ctx.dates = {}; ctx.dm = { y: t.getFullYear(), m: t.getMonth() }; ctx.noted = 0; ctx.planned = 0;
   history.pushState({ app: 1 }, ''); renderFiche(); ctx.sig = ficheSig(); go('fiche'); $('#s-fiche .content').scrollTop = 0;
 }
 function readFiche() {
@@ -243,7 +304,7 @@ function readFiche() {
 /* « Quitter sans enregistrer ? » : seulement pour une nouvelle personne dont on a déjà rempli quelque chose (comme la maquette) */
 /* « signature » de la fiche : tout ce qui peut être modifié. Elle est notée à l'ouverture ; si elle a changé, on demande avant de quitter. */
 function ficheSig() {
-  return JSON.stringify({ v: readFiche(), mode: ctx.mode, jours: ctx.jours.slice().sort(), dates: Object.keys(ctx.dates).filter(function (d) { return ctx.dates[d]; }).sort() });
+  return JSON.stringify({ v: readFiche(), places: ctx.places, mode: ctx.mode, jours: ctx.jours.slice().sort(), dates: Object.keys(ctx.dates).filter(function (d) { return ctx.dates[d]; }).sort() });
 }
 function ficheDirty() {
   if (cur !== 'fiche' || ctx.leaving || !document.getElementById('f-nom') || ctx.sig == null) return false;
@@ -289,6 +350,7 @@ function saveFiche() {
     pickup_street: v.rue, pickup_zip: v.cp, pickup_city: v.ville,
     dest_place: v.lieu, dest_street: v.lrue, dest_zip: v.lcp, dest_city: v.lville,
     phone: v.tel,
+    places: ctx.places.slice(),
     usual_price_cents: npx.v == null ? null : Math.round(npx.v * 100),
     usual_km_m: nkm.v == null ? null : Math.round(nkm.v * 1000),
     schedule: {
@@ -599,7 +661,7 @@ function sheetHTML() {
     var d = it ? it.dest : AGR.destOf(p), tv = it ? it.time : AGR.timeFor(p);
     return '<p class="t" id="ds-title">' + (dsh.add ? 'Ajouter une course' : 'Changer ce jour') + '</p><p class="note" style="padding:0">' + esc(title) + ' · ' + who + '</p>' +
       '<div class="field"><label for="ds-heure">Heure</label><input class="input" id="ds-heure" value="' + esc(tv || '') + '" placeholder="13:00" inputmode="numeric" autocomplete="off" maxlength="5"></div>' +
-      '<div class="field"><label for="ds-lieu">Destination</label><input class="input" id="ds-lieu" value="' + esc(d.place) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="ds-rue" value="' + esc(d.street) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="ds-cp" value="' + esc(d.zip) + '" placeholder="Code postal" aria-label="Code postal" inputmode="numeric" maxlength="5" autocomplete="off"><input class="input" id="ds-ville" value="' + esc(d.city) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div>' +
+      dsChoiceHTML(p, d) + '<div class="field"><label for="ds-lieu">Destination</label><input class="input" id="ds-lieu" value="' + esc(d.place) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="ds-rue" value="' + esc(d.street) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="ds-cp" value="' + esc(d.zip) + '" placeholder="Code postal" aria-label="Code postal" inputmode="numeric" maxlength="5" autocomplete="off"><input class="input" id="ds-ville" value="' + esc(d.city) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div></div>' +
       '<div class="warnbox" id="ds-err" role="alert" hidden></div>' +
       '<button class="btn strong full" data-a="dssave">Enregistrer</button><button class="btn line full" data-a="dsback">Annuler</button>';
   }
@@ -609,9 +671,9 @@ function sheetHTML() {
     if (it || hab) h += btn('dsfait', 'Fait', st === 'done') + btn('dspas', 'Pas fait', st === 'not_done') + moneyHTML(it || AGR.virtItem(p, is), 'ds-');
     else h += btn('dsadd', 'Ajouter une course', false);
   } else if (hab) {
-    h += btn('dscomme', 'Comme d’habitude', st !== 'not_done' && !(it && it.changed)) + btn('dschg', 'Changer ce jour', !!(it && it.changed) && st !== 'not_done') + btn('dspas', 'Pas de course', st === 'not_done');
+    h += btn('dscomme', 'Comme d’habitude', st !== 'not_done' && !(it && it.changed)) + btn('dschg', 'Changer ce jour', !!(it && it.changed) && st !== 'not_done') + btn('dsplace', 'Changer lieu de destination', false) + btn('dspas', 'Pas de course', st === 'not_done');
   } else if (it) {
-    h += btn('dschg', 'Changer ce jour', st !== 'not_done') + btn('dspas', 'Pas de course', st === 'not_done');
+    h += btn('dschg', 'Changer ce jour', st !== 'not_done') + btn('dsplace', 'Changer lieu de destination', false) + btn('dspas', 'Pas de course', st === 'not_done');
   } else h += btn('dsadd', 'Ajouter une course', false);
   if (r && r.added) h += '<button class="btn line full" data-a="dsdel">Supprimer cette course</button>';
   return h + '<button class="btn line full" data-a="dsclose">Fermer</button>';
@@ -679,11 +741,12 @@ function sheetSave() {
     ride.changed = true; ride.skip = false; if (ride.status === 'not_done') ride.status = null;
     return saveRide(ride).then(function () { return ride; });
   });
-  run.then(function () { sheetClose(); refreshUnder(); toast(add ? 'Course ajoutée' : 'Jour changé'); }, function () { toast('Enregistrement impossible : réessaie'); });
+  var kw = document.getElementById('ds-keepwrap'), keep = !!(kw && !kw.hidden && document.getElementById('ds-keep') && document.getElementById('ds-keep').checked);
+  run.then(function () { return rememberPlace(p, dest, keep); }).then(function () { sheetClose(); refreshUnder(); toast(add ? 'Course ajoutée' : 'Jour changé'); }, function () { toast('Enregistrement impossible : réessaie'); });
 }
 function sheetAction(a) {
   var p = dsh.pid ? personById(dsh.pid) : null, is = dsh.iso;
-  if (a === 'dschg') { dsh.mode = 'form'; dsh.add = false; renderSheet(); return; }
+  if (a === 'dschg' || a === 'dsplace') { dsh.mode = 'form'; dsh.add = false; renderSheet(); return; }
   if (a === 'dsadd') { dsh.mode = 'form'; dsh.add = true; renderSheet(); return; }
   if (a === 'dsback') { if (dsh.direct) sheetClose(); else { dsh.mode = 'menu'; renderSheet(); } return; }
   if (a === 'dssave') { sheetSave(); return; }
@@ -1593,6 +1656,9 @@ document.addEventListener('click', function (e) {
       fl.forEach(function (x) { ctx.dates[x] = !fall; }); document.getElementById('f-dates').innerHTML = fdatesHTML(); break;
     case 'jour': var j = +b.dataset.j, k = ctx.jours.indexOf(j); if (k >= 0) ctx.jours.splice(k, 1); else ctx.jours.push(j); b.classList.toggle('on'); b.setAttribute('aria-pressed', k < 0); break;
     case 'savefiche': saveFiche(); break;
+    case 'fxshow': fxShow(); break;
+    case 'fxadd': fxAdd(); break;
+    case 'fxcancel': fxCancel(); break;
     case 'archiveask': openConfirm('archive', id); break;
     case 'deleteask': openConfirm('delete', id); break;
     case 'day': day = addDays(day, +b.dataset.d); renderAuj(); break;
@@ -1672,10 +1738,10 @@ document.addEventListener('click', function (e) {
     case 'esave': if (fsh) fuelSave(); break;
     case 'edelask': if (fsh && fsh.id) openConfirmFuel(fsh.id); break;
     case 'dspick': if (dsh) { dsh = { pid: id, iso: dsh.iso, mode: 'form', add: true, direct: true }; renderSheet(); } break;
-    case 'dschg': case 'dsdel': case 'dsadd': case 'dsback': case 'dssave': case 'dscomme': case 'dspas': case 'dsfait':
+    case 'dschg': case 'dsplace': case 'dsdel': case 'dsadd': case 'dsback': case 'dssave': case 'dscomme': case 'dspas': case 'dsfait':
       if (!dsh) {      /* depuis la carte ouverte d'Aujourd'hui */
         var di = findItem(b.dataset.key, iso(day)); if (!di) break;
-        if (a === 'dschg') sheetOpen({ pid: di.pid, iso: iso(day), mode: 'form', add: false, direct: true });
+        if (a === 'dschg' || a === 'dsplace') sheetOpen({ pid: di.pid, iso: iso(day), mode: 'form', add: false, direct: true });
         else if (a === 'dsdel') { sheetOpen({ pid: di.pid, iso: iso(day), mode: 'menu', direct: true }); sheetAction('dsdel'); }
         break;
       }

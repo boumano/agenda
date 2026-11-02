@@ -181,7 +181,7 @@ with sync_playwright() as p:
 
     # ================= 5. changer ce jour =================
     tap('#s-aujourdhui .frow:has(.nom:text-is("Alpha")) .fmain'); tap('.person.open [data-a="dschg"]')
-    ok(tag + " « Changer ce jour » : petit panneau (pas une page) avec heure et destination SEULEMENT, préremplis (09:30, Lieu Cible…)", pg.locator("#daysheet.on").count() == 1 and pg.locator("#ds-title").inner_text() == "Changer ce jour" and pg.input_value("#ds-heure") == "09:30" and pg.input_value("#ds-lieu") == "Lieu Cible" and pg.input_value("#ds-rue") == "2 rue Cible" and pg.input_value("#ds-cp") == "22222" and pg.input_value("#ds-ville") == "Villecible" and pg.locator("#ds-panel input").count() == 5)
+    ok(tag + " « Changer ce jour » : petit panneau (pas une page) avec heure et destination SEULEMENT, préremplis (09:30, Lieu Cible…)", pg.locator("#daysheet.on").count() == 1 and pg.locator("#ds-title").inner_text() == "Changer ce jour" and pg.input_value("#ds-heure") == "09:30" and pg.input_value("#ds-lieu") == "Lieu Cible" and pg.input_value("#ds-rue") == "2 rue Cible" and pg.input_value("#ds-cp") == "22222" and pg.input_value("#ds-ville") == "Villecible" and pg.locator("#ds-panel input").count() == 6)
     pg.fill("#ds-heure", "25:00"); tap('[data-a="dssave"]')
     ok(tag + " heure « 25:00 » : « Heure invalide : écris par exemple 13:00, ou laisse vide. », rien enregistré", pg.locator("#ds-err").inner_text() == "Heure invalide : écris par exemple 13:00, ou laisse vide." and not [x for x in db_all("rides") if x["person_id"] == ALPHA["id"] and not x["deleted_at"]])
     pg.fill("#ds-heure", "1400"); pg.fill("#ds-lieu", "Autre lieu"); pg.fill("#ds-rue", "9 rue Autre"); tap('[data-a="dssave"]')
