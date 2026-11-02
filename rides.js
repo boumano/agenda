@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.9.0'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.9.1'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des courses (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3) :
    - une « carte prévue » est CALCULÉE à partir des fiches (mode « Chaque semaine » avec « Du » / « Au », ou « Dates choisies ») ; elle n'est pas enregistrée ;
@@ -30,12 +30,24 @@ AGR.isScheduled = function (p, is) {
 };
 
 AGR.destOf = function (p) { return { place: p.dest_place || '', street: p.dest_street || '', zip: p.dest_zip || '', city: p.dest_city || '' }; };
+/* Adresse habituelle EN VIGUEUR un jour donné. Un déménagement (p.dest_moves = [{date, old}]) garde l'ancienne adresse pour les jours d'avant. */
+AGR.effectiveDest = function (p, is) {
+  var mv = (p.dest_moves || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+  for (var i = 0; i < mv.length; i++) if (mv[i].date > is) return { place: mv[i].old.place || '', street: mv[i].old.street || '', zip: mv[i].old.zip || '', city: mv[i].old.city || '' };
+  return AGR.destOf(p);
+};
 AGR.pickOf = function (p) { return { street: p.pickup_street || '', zip: p.pickup_zip || '', city: p.pickup_city || '' }; };
+/* Prise en charge (domicile) EN VIGUEUR un jour donné : même principe que l'adresse habituelle (p.pick_moves). */
+AGR.effectivePick = function (p, is) {
+  var mv = (p.pick_moves || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+  for (var i = 0; i < mv.length; i++) if (mv[i].date > is) return { street: mv[i].old.street || '', zip: mv[i].old.zip || '', city: mv[i].old.city || '' };
+  return AGR.pickOf(p);
+};
 
 /* Crée (en mémoire) la course d'une personne pour un jour : valeurs de la fiche COPIÉES, repère « habituel » gardé par usual_*. */
 AGR.newRide = function (p, is, o) {
   o = o || {};
-  var d = o.dest || AGR.destOf(p), t = nowIso();
+  var d = o.dest || AGR.effectiveDest(p, is), t = nowIso();
   return {
     id: self.AG.uuid(), person_id: p.id, date: is,
     time: o.time !== undefined ? o.time : AGR.timeFor(p),
@@ -64,7 +76,8 @@ AGR.rideItem = function (p, r, is) {
 };
 AGR.virtItem = function (p, is) {    /* carte prévue calculée : rien n'est enregistré */
   var up = p.usual_price_cents == null ? null : p.usual_price_cents, uk = p.usual_km_m == null ? null : p.usual_km_m;
-  return { key: 'v|' + p.id, virt: true, date: is, p: p, r: null, pid: p.id, time: AGR.timeFor(p), dest: { place: p.dest_place || '', street: p.dest_street || '', zip: p.dest_zip || '', city: p.dest_city || '' },
+  var dd = AGR.effectiveDest(p, is);
+  return { key: 'v|' + p.id, virt: true, date: is, p: p, r: null, pid: p.id, time: AGR.timeFor(p), dest: { place: dd.place, street: dd.street, zip: dd.zip, city: dd.city },
     price: up, km: uk, upr: up, ukm: uk, status: null, changed: false, added: false, skip: false, retour: true };
 };
 /* la carte d'une personne pour un jour (course enregistrée, même cachée, ou carte prévue), ou null */
