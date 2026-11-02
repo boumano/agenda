@@ -147,10 +147,10 @@ with sync_playwright() as p:
     ok(tag + " jours L et J allumés, « Du » conservé, « Au » vide", pg.locator('[data-a="jour"][aria-pressed="true"]').count() == 2 and pg.input_value("#f-du") == TISO and pg.input_value("#f-au") == "")
     ok(tag + " « Appeler » : lien téléphone avec les chiffres seulement", pg.locator("#f-call").get_attribute("href") == "tel:0123456789", pg.locator("#f-call").get_attribute("href"))
     ok(tag + " « Gérer cette fiche » : « Archiver cette personne » et « Supprimer cette fiche » (active : aucune course)", [x.lower() for x in pg.locator("#s-fiche h2").all_inner_texts()] == ["courses de un", "gérer cette fiche"] and pg.locator('[data-a="archiveask"]').count() == 1 and pg.locator('[data-a="deleteask"]').count() == 1)
-    fill(ville="Autreville", prix="15.75", km="9,25"); save()
+    fill(prix="15.75", km="9,25"); save()   # l'adresse ne se change pas ici (voir Lieux)
     ok(tag + " modifier (prix « 15.75 » avec un POINT, km « 9,25 » avec une virgule) : « Fiche enregistrée » sans « Annuler »", toast_msg() == "Fiche enregistrée" and not has_undo() and cur() == "personnes")
     rec = db_all("persons")
-    ok(tag + " modification rangée : même identifiant, ville changée, 1575 centimes, 9250 mètres, une seule fiche, date de modification mise à jour", len(rec) == 1 and rec[0]["id"] == rid and rec[0]["pickup_city"] == "Autreville" and rec[0]["usual_price_cents"] == 1575 and rec[0]["usual_km_m"] == 9250 and rec[0]["updated_at"] > rec[0]["created_at"], rec)
+    ok(tag + " modification rangée : même identifiant, ville changée, 1575 centimes, 9250 mètres, une seule fiche, date de modification mise à jour", len(rec) == 1 and rec[0]["id"] == rid and rec[0]["usual_price_cents"] == 1575 and rec[0]["usual_km_m"] == 9250 and rec[0]["updated_at"] > rec[0]["created_at"], rec)
 
     # ================= 5. validations =================
     open_fiche("Essai")
@@ -213,9 +213,9 @@ with sync_playwright() as p:
     pg.evaluate("history.back()"); w()
     ok(tag + " fiche existante modifiée puis touche Retour d'Android : même question", pg.locator("#confirm.on").count() == 1 and cur() == "fiche")
     tap("#confirm-ok")
-    open_fiche("Essai"); fill(ville="Changeville"); save(); tap('[data-a="back"]') if cur() == "fiche" else None
-    ok(tag + " après « Enregistrer », plus de question (la fiche est enregistrée)", cur() == "personnes" and pg.locator("#confirm.on").count() == 0 and db_all("persons")[0]["pickup_city"] == "Changeville")
-    open_fiche("Essai"); fill(ville="Autreville"); save()
+    open_fiche("Essai"); fill(prix="16"); save(); tap('[data-a="back"]') if cur() == "fiche" else None
+    ok(tag + " après « Enregistrer », plus de question (la fiche est enregistrée)", cur() == "personnes" and pg.locator("#confirm.on").count() == 0 and db_all("persons")[0]["usual_price_cents"] == 1600)
+    open_fiche("Essai"); fill(prix="17"); save()
 
     # ================= 6. « Quand » : dates choisies =================
     y, m = TODAY.year, TODAY.month
@@ -386,8 +386,8 @@ with sync_playwright() as p:
     ok(tag + " MODE AVION : l'appli s'ouvre et la liste des personnes s'affiche", len(names()) == len([x for x in before if not x["archived"]]), names())
     tap('#plist .list-item:has-text("Essai Un")')
     ok(tag + " MODE AVION : la fiche s'ouvre avec ses données", pg.input_value("#f-nom") == "Essai" and pg.input_value("#f-rue") == "1 rue Test")
-    fill(ville="Horsligne"); save()
-    ok(tag + " MODE AVION : une modification s'enregistre", [x for x in db_all("persons") if x["first_name"] == "Un"][0]["pickup_city"] == "Horsligne")
+    fill(prix="18"); save()
+    ok(tag + " MODE AVION : une modification s'enregistre", [x for x in db_all("persons") if x["first_name"] == "Un"][0]["usual_price_cents"] == 1800)
     cx.set_offline(False)
 
     # ================= 12. masquage =================

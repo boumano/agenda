@@ -217,9 +217,11 @@ with sync_playwright() as p:
     yest = [x for x in live() if x["person_id"] == ALPHA["id"] and x["date"] == d(-1).isoformat()][0]
     to_day(0)
     goto("personnes"); tap('#plist .list-item:has-text("Alpha")')
-    pg.fill("#f-prix", "99"); pg.fill("#f-km", "1"); pg.fill("#f-heure", "07:00"); pg.fill("#f-lieu", "Nouveau lieu"); pg.fill("#f-lrue", "5 rue Neuve")
+    pg.fill("#f-prix", "99"); pg.fill("#f-km", "1"); pg.fill("#f-heure", "07:00")   # l'adresse ne se change plus ici : voir le déménagement ci-dessous
     for j in range(1, 8): tap('[data-a="jour"][data-j="%d"]' % j)             # on décoche tous les jours habituels
     tap('[data-a="savefiche"]')
+    goto("personnes"); tap('#plist .list-item:has-text("Alpha")'); tap('[data-a="fxedit"][data-i="h"]')
+    pg.fill("#f-enom", "Nouveau lieu"); pg.fill("#f-erue", "5 rue Neuve"); pg.fill("#f-edate", (TODAY + timedelta(days=1)).isoformat()); tap('[data-a="fxdem"]')
     to_day(-1)
     y2 = [x for x in db_all("rides") if x["id"] == yest["id"]][0]
     ok(tag + " la fiche d'Alpha change (prix 99, km 1, heure 7:00, autre destination, plus aucun jour) : la course d'HIER est inchangée (heure, destination, 1250 / 8500, fait)", y2["time"] == "09:30" and y2["dest_place"] == "Lieu Cible" and y2["price_cents"] == 1250 and y2["km_m"] == 8500 and y2["status"] == "done" and "Alpha" in nom() and pg.locator("#s-aujourdhui .frow:has(.nom:text-is('Alpha')) .rnd.ok.on").count() == 1, y2)
