@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.4'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.5'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -1120,19 +1120,27 @@ function bilanSemHTML(rs, wk, y, m) {
     '<div class="wk-lbl"><b>' + esc(bil_wk_fmt.format(parseISO(wk)) + ' – ' + bil_wk_fmt.format(parseISO(wEnd))) + '</b><small>' + esc(wkSub) + '</small></div>' +
     '<button class="chev" data-a="bweek" data-d="7" aria-label="Semaine suivante">' + I('right') + '</button></div>';
   for (var d = 0; d < 7; d++) {
-    var is = addDaysISO(wk, d), dt = parseISO(is), items = AGR.items(people, rides, is, T), open = !!bil.open[is];
-    var dayT = AGR.addTotals(AGR.totals(people, W.filter(function (r) { return r.date === is; })).total, AGR.jointTotals(jointsInRange(is, is))), notRec = items.filter(function (it) { return it.status === 'not_done'; }).length;
+    var is = addDaysISO(wk, d), dt = parseISO(is), items = AGR.items(people, rides, is, T), open = !!bil.open[is], jday = jointsInRange(is, is);
+    var dayT = AGR.addTotals(AGR.totals(people, W.filter(function (r) { return r.date === is; })).total, AGR.jointTotals(jday)), notRec = items.filter(function (it) { return it.status === 'not_done'; }).length + jday.filter(function (j) { return j.status === 'not_done'; }).length;
+    var nAll = items.length + jday.length;
     var sum = dayT.count ? plural(dayT.count, 'course', 'courses') + ' · ' + (bil.reveal ? totalTxt(dayT.cents, dayT.noPrice, dayT.count, fmtEuros) : '•••• €')
-      : (!items.length ? 'aucune course' : (notRec === items.length ? 'pas transportée' : (is < T ? 'pas notée' : 'à faire')));
+      : (!nAll ? 'aucune course' : (notRec === nAll ? 'pas transportée' : (is < T ? 'pas notée' : 'à faire')));
     h += '<button class="wk-day" data-a="bweekday" data-iso="' + is + '" aria-expanded="' + open + '"><span class="dn">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="dv">' + esc(sum) + I(open ? 'up' : 'down') + '</span></button>';
     if (open) {
+      var jrows = jday.map(function (j) {
+        var names = [], seen = {};
+        j.stops.forEach(function (st) { if (!st.person_id || seen[st.person_id]) return; seen[st.person_id] = true; var pp = personById(st.person_id); if (pp) names.push(pp.first_name || pp.last_name); });
+        var amtJ = j.price_cents == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(j.price_cents) : '•••• €');
+        return '<div class="wk-ride"><span class="wk-nopl" aria-hidden="true"></span><div class="txt"><div class="t1">Course composée · ' + esc(plural(j.stops.length, 'arrêt', 'arrêts')) + '</div>' +
+          '<div class="t2">' + esc(names.join(' · ') || 'sans personne') + ' · ' + esc(amtJ) + '</div></div></div>';
+      }).join('');
       h += '<div class="wk-rides">' + (items.length ? items.map(function (it) {
         var op = it.r ? AGR.otherPlace(pinfoOf(it.p), it.r) : null;
         var amt = it.price == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(it.price) : '•••• €');
         return '<div class="wk-ride">' + (op ? '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>' : '<span class="wk-nopl" aria-hidden="true"></span>') +
           '<div class="txt"><div class="t1">' + esc((it.time || 'heure inconnue') + ' · ' + (AGR.placeLabel(it.dest) || 'lieu inconnu')) + (op ? ' <span class="off">· hors habituel</span>' : '') + '</div>' +
           '<div class="t2">' + nameHTML(it.p) + ' · ' + esc(amt) + '</div>' + retourNoteHTML(it.r) + '</div></div>';
-      }).join('') : '<p class="wk-none">Aucune course ce jour-là.</p>') + '</div>';
+      }).join('') : '') + jrows + (items.length || jday.length ? '' : '<p class="wk-none">Aucune course ce jour-là.</p>') + '</div>';
     }
   }
   return h + '</div><p class="wk-hint">Glisser pour la semaine suivante ou précédente</p>';

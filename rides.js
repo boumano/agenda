@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.9.4'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.9.5'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des courses (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3) :
    - une « carte prévue » est CALCULÉE à partir des fiches (mode « Chaque semaine » avec « Du » / « Au », ou « Dates choisies ») ; elle n'est pas enregistrée ;
@@ -229,7 +229,8 @@ AGR.jointTotals = function (list) {
     if (j.deleted_at || j.status !== 'done') return;
     tot.count++;
     if (j.price_cents == null) tot.noPrice++; else tot.cents += j.price_cents;
-    var legs = (j.km_legs || []).concat([j.return_km_m]), miss = false;
+    /* km total saisi (jusqu'au domicile) s'il existe ; sinon la somme des tronçons et du retour */
+    var legs = j.km_total_m != null ? [j.km_total_m] : (j.km_legs || []).concat([j.return_km_m]), miss = false;
     legs.forEach(function (m) { if (m == null) miss = true; else tot.meters += m; });
     if (miss) tot.noKm++;
   });
