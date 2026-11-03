@@ -227,7 +227,7 @@ with sync_playwright() as p:
     F = free_weekday(NM, 8); G = free_weekend(NM, 8)
     tap(cell(F))
     btns = [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()]
-    ok(tag + " jour à venir habituel : « Comme d'habitude » (choisi) / « Changer ce jour » / « Pas de course »", btns[:4] == ["Comme d’habitude", "Changer ce jour", "Changer lieu de destination", "Pas de course"] and pg.locator('#ds-panel [data-a="dscomme"][aria-pressed="true"]').count() == 1, btns)
+    ok(tag + " jour à venir habituel : « Comme d'habitude » (choisi) / « Pas de course »", btns[:3] == ["Comme d’habitude", "Changer ce jour", "Pas de course"] and pg.locator('#ds-panel [data-a="dscomme"][aria-pressed="true"]').count() == 1, btns)
     tap('#ds-panel [data-a="dspas"]'); model[F] = "not_done"
     rF = [r for r in live() if r["date"] == F.isoformat()][0]
     ok(tag + " « Pas de course » : le jour passe à « pas fait » (croix), message « Pas de course ce jour », course marquée (pas fait + pas de course)", rF["status"] == "not_done" and rF["skip"] is True and toast_msg() == "Pas de course ce jour" and cells() == expected_cells(NM), rF)
@@ -253,7 +253,7 @@ with sync_playwright() as p:
     tap('[data-a="dsadd"]'); tap('[data-a="dssave"]'); model[G] = None
     ok(tag + " ajoutée : le jour devient « à faire »", cells() == expected_cells(NM) and [c for c in cells() if c[0] == G.isoformat()][0][1] == "a")
     tap(cell(G))
-    ok(tag + " ce jour : « Changer ce jour », « Pas de course » et « Supprimer cette course »", [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()] == ["Changer ce jour", "Changer lieu de destination", "Pas de course", "Supprimer cette course", "Fermer"])
+    ok(tag + " ce jour : « Changer ce jour », « Pas de course » et « Supprimer cette course »", [x.strip() for x in pg.locator("#ds-panel button:not(.rtbox)").all_inner_texts()] == ["Changer ce jour", "Pas de course", "Supprimer cette course", "Fermer"])
     tap('#ds-panel [data-a="dsdel"]'); del model[G]
     ok(tag + " supprimée : retour à une case vide (corbeille)", cells() == expected_cells(NM) and [r for r in db_all("rides") if r["date"] == G.isoformat()][0]["deleted_at"])
     tap('#toast [data-a="undo"]'); model[G] = None

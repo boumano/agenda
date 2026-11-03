@@ -809,9 +809,9 @@ function sheetHTML() {
     if (it || hab) h += btn('dsfait', 'Fait', st === 'done') + btn('dspas', 'Pas fait', st === 'not_done') + moneyHTML(it || AGR.virtItem(p, is), 'ds-');
     else h += btn('dsadd', 'Ajouter une course', false);
   } else if (hab) {
-    h += btn('dscomme', 'Comme d’habitude', st !== 'not_done' && !(it && it.changed)) + btn('dschg', 'Changer ce jour', !!(it && it.changed) && st !== 'not_done') + btn('dsplace', 'Changer lieu de destination', false) + btn('dspas', 'Pas de course', st === 'not_done');
+    h += btn('dscomme', 'Comme d’habitude', st !== 'not_done' && !(it && it.changed)) + btn('dschg', 'Changer ce jour', !!(it && it.changed) && st !== 'not_done') + btn('dspas', 'Pas de course', st === 'not_done');
   } else if (it) {
-    h += btn('dschg', 'Changer ce jour', st !== 'not_done') + btn('dsplace', 'Changer lieu de destination', false) + btn('dspas', 'Pas de course', st === 'not_done');
+    h += btn('dschg', 'Changer ce jour', st !== 'not_done') + btn('dspas', 'Pas de course', st === 'not_done');
   } else h += btn('dsadd', 'Ajouter une course', false);
   if (r && r.added) h += '<button class="btn line full" data-a="dsdel">Supprimer cette course</button>';
   return h + '<button class="btn line full" data-a="dsclose">Fermer</button>';

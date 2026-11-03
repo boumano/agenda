@@ -106,8 +106,8 @@ with sync_playwright() as p:
     # ===== 2. panneau d'un jour : menu des lieux =====
     goto("personnes"); tap('#plist .list-item:has-text("Alpha")'); tap('[data-a="calfiche"]')
     pg.locator('#s-calendrier .cell[data-iso="%s"]' % J1.isoformat()).first.tap(); w()
-    tap('[data-a="dsplace"]')
-    ok(tag + " « Changer lieu de destination » ouvre le formulaire", pg.locator("#ds-choix").is_visible())
+    tap('[data-a="dschg"]')
+    ok(tag + " « Changer ce jour » ouvre le formulaire", pg.locator("#ds-choix").is_visible())
     opts = pg.evaluate("[...document.querySelectorAll('#ds-choix option')].map(o=>o.textContent)")
     ok(tag + " menu : habituel, autre lieu, nouveau lieu", opts == ["Lieu habituel : Lieu Cible", "Clinique Nord", "Nouveau lieu…"], opts)
     ok(tag + " case « garder » cachée pour un lieu existant", pg.locator("#ds-keepwrap").is_hidden())
@@ -121,7 +121,7 @@ with sync_playwright() as p:
 
     # ===== 3. nouveau lieu, case cochée : gardé dans la liste =====
     pg.locator('#s-calendrier .cell[data-iso="%s"]' % J2.isoformat()).first.tap(); w()
-    tap('[data-a="dsplace"]')
+    tap('[data-a="dschg"]')
     pg.select_option("#ds-choix", "new"); w()
     ok(tag + " « Nouveau lieu » : case « garder » visible et cochée", pg.locator("#ds-keepwrap").is_visible() and pg.locator("#ds-keep").is_checked())
     fill("#ds-lieu", "Maison de repos Les Tilleuls"); fill("#ds-rue", "7 rue Neuve"); fill("#ds-cp", "44444"); fill("#ds-ville", "Neuville")
@@ -133,7 +133,7 @@ with sync_playwright() as p:
 
     # ===== 4. nouveau lieu, case décochée : pas gardé =====
     pg.locator('#s-calendrier .cell[data-iso="%s"]' % J3.isoformat()).first.tap(); w()
-    tap('[data-a="dsplace"]')
+    tap('[data-a="dschg"]')
     pg.select_option("#ds-choix", "new"); w()
     pg.locator("#ds-keep").uncheck(); w()
     fill("#ds-lieu", "Cabinet du Docteur Ponctuel"); fill("#ds-rue", "3 place Unique"); fill("#ds-cp", "55555"); fill("#ds-ville", "Ponctville")
