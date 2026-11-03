@@ -354,7 +354,7 @@ function fxApply(mode) {
 
 /* panneau d'un jour : menu des lieux (habituel, autres lieux, nouveau) */
 function dsChoiceHTML(p, d) {
-  var k = AGR.placeKey(d), usual = AGR.destOf(p), uk = AGR.placeKey(usual), extra = p.places || [], sel = 'new';
+  var k = AGR.placeKey(d), usual = AGR.destOf(p), uk = AGR.placeKey(usual), extra = mergedPlaces(p), sel = 'new';
   if (k === uk) sel = 'hab'; else extra.forEach(function (x, i) { if (AGR.placeKey(x) === k) sel = String(i); });
   var ul = AGR.placeLabel(usual);
   return '<div class="field"><label for="ds-choix">Lieu de destination</label><select class="input" id="ds-choix">' +
@@ -368,7 +368,7 @@ function dsChoose(v) {
     document.getElementById('ds-lieu').value = d.place || ''; document.getElementById('ds-rue').value = d.street || '';
     document.getElementById('ds-cp').value = d.zip || ''; document.getElementById('ds-ville').value = d.city || '';
   };
-  if (v === 'hab') set(AGR.destOf(p)); else if (v === 'new') set({}); else set(p.places[+v] || {});
+  if (v === 'hab') set(AGR.destOf(p)); else if (v === 'new') set({}); else set(mergedPlaces(p)[+v] || {});
   document.getElementById('ds-keepwrap').hidden = v !== 'new';
   if (v === 'new') document.getElementById('ds-lieu').focus();
 }
