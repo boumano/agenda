@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.4'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -745,14 +745,14 @@ function stopBlockHTML(st) {
 }
 /* téléphone de chaque personne du voyage (une fois par personne) */
 function jointPeopleHTML(j) {
-  var seen = {}, out = '';
+  var seen = {}, rows = '';
   j.stops.forEach(function (st) {
     if (!st.person_id || seen[st.person_id]) return; seen[st.person_id] = true;
     var p = personById(st.person_id); if (!p) return;
-    out += '<div class="meta"><span>' + nameHTML(p) + (p.phone ? ' · ' + esc(p.phone) : ' · téléphone inconnu') + '</span>' +
-      (p.phone ? '<a class="call" href="' + esc(telHref(p.phone)) + '">' + I('phone') + 'Appeler</a>' : '') + '</div>';
+    rows += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:36px"><span>' + nameHTML(p) + (p.phone ? ' · ' + esc(p.phone) : ' · téléphone inconnu') + '</span>' +
+      (p.phone ? '<a class="call jcall" href="' + esc(telHref(p.phone)) + '">' + I('phone') + 'Appeler</a>' : '') + '</div>';
   });
-  return out;
+  return rows ? '<div style="grid-column:1/-1;grid-row:auto;display:flex;flex-direction:column;gap:2px;font-size:14px;color:var(--text2)">' + rows + '</div>' : '';
 }
 function jointCardHTML(j) {
   var n = j.stops.length;
