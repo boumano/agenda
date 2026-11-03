@@ -75,7 +75,7 @@ with sync_playwright() as p:
     goto("personnes"); tap('#plist .list-item:has-text("Alpha")')
 
     # ===== 1. fiche : section Autres lieux =====
-    ok(tag + " fiche : « Autres lieux » vide au départ", "Aucun autre lieu" in pg.locator("#f-places").inner_text(), pg.locator("#f-places").inner_text())
+    ok(tag + " fiche : « Autres lieux » au départ : seulement le lieu habituel", pg.locator("#f-osel option").all_inner_texts() == ["Lieu Cible"], pg.locator("#f-places").inner_text())
     ok(tag + " formulaire d'ajout caché au départ", pg.locator("#f-xform").is_hidden())
     tap('[data-a="fxshow"]')
     ok(tag + " « + Ajouter un lieu » ouvre le formulaire", pg.locator("#f-xform").is_visible())

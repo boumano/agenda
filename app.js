@@ -207,11 +207,11 @@ function linkChanges(p, newId) {
 
 /* ========= Lieux de la personne (autres que le lieu habituel) ========= */
 function placesListHTML() {
-  if (!ctx.places.length) return '<p class="note" style="padding:0 0 6px">Aucun autre lieu pour l’instant.</p>';
-  return '<select class="input" id="f-osel">' + ctx.places.map(function (x, i) {
-    return '<option value="' + i + '" data-addr="' + esc(addrPlain(x)) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
-  }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(ctx.places[0]) ? esc(addrPlain(ctx.places[0])) : 'adresse inconnue') + '</p>' +
-    '';
+  var p = ctx.person, hab = p ? AGR.destOf(p) : null, all = (hab && (hab.place || hab.street || hab.city) ? [hab] : []).concat(ctx.places);
+  if (!all.length) return '<p class="note" style="padding:0 0 6px">Aucun autre lieu pour l’instant.</p>';
+  return '<select class="input" id="f-osel">' + all.map(function (x) {
+    return '<option data-addr="' + esc(addrPlain(x)) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
+  }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(all[0]) ? esc(addrPlain(all[0])) : 'adresse inconnue') + '</p>';
 }
 /* lieux déjà utilisés dans les courses de la personne (une seule fois, sans doublon avec le lieu habituel ni avec la liste) */
 function mergedPlaces(p) {
