@@ -211,7 +211,7 @@ function placesListHTML() {
   return '<select class="input" id="f-osel">' + ctx.places.map(function (x, i) {
     return '<option value="' + i + '" data-addr="' + esc(addrPlain(x)) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
   }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(ctx.places[0]) ? esc(addrPlain(ctx.places[0])) : 'adresse inconnue') + '</p>' +
-    '<button class="btn line full" id="f-obtn" data-a="fxedit" data-i="0">Corriger ou déménager</button>';
+    '';
 }
 /* lieux déjà utilisés dans les courses de la personne (une seule fois, sans doublon avec le lieu habituel ni avec la liste) */
 function mergedPlaces(p) {
@@ -230,7 +230,6 @@ document.addEventListener('change', function (e) {
   if (!e.target || e.target.id !== 'f-osel') return;
   var o = e.target.options[e.target.selectedIndex];
   document.getElementById('f-oaddr').textContent = o.getAttribute('data-addr') || 'adresse inconnue';
-  document.getElementById('f-obtn').setAttribute('data-i', e.target.value);
 });
 function lieuxHTML() {
   return '<div class="card"><div class="field"><label>Autres lieux</label></div><div id="f-places">' + placesListHTML() + '</div>' +
@@ -382,20 +381,6 @@ function rememberPlace(p, d, keep) {
   return AG.putPerson(q).then(function () { people[people.indexOf(p)] = q; });
 }
 
-function lieuSelectHTML(p) {
-  var opts = [{ v: 'd', label: 'Domicile (prise en charge)', addr: addrPlain(AGR.pickOf(p)) }, { v: 'h', label: 'Lieu habituel : ' + (AGR.placeLabel(AGR.destOf(p)) || 'sans nom'), addr: addrPlain(AGR.destOf(p)) }]
-    .concat((p.places || []).map(function (x, i) { return { v: String(i), label: AGR.placeLabel(x) || 'Sans nom', addr: addrPlain(x) }; }));
-  return '<div class="card"><div class="field"><label for="f-lsel">Lieux de la personne</label>' +
-    '<select class="input" id="f-lsel">' + opts.map(function (o) { return '<option value="' + esc(o.v) + '" data-addr="' + esc(o.addr) + '">' + esc(o.label) + '</option>'; }).join('') + '</select>' +
-    '<p class="note" id="f-laddr" style="padding:6px 0 0">' + (opts[0].addr ? esc(opts[0].addr) : 'adresse inconnue') + '</p>' +
-    '<button class="btn line full" id="f-lbtn" data-a="fxedit" data-i="d">Corriger ou déménager</button></div></div>';
-}
-document.addEventListener('change', function (e) {
-  if (!e.target || e.target.id !== 'f-lsel') return;
-  var o = e.target.options[e.target.selectedIndex], a = o.getAttribute('data-addr');
-  document.getElementById('f-laddr').textContent = a || 'adresse inconnue';
-  document.getElementById('f-lbtn').setAttribute('data-i', e.target.value);
-});
 function roAddrCard(title, addr, which) {
   return '<div class="card"><div class="field"><label>' + esc(title) + '</label><p class="note" style="padding:0">' + (addr ? esc(addr) : 'adresse inconnue') + '</p>' +
     '<button class="btn line full" data-a="fxedit" data-i="' + which + '">Corriger ou déménager</button></div></div>';
@@ -404,8 +389,8 @@ function renderFiche() {
   var p = ctx.person, d = personToForm(p), el = $('#s-fiche'), sc = $('.content', el), st = sc ? sc.scrollTop : 0;
   var h = backBar(p ? nameHTML(p) : 'Nouvelle personne') + '<div class="content">' +
     '<div class="card"><div class="field"><label for="f-nom">Nom</label><input class="input" id="f-nom" value="' + esc(d.nom) + '" autocomplete="off" autocapitalize="words"><label for="f-pre" style="margin-top:4px">Prénom</label><input class="input" id="f-pre" value="' + esc(d.pre) + '" autocomplete="off" autocapitalize="words">' + (p ? '' : '<div class="warnbox" id="dup-warn" role="status" hidden></div>') + '</div></div>' +
-    (p ? lieuSelectHTML(p) + '<div hidden>' : '<div class="card"><div class="field"><label for="f-rue">Prise en charge (et retour)</label>') + '<input class="input" id="f-rue" value="' + esc(d.rue) + '" placeholder="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-cp" value="' + esc(d.cp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-ville" value="' + esc(d.ville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
-    (p ? '<div hidden>' : '<div class="card"><div class="field"><label for="f-lieu">Lieu habituel</label>') + '<input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
+    (p ? roAddrCard('Domicile (prise en charge)', addrPlain(AGR.pickOf(p)), 'd') + '<div hidden>' : '<div class="card"><div class="field"><label for="f-rue">Prise en charge (et retour)</label>') + '<input class="input" id="f-rue" value="' + esc(d.rue) + '" placeholder="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-cp" value="' + esc(d.cp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-ville" value="' + esc(d.ville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
+    (p ? roAddrCard('Lieu habituel' + (AGR.placeLabel(AGR.destOf(p)) ? ' : ' + AGR.placeLabel(AGR.destOf(p)) : ''), addrPlain(AGR.destOf(p)), 'h') + '<div hidden>' : '<div class="card"><div class="field"><label for="f-lieu">Lieu habituel</label>') + '<input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
     lieuxHTML() + '<div class="card"><div class="field"><label>Prix et km habituels (facultatif)</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field"><label for="f-prix">Prix de la course (€)</label><input class="input" id="f-prix" value="' + esc(d.prix) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div><div class="field"><label for="f-km">Km de la course</label><input class="input" id="f-km" value="' + esc(d.km) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div><div class="warnbox" id="f-pk-err" role="alert" hidden></div><p class="note" style="padding:6px 0 0">Repris sur les nouvelles courses créées. Les courses déjà créées ne changent pas.</p></div>' +
     '<div class="card"><div class="field"><label for="f-tel">Téléphone (facultatif)</label><div class="call-row"><input class="input" id="f-tel" type="tel" inputmode="tel" value="' + esc(d.tel) + '" placeholder="inconnu" autocomplete="off"><a class="btn soft" id="f-call" data-a="callfiche"' + (d.tel ? ' href="' + esc(telHref(d.tel)) + '"' : '') + '>' + I('phone') + 'Appeler</a></div></div></div>' +
     '<div class="card"><div class="field"><label for="f-lie">Couple ou lien (facultatif)</label><select class="input" id="f-lie">' + linkOptions(p) + '</select><p class="note" style="padding:6px 0 0">Pour les courses composées : une personne liée est proposée avec elle.</p></div></div>' +
