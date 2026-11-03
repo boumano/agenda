@@ -53,6 +53,7 @@ function parseTime(v) {
 
 /* ========= état de l'interface ========= */
 var schemaVersion = null, people = [], rides = [], joints = [];   /* joints : courses composées (structure 6) */
+var openJid = null;   /* course composée ouverte (une seule à la fois, comme les courses) */
 var jopen = {};   /* courses composées dont le prix est affiché (le reste reste masqué) */
 var cur = 'aujourdhui', tab = 'aujourdhui';
 var idleSec = 120;                       /* réglable : 0 (jamais), 60, 120, 600 */
@@ -626,6 +627,9 @@ function block(it, kind) {
   return '<div class="ablk ' + kind + '">' + head + '<div class="atxt">' + addrHTML2(a) + '</div>' +
     '<div class="afoot"><button class="copy" data-a="copyitem" data-key="' + esc(it.key) + '" data-kind="' + kind + '" aria-label="Copier l’adresse de ' + (kind === 'pick' ? 'prise en charge' : 'destination') + '">' + I('copy') + 'Copier</button></div></div>';
 }
+function copyBtn(addr) {
+  return '<button class="copy" data-a="copyaddr" data-addr="' + esc(addr) + '" aria-label="Copier l’adresse">' + I('copy') + 'Copier</button>';
+}
 function copyText(t, cb) {
   function done(good) { toast(good ? 'Adresse copiée' : 'Copie impossible ici'); if (cb) cb(good); }
   function fallback() {
@@ -716,20 +720,26 @@ function stopLabel(st) {
   var p = st.person_id ? personById(st.person_id) : null, nm = p ? fullName(p) : 'personne inconnue';
   return (st.kind === 'pick' ? 'Monte : ' : 'Dépose : ') + nm;
 }
+function jointRowHTML(j) {
+  var n = j.stops.length;
+  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">Course composée</span><span class="l2">' + plural(n, 'arrêt', 'arrêts') + '</span></span><span class="vh">' + stateWord(j.status) + '</span></button>' +
+    '<span class="fr"><button class="fchev" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false" aria-label="Ouvrir la course composée">' + I('down') + '</button></span></div>';
+}
 function jointCardHTML(j) {
   var rowsH = j.stops.map(function (st, i) {
     var a = st.place && addrPlain(st.place);
-    return '<li style="display:flex;gap:8px;padding:4px 0"><span class="jn" style="min-width:20px;color:var(--accent);font-weight:600">' + (i + 1) + '</span><span>' + esc(stopLabel(st)) + (a ? '<span class="pa" style="display:block;color:var(--text2);font-size:13px">' + esc(a) + '</span>' : '') + '</span></li>';
+    return '<li style="display:flex;gap:8px;padding:4px 0"><span class="jn" style="min-width:20px;color:var(--accent);font-weight:600">' + (i + 1) + '</span><span style="flex:1">' + esc(stopLabel(st)) + (a ? '<span class="pa" style="display:block;color:var(--text2);font-size:13px">' + esc(a) + '</span><span class="pcopy" style="display:block">' + copyBtn(a) + '</span>' : '') + '</span></li>';
   }).join('');
   var kmRows = j.km_legs.map(function (km, i) {
     return '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">De l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-' + i + '" value="' + esc(km == null ? '' : fmtKm(km)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km de l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '"></div>';
   }).join('') + '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">Retour aux domiciles</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-r" value="' + esc(j.return_km_m == null ? '' : fmtKm(j.return_km_m)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km du retour aux domiciles"></div>' +
     '<button class="btn line" style="margin-top:8px" data-a="jkmsave" data-id="' + esc(j.id) + '">Enregistrer les km</button>';
   var priceTxt = jopen[j.id] ? (j.price_cents == null ? 'prix inconnu' : fmtPrice(j.price_cents) + ' €') : 'Afficher le prix';
-  return '<div class="card jcard" data-jid="' + esc(j.id) + '" style="padding:12px 14px;margin-bottom:10px"><div style="font-size:16px;font-weight:600;margin-bottom:4px">Course composée</div>' +
+  return '<article class="card jcard open" data-jid="' + esc(j.id) + '"><button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" style="text-align:left;width:100%;background:none;border:0;color:inherit;padding:0"><span class="name" style="font-size:16px;font-weight:600">Course composée</span></button>' +
     '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
     '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line' + (j.status === 'done' ? ' sel' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'done') + '">Fait</button><button class="btn line' + (j.status === 'not_done' ? ' sel' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'not_done') + '">Pas fait</button></div>' +
-    kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div></div>';
+    kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div>' +
+    '<button class="foldbtn" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" aria-label="Refermer la course composée">' + I('up') + '</button></article>';
 }
 
 function renderAuj() {
@@ -745,7 +755,8 @@ function renderAuj() {
   var body = '<div class="content">';
   if (!list.length) body += '<div class="card empty">Aucune course prévue ce jour.</div>';
   list.forEach(function (it) { body += it.key !== openKey ? rowHTML(it) : openCardHTML(it); });
-  jointsOfDay(is).forEach(function (j) { body += jointCardHTML(j); });
+  if (openJid !== null && !jointsOfDay(is).some(function (x) { return x.id === openJid; })) openJid = null;
+  jointsOfDay(is).forEach(function (j) { body += j.id !== openJid ? jointRowHTML(j) : jointCardHTML(j); });
   body += '<button class="btn line full" data-a="aadd">Ajouter une course</button><button class="btn line full" data-a="jadd">Ajouter une course composée</button></div>';
   mount('s-aujourdhui', h + body);
 }
@@ -847,7 +858,7 @@ function jKeep() { var el = document.getElementById('j-prix'); if (el) dsh.price
 function dayPlaceHTML(p, it) {
   if (!it) return '';
   var info = AGR.placeInfo(p, rides), lab = AGR.placeLabel(it.dest), ak = AGR.placeKey(it.dest), ud = AGR.effectiveDest(p, it.date), off = ak !== AGR.placeKey(ud), op = off ? AGR.otherPlace(info, it.r) : null;
-  var addr = hasAddr(it.dest) ? '<span class="pa">' + esc(addrPlain(it.dest)) + '</span>' : '';
+  var addr = hasAddr(it.dest) ? '<span class="pa">' + esc(addrPlain(it.dest)) + '</span><span class="pcopy">' + copyBtn(addrPlain(it.dest)) + '</span>' : '';
   return '<div class="dayplace' + (off ? ' off' : '') + '" id="ds-place"><span class="pi">' + I('pin') + '</span><span class="pt"><span class="pn">' + (op ? '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>' : '') + '<b>' + esc(lab || 'lieu inconnu') + '</b>' + (off ? '<span class="chg">changé</span>' : '') + '</span>' + addr +
     (off ? '<span class="pa">habituel : ' + esc(AGR.placeLabel(ud) || 'inconnu') + '</span>' : '') + '</span></div>';
 }
@@ -1820,6 +1831,9 @@ document.addEventListener('click', function (e) {
       dsh.stops.push({ kind: 'pass', person_id: null, place: pl }); dsh.mode = 'joint'; renderSheet(); break;
     case 'jdel': if (!dsh) break; jKeep(); dsh.stops.splice(+b.dataset.i, 1); renderSheet(); break;
     case 'jprice': jopen[id] = !jopen[id]; renderAuj(); break;
+    case 'jopen': openJid = id; renderAuj(); break;
+    case 'jfold': openJid = null; renderAuj(); break;
+    case 'copyaddr': copyText(b.dataset.addr, function (good) { flashCopied(b, good); }); break;
     case 'jstat': var js = joints.filter(function (x) { return x.id === id; })[0]; if (!js) break;
       var jprev = js.status; js.status = jprev === b.dataset.v ? null : b.dataset.v; js.updated_at = nowIso();
       AG.putJointRide(js).then(function () { renderAuj(); toast(js.status === 'done' ? 'Course composée : faite.' : 'Course composée : remise à faire.', function () { js.status = jprev; AG.putJointRide(js).then(renderAuj); }); },
