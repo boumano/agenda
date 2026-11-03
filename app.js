@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.2'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.3'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -212,7 +212,8 @@ function placesListHTML() {
   if (!all.length) return '<p class="note" style="padding:0 0 6px">Aucun autre lieu pour l’instant.</p>';
   return '<select class="input" id="f-osel">' + all.map(function (x) {
     return '<option data-addr="' + esc(addrPlain(x)) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
-  }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(all[0]) ? esc(addrPlain(all[0])) : 'adresse inconnue') + '</p>';
+  }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(all[0]) ? esc(addrPlain(all[0])) : 'adresse inconnue') + '</p>' +
+    '<div id="f-ocopywrap">' + (addrPlain(all[0]) ? copyBtn(addrPlain(all[0])) : '') + '</div>';
 }
 /* lieux déjà utilisés dans les courses de la personne (une seule fois, sans doublon avec le lieu habituel ni avec la liste) */
 function mergedPlaces(p) {
@@ -230,7 +231,9 @@ function mergedPlaces(p) {
 document.addEventListener('change', function (e) {
   if (!e.target || e.target.id !== 'f-osel') return;
   var o = e.target.options[e.target.selectedIndex];
-  document.getElementById('f-oaddr').textContent = o.getAttribute('data-addr') || 'adresse inconnue';
+  var oa = o.getAttribute('data-addr') || '';
+  document.getElementById('f-oaddr').textContent = oa || 'adresse inconnue';
+  document.getElementById('f-ocopywrap').innerHTML = oa ? copyBtn(oa) : '';
 });
 function lieuxHTML() {
   return '<div class="card"><div class="field"><label>Autres lieux</label></div><div id="f-places">' + placesListHTML() + '</div>' +
@@ -384,7 +387,7 @@ function rememberPlace(p, d, keep) {
 
 function roAddrCard(title, addr, which) {
   return '<div class="card"><div class="field"><label>' + esc(title) + '</label><p class="note" style="padding:0">' + (addr ? esc(addr) : 'adresse inconnue') + '</p>' +
-    '<button class="btn line full" data-a="fxedit" data-i="' + which + '">Corriger ou déménager</button></div></div>';
+    (addr ? '<div>' + copyBtn(addr) + '</div>' : '') + '<button class="btn line full" data-a="fxedit" data-i="' + which + '">Corriger ou déménager</button></div></div>';
 }
 function renderFiche() {
   var p = ctx.person, d = personToForm(p), el = $('#s-fiche'), sc = $('.content', el), st = sc ? sc.scrollTop : 0;
@@ -732,11 +735,27 @@ function jointRowHTML(j) {
   return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">' + nm + '</span><span class="l2">Course composée · ' + plural(n, 'arrêt', 'arrêts') + '</span></span></button>' +
     '<span class="fr">' + (v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko)) + '<button class="fchev" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false" aria-label="Ouvrir la course composée">' + I('down') + '</button></span></div>';
 }
+/* arrêt présenté comme une adresse de course simple (bloc avec « Copier ») */
+function stopBlockHTML(st) {
+  var kind = st.kind === 'pick' ? 'pick' : 'dest', a = st.place || {};
+  var ico = kind === 'pick' ? '<span class="ico dot" aria-hidden="true"></span>' : '<span class="ico">' + I('pin') + '</span>';
+  var head = '<div class="ahead">' + ico + '<span class="lbl">' + esc(stopLabel(st)) + '</span></div>';
+  if (!hasAddr(a)) return '<div class="ablk ' + kind + '">' + head + '<div class="atxt unk">adresse inconnue</div></div>';
+  return '<div class="ablk ' + kind + '">' + head + '<div class="atxt">' + addrHTML2(a) + '</div><div class="afoot">' + copyBtn(addrPlain(a)) + '</div></div>';
+}
+/* téléphone de chaque personne du voyage (une fois par personne) */
+function jointPeopleHTML(j) {
+  var seen = {}, out = '';
+  j.stops.forEach(function (st) {
+    if (!st.person_id || seen[st.person_id]) return; seen[st.person_id] = true;
+    var p = personById(st.person_id); if (!p) return;
+    out += '<div class="meta"><span>' + nameHTML(p) + (p.phone ? ' · ' + esc(p.phone) : ' · téléphone inconnu') + '</span>' +
+      (p.phone ? '<a class="call" href="' + esc(telHref(p.phone)) + '">' + I('phone') + 'Appeler</a>' : '') + '</div>';
+  });
+  return out;
+}
 function jointCardHTML(j) {
-  var rowsH = j.stops.map(function (st, i) {
-    var a = st.place && addrPlain(st.place);
-    return '<li style="display:flex;gap:8px;padding:4px 0"><span class="jn" style="min-width:20px;color:var(--accent);font-weight:600">' + (i + 1) + '</span><span style="flex:1">' + esc(stopLabel(st)) + (a ? '<span class="pa" style="display:block;color:var(--text2);font-size:13px">' + esc(a) + '</span><span class="pcopy" style="display:block">' + copyBtn(a) + '</span>' : '') + '</span></li>';
-  }).join('');
+  var n = j.stops.length;
   var kmRows = j.km_legs.map(function (km, i) {
     return '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">De l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-' + i + '" value="' + esc(km == null ? '' : fmtKm(km)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km de l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '"></div>';
   }).join('') + '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">Retour aux domiciles</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-r" value="' + esc(j.return_km_m == null ? '' : fmtKm(j.return_km_m)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km du retour aux domiciles"></div>' +
@@ -745,10 +764,16 @@ function jointCardHTML(j) {
   var priceBlock = jopen[j.id] ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div class="field"><label for="jt-km-' + esc(j.id) + '">Km total (jusqu’au domicile)</label><input class="input" id="jt-km-' + esc(j.id) + '" value="' + esc(fmtKm(j.km_total_m)) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div>' +
     '<div class="field"><label for="jt-p-' + esc(j.id) + '">Prix (€)</label><input class="input" id="jt-p-' + esc(j.id) + '" value="' + esc(fmtPrice(j.price_cents)) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div>' +
     '<button class="btn line" style="margin-top:8px" data-a="jtsave" data-id="' + esc(j.id) + '">Enregistrer le km total et le prix</button>' : '';
-  return '<article class="card jcard open" data-jid="' + esc(j.id) + '"><button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" style="text-align:left;width:100%;background:none;border:0;color:inherit;padding:0"><span class="name" style="font-size:16px;font-weight:600">Course composée</span></button>' +
-    '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
-    '<div style="display:flex;gap:10px;margin-top:8px">' + jointRnd(j) + '</div>' +
-    kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div>' + priceBlock +
+  return '<article class="card person open jcard" data-jid="' + esc(j.id) + '">' +
+    '<button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true"><span class="name">Course composée</span></button>' +
+    '<div class="rdv">' + plural(n, 'arrêt', 'arrêts') + '</div>' +
+    jointPeopleHTML(j) +
+    '<div class="states"><div class="pair">' + jointRnd(j) + '</div><span class="lab">' + stateWord(j.status) + '</span></div>' +
+    j.stops.map(stopBlockHTML).join('') +
+    '<div class="cardact">' +
+    '<button class="btn quiet full" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button>' + priceBlock +
+    '<div style="margin-top:8px">' + kmRows + '</div>' +
+    '<button class="btn line full" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer cette course composée</button></div>' +
     '<button class="foldbtn" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" aria-label="Refermer la course composée">' + I('up') + '</button></article>';
 }
 
