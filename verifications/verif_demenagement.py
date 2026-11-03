@@ -89,8 +89,7 @@ with sync_playwright() as p:
     ok(tag + " faute : la course à venir aussi", ride_now(FUT)["dest_street"] == "2 rue Cibles", ride_now(FUT))
 
     # 2. une adresse modifiée directement dans les champs est refusée (il faut passer par « Lieux »)
-    fill("#f-rue", "5 rue Autre"); tap('[data-a="savefiche"]')
-    ok(tag + " changement direct du domicile refusé", person_now()["pickup_street"] == "1 rue Depart")
+    ok(tag + " adresse en lecture seule : pas de champ modifiable, bouton « Corriger ou déménager »", pg.locator("#f-rue").count() == 1 and not pg.locator("#f-rue").is_visible() and pg.locator('[data-a="fxedit"][data-i="d"]').is_visible())
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready"); pg.evaluate("window.__ag.ready"); w()
 
     # 3. déménagement du domicile à partir d'une date : l'ancienne adresse reste pour les jours d'avant
