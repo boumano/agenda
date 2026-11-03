@@ -734,11 +734,14 @@ function jointCardHTML(j) {
     return '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">De l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-' + i + '" value="' + esc(km == null ? '' : fmtKm(km)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km de l’arrêt ' + (i + 1) + ' à l’arrêt ' + (i + 2) + '"></div>';
   }).join('') + '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:14px">Retour aux domiciles</span><input class="input" style="width:90px" id="jk-' + esc(j.id) + '-r" value="' + esc(j.return_km_m == null ? '' : fmtKm(j.return_km_m)) + '" placeholder="km" inputmode="decimal" autocomplete="off" aria-label="Km du retour aux domiciles"></div>' +
     '<button class="btn line" style="margin-top:8px" data-a="jkmsave" data-id="' + esc(j.id) + '">Enregistrer les km</button>';
-  var priceTxt = jopen[j.id] ? (j.price_cents == null ? 'prix inconnu' : fmtPrice(j.price_cents) + ' €') : 'Afficher le prix';
+  var priceTxt = jopen[j.id] ? 'Masquer le prix et le km total' : 'Afficher le prix et le km total';
+  var priceBlock = jopen[j.id] ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><div class="field"><label for="jt-km-' + esc(j.id) + '">Km total (jusqu’au domicile)</label><input class="input" id="jt-km-' + esc(j.id) + '" value="' + esc(fmtKm(j.km_total_m)) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div>' +
+    '<div class="field"><label for="jt-p-' + esc(j.id) + '">Prix (€)</label><input class="input" id="jt-p-' + esc(j.id) + '" value="' + esc(fmtPrice(j.price_cents)) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div>' +
+    '<button class="btn line" style="margin-top:8px" data-a="jtsave" data-id="' + esc(j.id) + '">Enregistrer le km total et le prix</button>' : '';
   return '<article class="card jcard open" data-jid="' + esc(j.id) + '"><button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" style="text-align:left;width:100%;background:none;border:0;color:inherit;padding:0"><span class="name" style="font-size:16px;font-weight:600">Course composée</span></button>' +
     '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
     '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line' + (j.status === 'done' ? ' sel' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'done') + '">Fait</button><button class="btn line' + (j.status === 'not_done' ? ' sel' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'not_done') + '">Pas fait</button></div>' +
-    kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div>' +
+    kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div>' + priceBlock +
     '<button class="foldbtn" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" aria-label="Refermer la course composée">' + I('up') + '</button></article>';
 }
 
@@ -1838,6 +1841,15 @@ document.addEventListener('click', function (e) {
       var jprev = js.status; js.status = jprev === b.dataset.v ? null : b.dataset.v; js.updated_at = nowIso();
       AG.putJointRide(js).then(function () { renderAuj(); toast(js.status === 'done' ? 'Course composée : faite.' : 'Course composée : remise à faire.', function () { js.status = jprev; AG.putJointRide(js).then(renderAuj); }); },
         function () { js.status = jprev; toast('Enregistrement impossible : réessaie.'); });
+      break;
+    case 'jtsave': var jt = joints.filter(function (x) { return x.id === id; })[0]; if (!jt) break;
+      var ktv = parseDecimal(document.getElementById('jt-km-' + id).value, 2), ptv = parseDecimal(document.getElementById('jt-p-' + id).value, 2);
+      if (ktv.err) { toast('Km total refusé : un nombre positif, en km.'); break; }
+      if (ptv.err) { toast('Prix refusé : un nombre positif, en euros (ex. 28 ou 28,50).'); break; }
+      var tPrev = { km: jt.km_total_m, price: jt.price_cents };
+      jt.km_total_m = ktv.v == null ? null : Math.round(ktv.v * 1000); jt.price_cents = ptv.v == null ? null : Math.round(ptv.v * 100); jt.updated_at = nowIso();
+      AG.putJointRide(jt).then(function () { renderAuj(); toast('Km total et prix enregistrés.', function () { jt.km_total_m = tPrev.km; jt.price_cents = tPrev.price; AG.putJointRide(jt).then(renderAuj); }); },
+        function () { toast('Enregistrement impossible : réessaie.'); });
       break;
     case 'jkmsave': var jk = joints.filter(function (x) { return x.id === id; })[0]; if (!jk) break;
       var kmv = [], kmErr = false;
