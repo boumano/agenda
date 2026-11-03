@@ -24,6 +24,7 @@ def rewrite(name, pattern, repl):
 
 for f in ("garde.js", "db.js", "rides.js", "fuel.js", "mots.js", "sauvegarde.js", "app.js"):
     rewrite(f, r"^(self\.AG_STAMPS=self\.AG_STAMPS\|\|\{\};self\.AG_STAMPS\['%s'\]=')[^']*(';)" % re.escape(f), r"\g<1>%s\g<2>" % V)
+rewrite("sw.js", r"^(// ag-version )[^\n]*$", r"\g<1>%s" % V)
 rewrite("style.css", r'^(:root\{--ag-version:")[^"]*("\})', r"\g<1>%s\g<2>" % V)
 rewrite("index.html", r'^(<meta name="ag-version" content=")[^"]*(">)', r"\g<1>%s\g<2>" % V)
 if bad:
