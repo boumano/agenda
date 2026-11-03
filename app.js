@@ -721,9 +721,11 @@ function stopLabel(st) {
   return (st.kind === 'pick' ? 'Monte : ' : 'Dépose : ') + nm;
 }
 function jointRowHTML(j) {
-  var n = j.stops.length;
-  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">Course composée</span><span class="l2">' + plural(n, 'arrêt', 'arrêts') + '</span></span><span class="vh">' + stateWord(j.status) + '</span></button>' +
-    '<span class="fr"><button class="fchev" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false" aria-label="Ouvrir la course composée">' + I('down') + '</button></span></div>';
+  var n = j.stops.length, v = j.status, nm = esc(j.stops.filter(function (st) { return st.kind !== 'pass'; }).map(function (st) { var p = st.person_id ? personById(st.person_id) : null; return p ? (p.first_name || p.last_name) : ''; }).filter(Boolean).join(' · ') || 'Course composée');
+  var ok = '<button class="rnd ok' + (v === 'done' ? ' on' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'done') + '" aria-label="Course composée : fait"><i>' + I('check') + '</i></button>';
+  var ko = '<button class="rnd ko' + (v === 'not_done' ? ' on' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'not_done') + '" aria-label="Course composée : pas faite"><i>' + I('x') + '</i></button>';
+  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">' + nm + '</span><span class="l2">Course composée · ' + plural(n, 'arrêt', 'arrêts') + '</span></span></button>' +
+    '<span class="fr">' + (v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko)) + '<button class="fchev" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false" aria-label="Ouvrir la course composée">' + I('down') + '</button></span></div>';
 }
 function jointCardHTML(j) {
   var rowsH = j.stops.map(function (st, i) {
