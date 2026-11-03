@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.6'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.7'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -728,12 +728,15 @@ function jointRnd(j) {
   var ko = '<button class="rnd ko' + (v === 'not_done' ? ' on' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'not_done') + '" aria-label="Course composée : pas faite"><i>' + I('x') + '</i></button>';
   return v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko);
 }
+function jointDisplayName(j) {
+  return j.label || j.stops.filter(function (st) { return st.kind !== 'pass'; }).map(function (st) { var p = st.person_id ? personById(st.person_id) : null; return p ? (p.first_name || p.last_name) : ''; }).filter(Boolean).join(' · ') || 'Course composée';
+}
 function jointRowHTML(j) {
-  var n = j.stops.length, v = j.status, nm = esc(j.label || j.stops.filter(function (st) { return st.kind !== 'pass'; }).map(function (st) { var p = st.person_id ? personById(st.person_id) : null; return p ? (p.first_name || p.last_name) : ''; }).filter(Boolean).join(' · ') || 'Course composée');
-  var l2 = (j.time ? 'Rendez-vous ' + esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(n, 'arrêt', 'arrêts'));
+  var n = j.stops.length, v = j.status, nm = esc(jointDisplayName(j));
+  var l2 = (j.time ? '<span class="l2">Rendez-vous ' + esc(fmtH(j.time)) + '</span>' : '') + '<span class="l2">Course composée · ' + esc(plural(n, 'arrêt', 'arrêts')) + '</span>';
   var ok = '<button class="rnd ok' + (v === 'done' ? ' on' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'done') + '" aria-label="Course composée : fait"><i>' + I('check') + '</i></button>';
   var ko = '<button class="rnd ko' + (v === 'not_done' ? ' on' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'not_done') + '" aria-label="Course composée : pas faite"><i>' + I('x') + '</i></button>';
-  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">' + nm + '</span><span class="l2">' + l2 + '</span></span></button>' +
+  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">' + nm + '</span>' + l2 + '</span></button>' +
     '<span class="fr">' + (v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko)) + '<button class="fchev" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false" aria-label="Ouvrir la course composée">' + I('down') + '</button></span></div>';
 }
 /* arrêt présenté comme une adresse de course simple (bloc avec « Copier ») */
@@ -1132,11 +1135,9 @@ function bilanSemHTML(rs, wk, y, m) {
     h += '<button class="wk-day" data-a="bweekday" data-iso="' + is + '" aria-expanded="' + open + '"><span class="dn">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="dv">' + esc(sum) + I(open ? 'up' : 'down') + '</span></button>';
     if (open) {
       var jrows = jday.map(function (j) {
-        var names = [], seen = {};
-        j.stops.forEach(function (st) { if (!st.person_id || seen[st.person_id]) return; seen[st.person_id] = true; var pp = personById(st.person_id); if (pp) names.push(pp.first_name || pp.last_name); });
         var amtJ = j.price_cents == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(j.price_cents) : '•••• €');
-        return '<div class="wk-ride"><span class="wk-nopl" aria-hidden="true"></span><div class="txt"><div class="t1">Course composée · ' + esc(plural(j.stops.length, 'arrêt', 'arrêts')) + '</div>' +
-          '<div class="t2">' + esc(names.join(' · ') || 'sans personne') + ' · ' + esc(amtJ) + '</div></div></div>';
+        return '<div class="wk-ride"><span class="wk-nopl" aria-hidden="true"></span><div class="txt"><div class="t1">' + esc(jointDisplayName(j)) + '</div>' +
+          '<div class="t2">' + (j.time ? esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(j.stops.length, 'arrêt', 'arrêts')) + ' · ' + esc(amtJ) + '</div></div></div>';
       }).join('');
       h += '<div class="wk-rides">' + (items.length ? items.map(function (it) {
         var op = it.r ? AGR.otherPlace(pinfoOf(it.p), it.r) : null;
