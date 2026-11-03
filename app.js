@@ -720,6 +720,11 @@ function stopLabel(st) {
   var p = st.person_id ? personById(st.person_id) : null, nm = p ? fullName(p) : 'personne inconnue';
   return (st.kind === 'pick' ? 'Monte : ' : 'Dépose : ') + nm;
 }
+function jointRnd(j) {
+  var v = j.status, ok = '<button class="rnd ok' + (v === 'done' ? ' on' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'done') + '" aria-label="Course composée : fait"><i>' + I('check') + '</i></button>';
+  var ko = '<button class="rnd ko' + (v === 'not_done' ? ' on' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'not_done') + '" aria-label="Course composée : pas faite"><i>' + I('x') + '</i></button>';
+  return v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko);
+}
 function jointRowHTML(j) {
   var n = j.stops.length, v = j.status, nm = esc(j.stops.filter(function (st) { return st.kind !== 'pass'; }).map(function (st) { var p = st.person_id ? personById(st.person_id) : null; return p ? (p.first_name || p.last_name) : ''; }).filter(Boolean).join(' · ') || 'Course composée');
   var ok = '<button class="rnd ok' + (v === 'done' ? ' on' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'done') + '" aria-label="Course composée : fait"><i>' + I('check') + '</i></button>';
@@ -742,7 +747,7 @@ function jointCardHTML(j) {
     '<button class="btn line" style="margin-top:8px" data-a="jtsave" data-id="' + esc(j.id) + '">Enregistrer le km total et le prix</button>' : '';
   return '<article class="card jcard open" data-jid="' + esc(j.id) + '"><button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" style="text-align:left;width:100%;background:none;border:0;color:inherit;padding:0"><span class="name" style="font-size:16px;font-weight:600">Course composée</span></button>' +
     '<ol style="list-style:none;margin:0;padding:0">' + rowsH + '</ol>' +
-    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line' + (j.status === 'done' ? ' sel' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'done') + '">Fait</button><button class="btn line' + (j.status === 'not_done' ? ' sel' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (j.status === 'not_done') + '">Pas fait</button></div>' +
+    '<div style="display:flex;gap:10px;margin-top:8px">' + jointRnd(j) + '</div>' +
     kmRows + '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn line" data-a="jprice" data-id="' + esc(j.id) + '" aria-expanded="' + (!!jopen[j.id]) + '">' + priceTxt + '</button><button class="btn line" data-a="jdelc" data-id="' + esc(j.id) + '">Supprimer</button></div>' + priceBlock +
     '<button class="foldbtn" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true" aria-label="Refermer la course composée">' + I('up') + '</button></article>';
 }
