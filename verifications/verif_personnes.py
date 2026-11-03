@@ -106,9 +106,9 @@ with sync_playwright() as p:
 
     # ================= 2. fiche vide =================
     tap('[data-a="newperson"]')
-    labs = pg.evaluate("[...document.querySelectorAll('#s-fiche label')].map(l=>l.textContent.trim().replace(/\\s+/g,' '))")
+    labs = pg.evaluate("[...document.querySelectorAll('#s-fiche label')].filter(l=>!l.closest('[hidden]')).map(l=>l.textContent.trim().replace(/\\s+/g,' '))")
     ok(tag + " fiche vide : titre « Nouvelle personne », onglet Personnes allumé", cur() == "fiche" and pg.locator("#s-fiche h1").inner_text() == "Nouvelle personne" and pg.locator('.nav button.t[aria-current="page"]').inner_text().strip() == "Personnes")
-    ok(tag + " fiche : mêmes champs que la maquette, dans l'ordre", labs == ["Nom", "Prénom", "Prise en charge (et retour)", "Lieu habituel", "Autres lieux", "Nom du lieu", "Prix et km habituels (facultatif)", "Prix de la course (€)", "Km de la course", "Téléphone (facultatif)", "Quand", "Jours habituels", "Heure habituelle", "Du", "Au (facultatif)", "Heure pour toutes les dates"], labs)
+    ok(tag + " fiche : mêmes champs que la maquette, dans l'ordre", labs == ["Nom", "Prénom", "Prise en charge (et retour)", "Lieu habituel", "Autres lieux", "Prix et km habituels (facultatif)", "Prix de la course (€)", "Km de la course", "Téléphone (facultatif)", "Couple ou lien (facultatif)", "Quand", "Jours habituels", "Heure habituelle", "Du", "Au (facultatif)"], labs)
     ok(tag + " « Quand » : « Chaque semaine » choisi, « Du » = date du jour (%s), « Au » vide, lettres L M M J V S D" % TISO, pg.locator('[data-a="fmode"][data-m="sem"].sel').count() == 1 and pg.input_value("#f-du") == TISO and pg.input_value("#f-au") == "" and "".join(x.strip() for x in pg.locator("#q-sem .days button").all_inner_texts()) == "LMMJVSD")
     ok(tag + " fiche vide : pas de « Gérer cette fiche » (rien à archiver ni supprimer)", pg.locator("#s-fiche h2").count() == 0 and pg.locator('[data-a="archiveask"]').count() == 0)
     attrs = pg.evaluate("""()=>{const g=i=>document.getElementById(i);const a=(i,n)=>g(i).getAttribute(n);return {nom:a('f-nom','autocapitalize'),pre:a('f-pre','autocapitalize'),ville:a('f-ville','autocapitalize'),lieu:a('f-lieu','autocapitalize'),
@@ -443,9 +443,9 @@ with sync_playwright() as p:
     # ================= 14. les autres écrans n'ont pas bougé =================
     for t, title in [("aujourdhui", "Aujourd’hui"), ("essence", "Essence")]:
         goto(t); ok(tag + " « %s » : %s" % (title, "écran de l'étape 3 (jour, flèches)" if t == "aujourdhui" else "écran de l'étape 5 (pleins du mois)"), (pg.locator(".screen.on h1").text_content() == title and pg.locator("[data-a=day]").count() == 2) if t == "aujourdhui" else (pg.wait_for_timeout(300) or (pg.locator(".screen.on h1").text_content() == title and pg.locator("#fu-count").count() == 1)))
-    goto("bilan"); pg.wait_for_timeout(300); ok(tag + " « Bilan » : écran de l'étape 4 (Totaux / Jour par jour) et la ligne « Réglages »", pg.locator(".screen.on h1").inner_text() == "Bilan" and pg.locator('[data-a="bview"]').count() == 2 and pg.locator('[data-a="reglages"]').count() == 1)
+    goto("bilan"); pg.wait_for_timeout(300); ok(tag + " « Bilan » : écran de l'étape 4 (Totaux / Jour par jour) et la ligne « Réglages »", pg.locator(".screen.on h1").inner_text() == "Bilan" and pg.locator('[data-a="bview"]').count() == 3 and pg.locator('[data-a="reglages"]').count() == 1)
     tap('[data-a="reglages"]')
-    ok(tag + " Réglages : numéro de version = celui de version.js, structure n° 5", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == pg.locator("#rg-version").inner_text() and pg.locator("#rg-schema").inner_text() == "5")
+    ok(tag + " Réglages : numéro de version = celui de version.js, structure n° 6", pg.locator("#rg-version").inner_text() == re.search(r"APP_VERSION\s*=\s*'([^']+)'", (ROOT / "version.js").read_text(encoding="utf-8")).group(1) == pg.locator("#rg-version").inner_text() and pg.locator("#rg-schema").inner_text() == "6")
 
     # ================= 15. migration 1 → 2 =================
     mig = pg.evaluate("""async()=>{ const name='agenda-essai-v1v2';
@@ -457,8 +457,8 @@ with sync_playwright() as p:
       const out={s1,v1,s2,v2,idle:await __ag.dbGet(d,'settings','idle_sec'),asked:await __ag.dbGet(d,'meta','persist_asked'),sv:await __ag.dbGet(d,'meta','schema_version'),created:!!(await __ag.dbGet(d,'meta','created_at'))};
       const tx=d.transaction(['persons','rides']); out.persons=await new Promise(r=>{const g=tx.objectStore('persons').getAll();g.onsuccess=()=>r(g.result.length)}); out.rides=await new Promise(r=>{const g=tx.objectStore('rides').getAll();g.onsuccess=()=>r(g.result.length)});
       out.idx=[...tx.objectStore('rides').indexNames]; out.keyPath=tx.objectStore('rides').index('person_id').keyPath; out.pk=[tx.objectStore('persons').keyPath,tx.objectStore('rides').keyPath]; d.close(); await del(); return out }""")
-    ok(tag + " migration 1 → 5 sur une base d'essai : structure 1 avant (meta, settings), structure 5 après (+ persons, rides, fuel, safety)", mig["s1"] == ["meta", "settings"] and mig["v1"] == 1 and mig["s2"] == ["fuel", "meta", "persons", "rides", "safety", "settings"] and mig["v2"] == 5, mig)
-    ok(tag + " … les données de la version 1 sont gardées (réglage 600, « stockage demandé », date de création) et le numéro noté passe à 5", mig["idle"] == 600 and mig["asked"] == "2026-10-01T00:00:00Z" and mig["sv"] == 5 and mig["created"], mig)
+    ok(tag + " migration 1 → 6 sur une base d'essai : structure 1 avant (meta, settings), structure 6 après (+ persons, rides, fuel, safety, joint_rides)", mig["s1"] == ["meta", "settings"] and mig["v1"] == 1 and mig["s2"] == ["fuel", "joint_rides", "meta", "persons", "rides", "safety", "settings"] and mig["v2"] == 6, mig)
+    ok(tag + " … les données de la version 1 sont gardées (réglage 600, « stockage demandé », date de création) et le numéro noté passe à 6", mig["idle"] == 600 and mig["asked"] == "2026-10-01T00:00:00Z" and mig["sv"] == 6 and mig["created"], mig)
     ok(tag + " … les nouveaux magasins sont vides, courses indexées par date et par personne, clé = id", mig["persons"] == 0 and mig["rides"] == 0 and mig["idx"] == ["date", "person_id"] and mig["keyPath"] == "person_id" and mig["pk"] == ["id", "id"], mig)
     b.close()
 
@@ -473,7 +473,7 @@ with sync_playwright() as p:
       q.onsuccess=()=>{q.result.close();r()}})""")
     boot(pm)
     info = pm.evaluate("""new Promise(r=>{const q=indexedDB.open('agenda');q.onsuccess=()=>{const d=q.result,v=d.version,s=[...d.objectStoreNames].sort();const g=d.transaction('meta').objectStore('meta').get('schema_version');g.onsuccess=()=>{const h=d.transaction('meta').objectStore('meta').get('created_at');h.onsuccess=()=>{d.close();r({v,s,sv:g.result.value,created:h.result.value})}}}})""")
-    ok(tag + " VRAIE base de la version 0.1 (structure 1) ouverte par l'appli actuelle : passe à la structure 5, ses données restent (date de création d'origine)", info["v"] == 5 and info["s"] == ["fuel", "meta", "persons", "rides", "safety", "settings"] and info["sv"] == 5 and info["created"] == "2026-10-07T08:00:00.000Z", info)
+    ok(tag + " VRAIE base de la version 0.1 (structure 1) ouverte par l'appli actuelle : passe à la structure 6, ses données restent (date de création d'origine)", info["v"] == 6 and info["s"] == ["fuel", "joint_rides", "meta", "persons", "rides", "safety", "settings"] and info["sv"] == 6 and info["created"] == "2026-10-07T08:00:00.000Z", info)
     ok(tag + " … le réglage de masquage (1 minute) est conservé, le stockage persistant n'est PAS redemandé, aucune personne inventée", pm.evaluate("__ag.idle") == 60 and pm.evaluate("window.__pc") == 0 and pm.evaluate("__ag.people.length") == 0 and not perr, (pm.evaluate("__ag.idle"), pm.evaluate("window.__pc"), perr))
     b2.close()
 
