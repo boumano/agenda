@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.5'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.6'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -729,10 +729,11 @@ function jointRnd(j) {
   return v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko);
 }
 function jointRowHTML(j) {
-  var n = j.stops.length, v = j.status, nm = esc(j.stops.filter(function (st) { return st.kind !== 'pass'; }).map(function (st) { var p = st.person_id ? personById(st.person_id) : null; return p ? (p.first_name || p.last_name) : ''; }).filter(Boolean).join(' · ') || 'Course composée');
+  var n = j.stops.length, v = j.status, nm = esc(j.label || j.stops.filter(function (st) { return st.kind !== 'pass'; }).map(function (st) { var p = st.person_id ? personById(st.person_id) : null; return p ? (p.first_name || p.last_name) : ''; }).filter(Boolean).join(' · ') || 'Course composée');
+  var l2 = (j.time ? 'Rendez-vous ' + esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(n, 'arrêt', 'arrêts'));
   var ok = '<button class="rnd ok' + (v === 'done' ? ' on' : '') + '" data-a="jstat" data-v="done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'done') + '" aria-label="Course composée : fait"><i>' + I('check') + '</i></button>';
   var ko = '<button class="rnd ko' + (v === 'not_done' ? ' on' : '') + '" data-a="jstat" data-v="not_done" data-id="' + esc(j.id) + '" aria-pressed="' + (v === 'not_done') + '" aria-label="Course composée : pas faite"><i>' + I('x') + '</i></button>';
-  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">' + nm + '</span><span class="l2">Course composée · ' + plural(n, 'arrêt', 'arrêts') + '</span></span></button>' +
+  return '<div class="frow jrow" data-jid="' + esc(j.id) + '"><button class="fmain" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false"><span class="fl"><span class="name">' + nm + '</span><span class="l2">' + l2 + '</span></span></button>' +
     '<span class="fr">' + (v === 'done' ? ok : (v === 'not_done' ? ko : ok + ko)) + '<button class="fchev" data-a="jopen" data-id="' + esc(j.id) + '" aria-expanded="false" aria-label="Ouvrir la course composée">' + I('down') + '</button></span></div>';
 }
 /* arrêt présenté comme une adresse de course simple (bloc avec « Copier ») */
@@ -765,8 +766,11 @@ function jointCardHTML(j) {
     '<div class="field"><label for="jt-p-' + esc(j.id) + '">Prix (€)</label><input class="input" id="jt-p-' + esc(j.id) + '" value="' + esc(fmtPrice(j.price_cents)) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div>' +
     '<button class="btn line" style="margin-top:8px" data-a="jtsave" data-id="' + esc(j.id) + '">Enregistrer le km total et le prix</button>' : '';
   return '<article class="card person open jcard" data-jid="' + esc(j.id) + '">' +
-    '<button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true"><span class="name">Course composée</span></button>' +
-    '<div class="rdv">' + plural(n, 'arrêt', 'arrêts') + '</div>' +
+    '<button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true"><span class="name">' + esc(j.label || 'Course composée') + '</span></button>' +
+    '<div class="rdv">' + (j.time ? 'Rendez-vous ' + esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(n, 'arrêt', 'arrêts')) + '</div>' +
+    '<div style="grid-column:1/-1;display:grid;grid-template-columns:2fr 1fr;gap:8px;align-items:end"><div class="field"><label for="jn-' + esc(j.id) + '">Nom et prénom</label><input class="input" id="jn-' + esc(j.id) + '" value="' + esc(j.label || '') + '" placeholder="Nom Prénom" autocomplete="off" autocapitalize="words"></div>' +
+    '<div class="field"><label for="jh-' + esc(j.id) + '">Heure</label><input class="input" id="jh-' + esc(j.id) + '" value="' + esc(j.time || '') + '" placeholder="9h" inputmode="numeric" autocomplete="off"></div></div>' +
+    '<button class="btn line" style="grid-column:1/-1" data-a="jnsave" data-id="' + esc(j.id) + '">Enregistrer le nom et l’heure</button>' +
     jointPeopleHTML(j) +
     '<div class="states"><div class="pair">' + jointRnd(j) + '</div><span class="lab">' + stateWord(j.status) + '</span></div>' +
     j.stops.map(stopBlockHTML).join('') +
@@ -1874,6 +1878,14 @@ document.addEventListener('click', function (e) {
       dsh.stops.push({ kind: 'pass', person_id: null, place: pl }); dsh.mode = 'joint'; renderSheet(); break;
     case 'jdel': if (!dsh) break; jKeep(); dsh.stops.splice(+b.dataset.i, 1); renderSheet(); break;
     case 'jprice': jopen[id] = !jopen[id]; renderAuj(); break;
+    case 'jnsave': var jn = joints.filter(function (x) { return x.id === id; })[0]; if (!jn) break;
+      var nmv = document.getElementById('jn-' + id).value.trim(), hv = parseTime(document.getElementById('jh-' + id).value);
+      if (hv.err) { toast('Heure refusée : par exemple 9h ou 9:30.'); break; }
+      var nPrev = { label: jn.label, time: jn.time };
+      jn.label = nmv || null; jn.time = hv.v || null; jn.updated_at = nowIso();
+      AG.putJointRide(jn).then(function () { renderAuj(); toast('Nom et heure enregistrés.', function () { jn.label = nPrev.label; jn.time = nPrev.time; AG.putJointRide(jn).then(renderAuj); }); },
+        function () { toast('Enregistrement impossible : réessaie.'); });
+      break;
     case 'jopen': openJid = id; renderAuj(); break;
     case 'jfold': openJid = null; renderAuj(); break;
     case 'copyaddr': copyText(b.dataset.addr, function (good) { flashCopied(b, good); }); break;
