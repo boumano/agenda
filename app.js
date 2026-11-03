@@ -208,8 +208,30 @@ function linkChanges(p, newId) {
 /* ========= Lieux de la personne (autres que le lieu habituel) ========= */
 function placesListHTML() {
   if (!ctx.places.length) return '<p class="note" style="padding:0 0 6px">Aucun autre lieu pour l’instant.</p>';
-  return ctx.places.map(function (x, i) { return '<button class="plrow" data-a="fxedit" data-i="' + i + '"><span class="nm">' + esc(x.place || 'Sans nom') + '</span><span class="ad">' + esc(addrPlain(x)) + '</span></button>'; }).join('');
+  return '<select class="input" id="f-osel">' + ctx.places.map(function (x, i) {
+    return '<option value="' + i + '" data-addr="' + esc(addrPlain(x)) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
+  }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(ctx.places[0]) ? esc(addrPlain(ctx.places[0])) : 'adresse inconnue') + '</p>' +
+    '<button class="btn line full" id="f-obtn" data-a="fxedit" data-i="0">Corriger ou déménager</button>';
 }
+/* lieux déjà utilisés dans les courses de la personne (une seule fois, sans doublon avec le lieu habituel ni avec la liste) */
+function mergedPlaces(p) {
+  var out = (p.places || []).map(function (x) { return Object.assign({}, x); }), seen = {}, uk = AGR.placeKey(AGR.destOf(p));
+  seen[uk] = true; out.forEach(function (x) { seen[AGR.placeKey(x)] = true; });
+  rides.forEach(function (r) {
+    if (r.deleted_at || r.person_id !== p.id) return;
+    var d = { place: r.dest_place || '', street: r.dest_street || '', zip: r.dest_zip || '', city: r.dest_city || '' }, k = AGR.placeKey(d);
+    if (!AGR.placeLabel(d) && !d.street && !d.city) return;
+    if (seen[k]) return;
+    seen[k] = true; out.push({ id: AG.uuid(), place: d.place, street: d.street, zip: d.zip, city: d.city });
+  });
+  return out;
+}
+document.addEventListener('change', function (e) {
+  if (!e.target || e.target.id !== 'f-osel') return;
+  var o = e.target.options[e.target.selectedIndex];
+  document.getElementById('f-oaddr').textContent = o.getAttribute('data-addr') || 'adresse inconnue';
+  document.getElementById('f-obtn').setAttribute('data-i', e.target.value);
+});
 function lieuxHTML() {
   return '<div class="card"><div class="field"><label>Autres lieux</label></div><div id="f-places">' + placesListHTML() + '</div>' +
     '<button class="btn line full" data-a="fxshow" id="f-xshow">+ Ajouter un lieu</button>' +
@@ -397,7 +419,7 @@ function openFiche(id) {
   var p = null; people.forEach(function (x) { if (x.id === id) p = x; });
   if (!p) return;
   var s = p.schedule || {};
-  ctx.pid = id; ctx.person = p; ctx.places = (p.places || []).map(function (x) { return Object.assign({}, x); }); ctx.jours = (s.weekdays || []).slice(); ctx.mode = s.mode === 'dates' ? 'dat' : 'sem';
+  ctx.pid = id; ctx.person = p; ctx.places = mergedPlaces(p); ctx.jours = (s.weekdays || []).slice(); ctx.mode = s.mode === 'dates' ? 'dat' : 'sem';
   ctx.du = s.from || ''; ctx.au = s.to || ''; ctx.dates = {}; (s.dates || []).forEach(function (d) { ctx.dates[d] = true; });
   var t = today(); ctx.dm = { y: t.getFullYear(), m: t.getMonth() };
   AG.countRides(id).then(function (c) { ctx.noted = c.noted; ctx.planned = c.planned; }, function () { ctx.noted = 0; ctx.planned = 0; }).then(function () {
