@@ -220,7 +220,7 @@ with sync_playwright() as p:
     pg.fill("#f-prix", "99"); pg.fill("#f-km", "1"); pg.fill("#f-heure", "07:00")   # l'adresse ne se change plus ici : voir le déménagement ci-dessous
     for j in range(1, 8): tap('[data-a="jour"][data-j="%d"]' % j)             # on décoche tous les jours habituels
     tap('[data-a="savefiche"]')
-    goto("personnes"); tap('#plist .list-item:has-text("Alpha")'); tap('[data-a="fxedit"][data-i="h"]')
+    goto("personnes"); tap('#plist .list-item:has-text("Alpha")'); pg.select_option("#f-lsel", "h"); tap('#f-lbtn')
     pg.fill("#f-enom", "Nouveau lieu"); pg.fill("#f-erue", "5 rue Neuve"); pg.fill("#f-edate", (TODAY + timedelta(days=1)).isoformat()); tap('[data-a="fxdem"]')
     to_day(-1)
     y2 = [x for x in db_all("rides") if x["id"] == yest["id"]][0]

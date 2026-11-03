@@ -80,7 +80,7 @@ with sync_playwright() as p:
     PAST = (date.today() - timedelta(days=10)).isoformat(); FUT = J1.isoformat()
 
     # 1. faute de frappe sur le lieu habituel : corrigé partout, y compris la course passée
-    open_fiche(); tap('[data-a="fxedit"][data-i="h"]')
+    open_fiche(); pg.select_option("#f-lsel", "h"); tap('#f-lbtn')
     ok(tag + " édition du lieu habituel ouverte", pg.locator("#f-edit").is_visible())
     fill("#f-erue", "2 rue Cibles"); tap('[data-a="fxfaute"]')
     pn = person_now()
@@ -89,11 +89,11 @@ with sync_playwright() as p:
     ok(tag + " faute : la course à venir aussi", ride_now(FUT)["dest_street"] == "2 rue Cibles", ride_now(FUT))
 
     # 2. une adresse modifiée directement dans les champs est refusée (il faut passer par « Lieux »)
-    ok(tag + " adresse en lecture seule : pas de champ modifiable, bouton « Corriger ou déménager »", pg.locator("#f-rue").count() == 1 and not pg.locator("#f-rue").is_visible() and pg.locator('[data-a="fxedit"][data-i="d"]').is_visible())
+    ok(tag + " adresse en lecture seule : pas de champ modifiable, bouton « Corriger ou déménager »", pg.locator("#f-rue").count() == 1 and not pg.locator("#f-rue").is_visible() and pg.locator('#f-lbtn').is_visible())
     pg.reload(); pg.wait_for_function("window.__ag && window.__ag.ready"); pg.evaluate("window.__ag.ready"); w()
 
     # 3. déménagement du domicile à partir d'une date : l'ancienne adresse reste pour les jours d'avant
-    D = J2.isoformat(); open_fiche(); tap('[data-a="fxedit"][data-i="d"]')
+    D = J2.isoformat(); open_fiche(); pg.select_option("#f-lsel", "d"); tap('#f-lbtn')
     fill("#f-erue", "8 avenue Nouvelle"); fill("#f-ecp", "6666"); fill("#f-eville", "Nouvilla"); fill("#f-edate", D)
     tap('[data-a="fxdem"]')
     pn = person_now()
@@ -103,7 +103,7 @@ with sync_playwright() as p:
     ok(tag + " la veille du déménagement : ancienne adresse ; le jour même : nouvelle", eff == ["1 rue Depart", "8 avenue Nouvelle"], eff)
 
     # 4. déménagement du lieu habituel : les courses d'avant gardent l'ancienne adresse
-    D2 = J3.isoformat(); open_fiche(); tap('[data-a="fxedit"][data-i="h"]')
+    D2 = J3.isoformat(); open_fiche(); pg.select_option("#f-lsel", "h"); tap('#f-lbtn')
     fill("#f-erue", "3 rue Neuve"); fill("#f-edate", D2); tap('[data-a="fxdem"]')
     pn = person_now()
     ok(tag + " déménagement lieu habituel : historique enregistré", len(pn.get("dest_moves", [])) == 1 and pn["dest_moves"][0]["old"]["street"] == "2 rue Cibles", pn.get("dest_moves"))
@@ -112,7 +112,7 @@ with sync_playwright() as p:
     ok(tag + " habituel : avant la date ancienne adresse, à partir de la date nouvelle", eff == ["2 rue Cibles", "3 rue Neuve"], eff)
 
     # 5. pas de déménagement sans date
-    open_fiche(); tap('[data-a="fxedit"][data-i="h"]'); fill("#f-erue", "4 rue Sans"); fill("#f-edate", ""); tap('[data-a="fxdem"]')
+    open_fiche(); pg.select_option("#f-lsel", "h"); tap('#f-lbtn'); fill("#f-erue", "4 rue Sans"); fill("#f-edate", ""); tap('[data-a="fxdem"]')
     ok(tag + " déménagement sans date refusé", "date du déménagement" in pg.locator("#f-e-err").inner_text(), pg.locator("#f-e-err").inner_text())
     tap('[data-a="fxecancel"]')
 
