@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.8'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.9'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -823,7 +823,8 @@ function jointCardHTML(j) {
     '<div class="rdv">' + (j.time ? 'Rendez-vous ' + esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(n, 'arrêt', 'arrêts')) + '</div>' +
     '<div style="grid-column:1/-1;display:grid;grid-template-columns:2fr 1fr;gap:8px;align-items:end"><div class="field"><label for="jn-' + esc(j.id) + '">Nom et prénom</label><input class="input" id="jn-' + esc(j.id) + '" value="' + esc(j.label || '') + '" placeholder="Nom Prénom" autocomplete="off" autocapitalize="words"></div>' +
     '<div class="field"><label for="jh-' + esc(j.id) + '">Heure</label><input class="input" id="jh-' + esc(j.id) + '" value="' + esc(j.time || '') + '" placeholder="9h" inputmode="numeric" autocomplete="off"></div></div>' +
-    '<button class="btn line" style="grid-column:1/-1" data-a="jnsave" data-id="' + esc(j.id) + '">Enregistrer le nom et l’heure</button>' +
+    '<div class="field" style="grid-column:1/-1"><label for="jl-' + esc(j.id) + '">Lieu de la course (facultatif)</label><input class="input" id="jl-' + esc(j.id) + '" value="' + esc(j.place || '') + '" placeholder="ex. Centre de Clerfontaine" autocomplete="off" autocapitalize="words"></div>' +
+    '<button class="btn line" style="grid-column:1/-1" data-a="jnsave" data-id="' + esc(j.id) + '">Enregistrer le nom, le lieu et l’heure</button>' +
     jointPeopleHTML(j) +
     '<div class="states"><div class="pair">' + jointRnd(j) + '</div><span class="lab">' + stateWord(j.status) + '</span></div>' +
     j.stops.map(stopBlockHTML).join('') +
@@ -930,6 +931,7 @@ function jointSheetHTML() {
   }).join('') : '<p class="note" style="padding:0">Aucun arrêt pour l’instant.</p>';
   return '<p class="t" id="ds-title">Course composée</p><p class="note" style="padding:0">' + esc(title) + '</p>' +
     '<div class="card" style="padding:4px 12px">' + rowsH + '</div>' +
+    '<div class="field"><label for="j-lieu">Lieu de la course (facultatif)</label><input class="input" id="j-lieu" value="' + esc(dsh.place || '') + '" placeholder="ex. Centre de Clerfontaine" autocomplete="off" autocapitalize="words"></div>' +
     '<div class="field"><label for="j-prix">Prix de la course (€)</label><input class="input" id="j-prix" value="' + esc(dsh.price || '') + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div>' +
     '<div class="warnbox" id="j-err" role="alert" hidden></div>' +
     '<button class="btn line full" data-a="jpick" data-k="pick">Ajouter une prise en charge</button>' +
@@ -944,7 +946,7 @@ function jPlaceOf(p, where) {
   return Object.assign({ name: 'Domicile de ' + (p.first_name || p.last_name) }, AGR.pickOf(p));
 }
 /* garde ce qui est tapé dans le prix avant de changer de fenêtre */
-function jKeep() { var el = document.getElementById('j-prix'); if (el) dsh.price = el.value; }
+function jKeep() { var el = document.getElementById('j-prix'); if (el) dsh.price = el.value; var pl = document.getElementById('j-lieu'); if (pl) dsh.place = pl.value; }
 
 /* le lieu de la course dans la fenêtre du jour (jamais vide : « lieu inconnu ») ; si ce n'est pas le lieu habituel, on le dit et on rappelle l'habituel */
 function dayPlaceHTML(p, it) {
@@ -1099,8 +1101,27 @@ function bilanControls() {
   return '<div class="toggle" role="group" aria-label="Vue du Bilan" style="grid-template-columns:1fr 1fr 1fr"><button data-a="bview" data-v="tot" class="' + (bil.view === 'tot' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'tot') + '">Totaux</button><button data-a="bview" data-v="sem" class="' + (bil.view === 'sem' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'sem') + '">Par semaine</button><button data-a="bview" data-v="jj" class="' + (bil.view === 'jj' ? 'on' : '') + '" aria-pressed="' + (bil.view === 'jj') + '">Jour par jour</button></div>' +
     '<div class="period"><button class="chev" data-a="bmonth" data-d="-1" aria-label="Mois précédent">' + I('left') + '</button><div class="lbl" id="bil-month">' + esc(cap(fmtMonth.format(ref))) + '</div><button class="chev" data-a="bmonth" data-d="1" aria-label="Mois suivant">' + I('right') + '</button></div>';
 }
+/* « Par personne » : les courses simples + les courses composées faites, rattachées à chaque personne présente dans leurs arrêts.
+   Le total du mois, lui, compte une course composée une seule fois (un couple apparaît donc sous les deux noms). */
+function personsWithJoints(rs, js) {
+  var by = {};
+  AGR.totals(people, rs).persons.forEach(function (q) { by[q.p.id] = q; });
+  (js || []).forEach(function (j) {
+    if (j.deleted_at || j.status !== 'done') return;
+    var ids = {}; (j.stops || []).forEach(function (st) { if (st.person_id) ids[st.person_id] = true; });
+    var one = AGR.jointTotals([j]);
+    Object.keys(ids).forEach(function (pid) {
+      var p = personById(pid); if (!p) return;
+      var q = by[pid] || (by[pid] = { p: p, count: 0, cents: 0, noPrice: 0, meters: 0, noKm: 0 });
+      q.count += one.count; q.cents += one.cents; q.noPrice += one.noPrice; q.meters += one.meters; q.noKm += one.noKm;
+    });
+  });
+  return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) {
+    var x = norm(a.p.last_name + ' ' + a.p.first_name), y = norm(b.p.last_name + ' ' + b.p.first_name); return x < y ? -1 : (x > y ? 1 : 0);
+  });
+}
 function bilanTotauxHTML(rs) {
-  var T = AGR.totals(people, rs), mb = monthBounds(bil.ref.getFullYear(), bil.ref.getMonth()), t = AGR.addTotals(T.total, AGR.jointTotals(jointsInRange(mb[0], mb[1]))), h;
+  var mb = monthBounds(bil.ref.getFullYear(), bil.ref.getMonth()), T = { total: AGR.totals(people, rs).total, persons: personsWithJoints(rs, jointsInRange(mb[0], mb[1])) }, t = AGR.addTotals(T.total, AGR.jointTotals(jointsInRange(mb[0], mb[1]))), h;
   var eur = bil.reveal ? totalTxt(t.cents, t.noPrice, t.count, fmtEuros) : '•••• €';
   var eurNote = t.noPrice > 0 ? '+ ' + coursesSans(t.noPrice, 'prix') + ' (total partiel)' : 'total du mois';
   var kmv = totalTxt(t.meters, t.noKm, t.count, function (m) { return fmtKm2(m) + ' km'; });
@@ -1186,8 +1207,8 @@ function bilanSemHTML(rs, wk, y, m) {
     if (open) {
       var jrows = jday.map(function (j) {
         var amtJ = j.price_cents == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(j.price_cents) : '•••• €');
-        return '<div class="wk-ride"><span class="wk-nopl" aria-hidden="true"></span><div class="txt"><div class="t1">' + esc(jointDisplayName(j)) + '</div>' +
-          '<div class="t2">' + (j.time ? esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(j.stops.length, 'arrêt', 'arrêts')) + ' · ' + esc(amtJ) + '</div></div></div>';
+        return '<div class="wk-ride"><span class="wk-nopl" aria-hidden="true"></span><div class="txt"><div class="t1">' + (j.time ? esc(fmtH(j.time)) + ' · ' : '') + esc(j.place || 'Course composée') + '</div>' +
+          '<div class="t2">' + esc(jointDisplayName(j)) + ' · composée · ' + esc(amtJ) + '</div></div></div>';
       }).join('');
       h += '<div class="wk-rides">' + (items.length ? items.map(function (it) {
         var op = it.r ? AGR.otherPlace(pinfoOf(it.p), it.r) : null;
@@ -1933,9 +1954,9 @@ document.addEventListener('click', function (e) {
     case 'jnsave': var jn = joints.filter(function (x) { return x.id === id; })[0]; if (!jn) break;
       var nmv = document.getElementById('jn-' + id).value.trim(), hv = parseTime(document.getElementById('jh-' + id).value);
       if (hv.err) { toast('Heure refusée : par exemple 9h ou 9:30.'); break; }
-      var nPrev = { label: jn.label, time: jn.time };
-      jn.label = nmv || null; jn.time = hv.v || null; jn.updated_at = nowIso();
-      AG.putJointRide(jn).then(function () { renderAuj(); toast('Nom et heure enregistrés.', function () { jn.label = nPrev.label; jn.time = nPrev.time; AG.putJointRide(jn).then(renderAuj); }); },
+      var nPrev = { label: jn.label, time: jn.time, place: jn.place };
+      jn.label = nmv || null; jn.time = hv.v || null; jn.place = (document.getElementById('jl-' + id).value || '').trim() || null; jn.updated_at = nowIso();
+      AG.putJointRide(jn).then(function () { renderAuj(); toast('Nom, lieu et heure enregistrés.', function () { jn.label = nPrev.label; jn.time = nPrev.time; jn.place = nPrev.place; AG.putJointRide(jn).then(renderAuj); }); },
         function () { toast('Enregistrement impossible : réessaie.'); });
       break;
     case 'jopen': openJid = id; renderAuj(); break;
@@ -1968,7 +1989,7 @@ document.addEventListener('click', function (e) {
     case 'jsave': if (!dsh) break; jKeep();
       var jerr = document.getElementById('j-err'), jpr = parseDecimal(dsh.price, 2), jcents = jpr.err ? null : (jpr.v == null ? null : Math.round(jpr.v * 100));
       if (jpr.err) { jerr.textContent = 'Prix refusé : un nombre en euros, sans 0.'; jerr.hidden = false; break; }
-      var jnew = AGR.newJoint(dsh.iso, dsh.stops, jcents, null), jmsg = AGR.checkJoint(jnew);
+      var jnew = AGR.newJoint(dsh.iso, dsh.stops, jcents, null), jmsg = AGR.checkJoint(jnew); jnew.place = (dsh.place || '').trim() || null;
       if (jmsg) { jerr.textContent = jmsg; jerr.hidden = false; break; }
       AG.putJointRide(jnew).then(function () { joints.push(jnew); sheetClose(); renderAuj(); toast('Course composée enregistrée.'); },
         function () { jerr.textContent = 'Enregistrement impossible : réessaie.'; jerr.hidden = false; });
