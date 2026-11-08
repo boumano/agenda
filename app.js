@@ -821,7 +821,8 @@ function jointCardHTML(j) {
   return '<article class="card person open jcard" data-jid="' + esc(j.id) + '">' +
     '<button class="who" data-a="jfold" data-id="' + esc(j.id) + '" aria-expanded="true"><span class="name">' + esc(j.label || 'Course composée') + '</span></button>' +
     '<div class="rdv">' + (j.time ? 'Rendez-vous ' + esc(fmtH(j.time)) + ' · ' : '') + 'Course composée · ' + esc(plural(n, 'arrêt', 'arrêts')) + '</div>' +
-    '<div style="grid-column:1/-1;display:grid;grid-template-columns:2fr 1fr;gap:8px;align-items:end"><div class="field"><label for="jn-' + esc(j.id) + '">Nom et prénom</label><input class="input" id="jn-' + esc(j.id) + '" value="' + esc(j.label || '') + '" placeholder="Nom Prénom" autocomplete="off" autocapitalize="words"></div>' +
+    '<div style="grid-column:1/-1;display:grid;grid-template-columns:2fr 1fr;gap:8px;align-items:end"><div class="field"><label for="jn-' + esc(j.id) + '">Nom et prénom</label><input class="input" id="jn-' + esc(j.id) + '" list="dl-persons" value="' + esc(j.label || '') + '" placeholder="Nom Prénom" autocomplete="off" autocapitalize="words"><datalist id="dl-persons">' + activePeople().map(function (p) { return '<option value="' + esc(fullName(p)) + '">'; }).join('') + '</datalist>' +
+    (j.label && !personByLabel(j.label) ? '<p class="note" style="padding:4px 0 0">Aucune personne enregistrée ne porte ce nom : la course n’est pas comptée sous une personne dans « Par personne ».</p>' : (!j.label ? '<p class="note" style="padding:4px 0 0">Écris le nom d’une personne enregistrée pour la compter dans « Par personne ».</p>' : '')) + '</div>' +
     '<div class="field"><label for="jh-' + esc(j.id) + '">Heure</label><input class="input" id="jh-' + esc(j.id) + '" value="' + esc(j.time || '') + '" placeholder="9h" inputmode="numeric" autocomplete="off"></div></div>' +
     '<div class="field" style="grid-column:1/-1"><label for="jl-' + esc(j.id) + '">Lieu de la course (facultatif)</label><input class="input" id="jl-' + esc(j.id) + '" value="' + esc(j.place || '') + '" placeholder="ex. Centre de Clerfontaine" autocomplete="off" autocapitalize="words"></div>' +
     '<button class="btn line" style="grid-column:1/-1" data-a="jnsave" data-id="' + esc(j.id) + '">Enregistrer le nom, le lieu et l’heure</button>' +
@@ -1103,12 +1104,22 @@ function bilanControls() {
 }
 /* « Par personne » : les courses simples + les courses composées faites, rattachées à chaque personne présente dans leurs arrêts.
    Le total du mois, lui, compte une course composée une seule fois (un couple apparaît donc sous les deux noms). */
+function nameKey(s) { return norm(String(s || '')).replace(/[^a-z]+/g, ' ').trim(); }
+/* personne enregistrée dont le nom (nom prénom ou prénom nom) correspond au nom écrit dans la course composée */
+function personByLabel(label) {
+  var k = nameKey(label); if (!k) return null;
+  for (var i = 0; i < people.length; i++) {
+    var p = people[i];
+    if (nameKey(p.last_name + ' ' + p.first_name) === k || nameKey(p.first_name + ' ' + p.last_name) === k) return p;
+  }
+  return null;
+}
 function personsWithJoints(rs, js) {
   var by = {};
   AGR.totals(people, rs).persons.forEach(function (q) { by[q.p.id] = q; });
   (js || []).forEach(function (j) {
     if (j.deleted_at || j.status !== 'done') return;
-    var ids = {}; (j.stops || []).forEach(function (st) { if (st.person_id) ids[st.person_id] = true; });
+    var mp = personByLabel(j.label), ids = {}; if (mp) ids[mp.id] = true;      /* créditée à la personne dont le nom est écrit dans la course */
     var one = AGR.jointTotals([j]);
     Object.keys(ids).forEach(function (pid) {
       var p = personById(pid); if (!p) return;
