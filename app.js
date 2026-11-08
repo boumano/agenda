@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.9'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.10'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -583,8 +583,23 @@ function setArchived(p, flag) {
   var q = Object.assign({}, p, { archived: flag, archived_at: flag ? nowDate().toISOString() : null, updated_at: nowDate().toISOString() });
   return AG.putPerson(q).then(function () { people[people.indexOf(p)] = q; return q; });
 }
+/* course composée : demander avant de supprimer ; restaurable ensuite (« Supprimées » sous la journée) */
+function openJointConfirm(id) {
+  confirmCtx = { kind: 'joint', id: id };
+  $('#confirm-title').textContent = 'Supprimer cette course composée ?';
+  $('#confirm-text').textContent = 'Elle disparaît de la journée et du Bilan. Tu pourras la restaurer depuis « Supprimées » sous la journée.';
+  $('#confirm-ok').textContent = 'Supprimer'; $('#confirm-cancel').textContent = 'Garder';
+  $('#confirm').classList.add('on');
+}
+function jointSetDeleted(id, del) {
+  var j = joints.filter(function (x) { return x.id === id; })[0]; if (!j) return;
+  j.deleted_at = del ? nowIso() : null; j.updated_at = nowIso();
+  AG.putJointRide(j).then(function () { renderAuj(); toast(del ? 'Course composée supprimée' : 'Course composée restaurée'); },
+    function () { toast('Enregistrement impossible : réessaie'); });
+}
 function confirmOk() {
   var cc = confirmCtx; closeConfirm(); if (!cc) return;
+  if (cc.kind === 'joint') { jointSetDeleted(cc.id, true); return; }
   if (cc.kind === 'restore') { bkDoRestore(); return; }
   if (cc.kind === 'undorestore') { bkDoUndo(); return; }
   if (cc.kind === 'fuel') { fuelDelete(cc.id); return; }
@@ -851,7 +866,12 @@ function renderAuj() {
   list.forEach(function (it) { body += it.key !== openKey ? rowHTML(it) : openCardHTML(it); });
   if (openJid !== null && !jointsOfDay(is).some(function (x) { return x.id === openJid; })) openJid = null;
   jointsOfDay(is).forEach(function (j) { body += j.id !== openJid ? jointRowHTML(j) : jointCardHTML(j); });
-  body += '<button class="btn line full" data-a="aadd">Ajouter une course</button><button class="btn line full" data-a="jadd">Ajouter une course composée</button></div>';
+  var jdel = joints.filter(function (x) { return x.date === is && x.deleted_at; });
+  body += '<button class="btn line full" data-a="aadd">Ajouter une course</button><button class="btn line full" data-a="jadd">Ajouter une course composée</button>';
+  if (jdel.length) body += '<h2>Supprimées</h2><div class="card" style="padding-top:2px;padding-bottom:2px">' + jdel.map(function (j) {
+    return '<div class="list-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="name">' + esc(j.label || 'Course composée') + '<small>' + (j.time ? esc(fmtH(j.time)) + ' · ' : '') + esc(plural(j.stops.length, 'arrêt', 'arrêts')) + '</small></span><button class="btn line" data-a="jrestore" data-id="' + esc(j.id) + '">Restaurer</button></div>';
+  }).join('') + '</div>';
+  body += '</div>';
   mount('s-aujourdhui', h + body);
 }
 function setStatus(key, v) {
@@ -2005,11 +2025,8 @@ document.addEventListener('click', function (e) {
       AG.putJointRide(jnew).then(function () { joints.push(jnew); sheetClose(); renderAuj(); toast('Course composée enregistrée.'); },
         function () { jerr.textContent = 'Enregistrement impossible : réessaie.'; jerr.hidden = false; });
       break;
-    case 'jdelc': var jd = joints.filter(function (x) { return x.id === id; })[0]; if (!jd) break;
-      jd.deleted_at = nowIso(); jd.updated_at = jd.deleted_at;
-      AG.putJointRide(jd).then(function () { renderAuj(); toast('Course composée supprimée.', function () {
-        jd.deleted_at = null; jd.updated_at = nowIso(); AG.putJointRide(jd).then(renderAuj); }); });
-      break;
+    case 'jdelc': openJointConfirm(id); break;
+    case 'jrestore': jointSetDeleted(id, false); break;
     case 'calfiche': if (ficheDirty()) { openConfirm('leave', null, { cal: id }); break; } openCalendar(id, 'fiche'); break;
     case 'bperson': openCalendar(b.dataset.pid, 'bilan', bil.ref.getFullYear(), bil.ref.getMonth()); break;       /* depuis « Par personne » : directement sur le mois du Bilan */
     case 'calreveal': ctx.calReveal = !ctx.calReveal; renderCal(); break;
