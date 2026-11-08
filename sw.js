@@ -1,4 +1,4 @@
-// ag-version 0.9.7
+// ag-version 0.9.8
 /* Service worker d'Agenda : garde les fichiers de l'appli sur le téléphone pour qu'elle s'ouvre sans internet.
    Il ne touche jamais aux données (elles sont dans IndexedDB). Il ne remplace JAMAIS une version tout seul :
    la nouvelle version attend (« waiting ») jusqu'à ce que Pascal touche « Mettre à jour ».

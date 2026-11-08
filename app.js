@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.7'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.8'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -208,13 +208,62 @@ function linkChanges(p, newId) {
 
 /* ========= Lieux de la personne (autres que le lieu habituel) ========= */
 function placesListHTML() {
-  var p = ctx.person, hab = p ? AGR.destOf(p) : null, all = (hab && (hab.place || hab.street || hab.city) ? [hab] : []).concat(ctx.places);
+  var p = ctx.person, hab = p ? AGR.destOf(p) : null, habOk = !!(hab && (hab.place || hab.street || hab.city));
+  var all = (habOk ? [hab] : []).concat(ctx.places), idx = function (k) { return habOk ? k - 1 : k; };   /* index dans ctx.places (-1 = lieu habituel) */
   if (!all.length) return '<p class="note" style="padding:0 0 6px">Aucun autre lieu pour l’instant.</p>';
-  return '<select class="input" id="f-osel">' + all.map(function (x) {
-    return '<option data-addr="' + esc(addrPlain(x)) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
+  return '<select class="input" id="f-osel">' + all.map(function (x, k) {
+    return '<option data-addr="' + esc(addrPlain(x)) + '" data-i="' + idx(k) + '">' + esc(AGR.placeLabel(x) || 'Sans nom') + '</option>';
   }).join('') + '</select><p class="note" id="f-oaddr" style="padding:6px 0 0">' + (addrPlain(all[0]) ? esc(addrPlain(all[0])) : 'adresse inconnue') + '</p>' +
-    '<div id="f-ocopywrap">' + (addrPlain(all[0]) ? copyBtn(addrPlain(all[0])) : '') + '</div>';
+    '<div id="f-ocopywrap">' + (addrPlain(all[0]) ? copyBtn(addrPlain(all[0])) : '') + '</div>' +
+    '<div id="f-oact">' + placeActHTML(habOk ? -1 : 0) + '</div>';
 }
+/* boutons pour un autre lieu (pas pour le lieu habituel, qui a ses propres boutons) */
+function placeActHTML(i) {
+  if (i < 0 || !ctx.places[i]) return '';
+  return (ctx.person ? '<button class="btn line full" data-a="fxedit" data-i="' + i + '">Corriger ou déménager</button>' : '') +
+    '<button class="btn line full" data-a="fxremove" data-i="' + i + '">Retirer ce lieu de la liste</button>';
+}
+/* retire un autre lieu de la liste de la fiche ; refusé s'il est encore utilisé par une course */
+function fxRemove(i) {
+  var x = ctx.places[i]; if (!x) return;
+  var k = AGR.placeKey(x);
+  var used = rides.filter(function (r) {
+    return !r.deleted_at && ctx.person && r.person_id === ctx.person.id &&
+      AGR.placeKey({ place: r.dest_place, street: r.dest_street, zip: r.dest_zip, city: r.dest_city }) === k;
+  }).length;
+  if (used) { toast(plural(used, 'course utilise', 'courses utilisent') + ' ce lieu : impossible de le retirer'); return; }
+  ctx.places.splice(i, 1);
+  var ed = document.getElementById('f-edit'); if (ed && !ed.hidden) fxECancel();
+  document.getElementById('f-places').innerHTML = placesListHTML();
+  toast('Lieu retiré de la liste : enregistre la fiche pour le garder');
+}
+/* fiche d'une nouvelle personne : adresses déjà enregistrées (autres personnes et courses), sans doublon */
+function knownPlacesList() {
+  var out = [], seen = {};
+  function add(d) {
+    d = { place: d.place || '', street: d.street || '', zip: d.zip || '', city: d.city || '' };
+    if (!d.place && !d.street && !d.city) return;
+    var k = AGR.placeKey(d); if (seen[k]) return; seen[k] = true; out.push(d);
+  }
+  people.forEach(function (p) { add(AGR.destOf(p)); (p.places || []).forEach(add); });
+  rides.forEach(function (r) { if (!r.deleted_at) add({ place: r.dest_place, street: r.dest_street, zip: r.dest_zip, city: r.dest_city }); });
+  return out.sort(function (a, b) { return norm(AGR.placeLabel(a) || a.street).localeCompare(norm(AGR.placeLabel(b) || b.street)); });
+}
+function knownPickHTML() {
+  var list = knownPlacesList();
+  if (!list.length) return '';
+  return '<select class="input" id="f-lpick" aria-label="Choisir un lieu déjà enregistré"><option value="">Choisir un lieu déjà enregistré…</option>' + list.map(function (x, i) {
+    return '<option value="' + i + '">' + esc((AGR.placeLabel(x) || 'Sans nom') + (addrPlain(x) ? ' — ' + addrPlain(x) : '')) + '</option>';
+  }).join('') + '</select>';
+}
+document.addEventListener('change', function (e) {
+  if (!e.target || e.target.id !== 'f-lpick') return;
+  var sel = e.target, x = sel.value === '' ? null : knownPlacesList()[+sel.value];
+  sel.value = '';
+  if (!x) return;
+  document.getElementById('f-lieu').value = x.place; document.getElementById('f-lrue').value = x.street;
+  document.getElementById('f-lcp').value = x.zip; document.getElementById('f-lville').value = x.city;
+});
 /* lieux déjà utilisés dans les courses de la personne (une seule fois, sans doublon avec le lieu habituel ni avec la liste) */
 function mergedPlaces(p) {
   var out = (p.places || []).map(function (x) { return Object.assign({}, x); }), seen = {}, uk = AGR.placeKey(AGR.destOf(p));
@@ -234,6 +283,7 @@ document.addEventListener('change', function (e) {
   var oa = o.getAttribute('data-addr') || '';
   document.getElementById('f-oaddr').textContent = oa || 'adresse inconnue';
   document.getElementById('f-ocopywrap').innerHTML = oa ? copyBtn(oa) : '';
+  document.getElementById('f-oact').innerHTML = placeActHTML(+o.getAttribute('data-i'));
 });
 function lieuxHTML() {
   return '<div class="card"><div class="field"><label>Autres lieux</label></div><div id="f-places">' + placesListHTML() + '</div>' +
@@ -394,7 +444,7 @@ function renderFiche() {
   var h = backBar(p ? nameHTML(p) : 'Nouvelle personne') + '<div class="content">' +
     '<div class="card"><div class="field"><label for="f-nom">Nom</label><input class="input" id="f-nom" value="' + esc(d.nom) + '" autocomplete="off" autocapitalize="words"><label for="f-pre" style="margin-top:4px">Prénom</label><input class="input" id="f-pre" value="' + esc(d.pre) + '" autocomplete="off" autocapitalize="words">' + (p ? '' : '<div class="warnbox" id="dup-warn" role="status" hidden></div>') + '</div></div>' +
     (p ? roAddrCard('Domicile (prise en charge)', addrPlain(AGR.pickOf(p)), 'd') + '<div hidden>' : '<div class="card"><div class="field"><label for="f-rue">Prise en charge (et retour)</label>') + '<input class="input" id="f-rue" value="' + esc(d.rue) + '" placeholder="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-cp" value="' + esc(d.cp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-ville" value="' + esc(d.ville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
-    (p ? roAddrCard('Lieu habituel' + (AGR.placeLabel(AGR.destOf(p)) ? ' : ' + AGR.placeLabel(AGR.destOf(p)) : ''), addrPlain(AGR.destOf(p)), 'h') + '<div hidden>' : '<div class="card"><div class="field"><label for="f-lieu">Lieu habituel</label>') + '<input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
+    (p ? roAddrCard('Lieu habituel' + (AGR.placeLabel(AGR.destOf(p)) ? ' : ' + AGR.placeLabel(AGR.destOf(p)) : ''), addrPlain(AGR.destOf(p)), 'h') + '<div hidden>' : '<div class="card"><div class="field"><label for="f-lieu">Lieu habituel</label>') + (p ? '' : knownPickHTML()) + '<input class="input" id="f-lieu" value="' + esc(d.lieu) + '" placeholder="Nom du lieu" autocomplete="off" autocapitalize="words"><input class="input" id="f-lrue" value="' + esc(d.lrue) + '" placeholder="Rue et numéro" aria-label="Rue et numéro" autocomplete="off"><div class="zip-city"><input class="input" id="f-lcp" value="' + esc(d.lcp) + '" placeholder="Code postal" inputmode="numeric" pattern="[0-9]*" maxlength="5" aria-label="Code postal" autocomplete="off"><input class="input" id="f-lville" value="' + esc(d.lville) + '" placeholder="Ville" aria-label="Ville" autocomplete="off" autocapitalize="words"></div>' + (p ? '</div>' : '</div></div>') +
     lieuxHTML() + '<div class="card"><div class="field"><label>Prix et km habituels (facultatif)</label></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field"><label for="f-prix">Prix de la course (€)</label><input class="input" id="f-prix" value="' + esc(d.prix) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div><div class="field"><label for="f-km">Km de la course</label><input class="input" id="f-km" value="' + esc(d.km) + '" placeholder="inconnu" inputmode="decimal" autocomplete="off"></div></div><div class="warnbox" id="f-pk-err" role="alert" hidden></div><p class="note" style="padding:6px 0 0">Repris sur les nouvelles courses créées. Les courses déjà créées ne changent pas.</p></div>' +
     '<div class="card"><div class="field"><label for="f-tel">Téléphone (facultatif)</label><div class="call-row"><input class="input" id="f-tel" type="tel" inputmode="tel" value="' + esc(d.tel) + '" placeholder="inconnu" autocomplete="off"><a class="btn soft" id="f-call" data-a="callfiche"' + (d.tel ? ' href="' + esc(telHref(d.tel)) + '"' : '') + '>' + I('phone') + 'Appeler</a></div></div></div>' +
     '<div class="card"><div class="field"><label for="f-lie">Couple ou lien (facultatif)</label><select class="input" id="f-lie">' + linkOptions(p) + '</select><p class="note" style="padding:6px 0 0">Pour les courses composées : une personne liée est proposée avec elle.</p></div></div>' +
@@ -1842,6 +1892,7 @@ document.addEventListener('click', function (e) {
     case 'fxadd': fxAdd(); break;
     case 'fxcancel': fxCancel(); break;
     case 'fxedit': fxEdit(b.dataset.i); break;
+    case 'fxremove': fxRemove(+b.dataset.i); break;
     case 'fxfaute': fxApply('faute'); break;
     case 'fxdem': fxApply('dem'); break;
     case 'fxecancel': fxECancel(); break;
