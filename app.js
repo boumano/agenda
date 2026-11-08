@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.10'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.11'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -1174,19 +1174,28 @@ function bilanTotauxHTML(rs) {
 }
 function bilanJourHTML(rs, y, m) {
   var O = AGR.overview(people, rs, y, m, todayISO()), T = todayISO();
+  var mbJ = monthBounds(y, m), J = jointsInRange(mbJ[0], mbJ[1]), byDay = {};
+  O.days.forEach(function (d) { byDay[d.iso] = d; });
+  J.forEach(function (j) { if (!byDay[j.date]) byDay[j.date] = { iso: j.date, items: [], noted: false }; });   /* jour où il n'y a que des courses composées */
+  var allDays = Object.keys(byDay).sort().map(function (k) { return byDay[k]; });
   var h = '<p class="jjsum" id="jj-sum">' + plural(O.noNote, 'jour', 'jours') + ' sans note</p><div class="card jjcard" style="padding-top:2px;padding-bottom:2px" id="jj-list">';
-  if (!O.days.length) h += '<div class="empty">Rien à afficher ce mois-ci.</div>';
+  if (!allDays.length) h += '<div class="empty">Rien à afficher ce mois-ci.</div>';
   var jjP = {};   /* lettres de lieu par personne, comme au calendrier (calculées une fois par affichage) */
   function jjPinfo(p) { return jjP[p.id] || (jjP[p.id] = AGR.placeInfo(p, rides)); }
-  O.days.forEach(function (d) {
+  allDays.forEach(function (d) {
     var dt = parseISO(d.iso);
-    /* la date une seule fois, puis UNE LIGNE PAR PERSONNE : nom complet (même présentation que « Par personne »), « oui » / « non » / « pas noté » / « à faire » à droite */
+    /* la date une seule fois, puis UNE LIGNE PAR PERSONNE (et une ligne par course composée) : « oui » / « non » / « pas noté » / « à faire » à droite */
+    var rowsJ = J.filter(function (j) { return j.date === d.iso; }).map(function (j) {
+      var mp = personByLabel(j.label), st = j.status === 'done' ? 't' : (j.status === 'not_done' ? 'p' : 'n'), word = st === 't' ? 'oui' : (st === 'p' ? 'non' : (d.iso === T ? 'à faire' : 'pas noté'));
+      var who = mp ? nameHTML(mp) : esc(j.label || 'Course composée');
+      return '<span class="jjp ' + st + '"><span class="name">' + who + '<small> · composée</small></span><span class="jjr"><span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span></span>';
+    }).join('');
     h += '<button class="jjrow" data-a="bday" data-iso="' + d.iso + '" aria-label="Ouvrir le ' + esc(fmtDay.format(dt)) + ' dans Aujourd’hui"><span class="jjday">' + JJ[dt.getDay()] + ' ' + dt.getDate() + '</span><span class="jjppl">' +
       d.items.map(function (it) {
         var st = it.status === 'done' ? 't' : (it.status === 'not_done' ? 'p' : 'n'), word = st === 't' ? 'oui' : (st === 'p' ? 'non' : (d.iso === T ? 'à faire' : 'pas noté'));
         var opj = it.r ? AGR.otherPlace(jjPinfo(it.p), it.r) : null;
         return '<span class="jjp ' + st + '"><span class="name">' + nameHTML(it.p) + (opj ? '<i class="pl c' + opj.color + ' jjpl" aria-label="Lieu hors habituel ' + esc(opj.letter) + '">' + opj.letter + '</i>' : '') + '</span><span class="jjr"><span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span></span>';
-      }).join('') + '</span></button>';
+      }).join('') + rowsJ + '</span></button>';
   });
   return h + '</div>';
 }
