@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.9.11'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['rides.js']='0.9.12'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : la logique des courses (sans écran, sans stockage). Aucune donnée dans ce fichier.
    Règles (plan, section 3) :
    - une « carte prévue » est CALCULÉE à partir des fiches (mode « Chaque semaine » avec « Du » / « Au », ou « Dates choisies ») ; elle n'est pas enregistrée ;
@@ -44,15 +44,38 @@ AGR.effectivePick = function (p, is) {
   return AGR.pickOf(p);
 };
 
+/* Prix et km d'un TRAJET simple = prise en charge en vigueur + destination (une course simple vers la même adresse, depuis le même domicile, a le même prix).
+   1) dernière course simple (non supprimée, la plus récente jusqu'à ce jour) du même trajet : son prix et ses km ;
+      une course « retour non compté » donne le montant d'origine (aller-retour) ;
+   2) sinon : la destination habituelle reprend le prix et les km de la fiche (seulement si le domicile n'a jamais déménagé) ;
+   3) sinon (autre lieu jamais facturé) : inconnu, à saisir une fois sur la course. */
+function routeKey(pick, dest) { return [pick.street, pick.zip, pick.city].map(squash).join('|') + '#' + AGR.placeKey(dest); }
+AGR.priceFor = function (rides, p, is, dest) {
+  var want = routeKey(AGR.effectivePick(p, is), dest), best = null, bestRide = null;
+  (rides || []).forEach(function (r) {
+    if (r.deleted_at || r.person_id !== p.id || r.date > is) return;
+    var rd = { place: r.dest_place, street: r.dest_street, zip: r.dest_zip, city: r.dest_city };
+    if (routeKey(AGR.effectivePick(p, r.date), rd) !== want) return;
+    if (!bestRide || r.date > bestRide.date || (r.date === bestRide.date && (r.updated_at || '') > (bestRide.updated_at || ''))) { bestRide = r; }
+  });
+  if (bestRide) {
+    var src = bestRide.retour === false && bestRide.aller_retour_orig ? bestRide.aller_retour_orig : bestRide;
+    best = { price_cents: src.price_cents == null ? null : src.price_cents, km_m: src.km_m == null ? null : src.km_m };
+    return best;
+  }
+  if (!(p.pick_moves || []).length && AGR.placeKey(AGR.destOf(p)) === AGR.placeKey(dest)) return { price_cents: p.usual_price_cents == null ? null : p.usual_price_cents, km_m: p.usual_km_m == null ? null : p.usual_km_m };
+  return { price_cents: null, km_m: null };
+};
+
 /* Crée (en mémoire) la course d'une personne pour un jour : valeurs de la fiche COPIÉES, repère « habituel » gardé par usual_*. */
 AGR.newRide = function (p, is, o) {
   o = o || {};
-  var d = o.dest || AGR.effectiveDest(p, is), t = nowIso();
+  var d = o.dest || AGR.effectiveDest(p, is), t = nowIso(), pr = AGR.priceFor(o.rides, p, is, d);
   return {
     id: self.AG.uuid(), person_id: p.id, date: is,
     time: o.time !== undefined ? o.time : AGR.timeFor(p),
     dest_place: d.place || '', dest_street: d.street || '', dest_zip: d.zip || '', dest_city: d.city || '',
-    price_cents: p.usual_price_cents == null ? null : p.usual_price_cents, km_m: p.usual_km_m == null ? null : p.usual_km_m,
+    price_cents: pr.price_cents, km_m: pr.km_m,
     usual_price_cents: p.usual_price_cents == null ? null : p.usual_price_cents, usual_km_m: p.usual_km_m == null ? null : p.usual_km_m,
     status: null,            /* null = pas noté ; 'done' = fait ; 'not_done' = pas fait */
     changed: !!o.changed,    /* heure ou destination changée pour CE jour */
@@ -74,17 +97,17 @@ AGR.rideItem = function (p, r, is) {
   return { key: r.id, virt: false, date: is, p: p, r: r, pid: p.id, time: r.time || null, dest: { place: r.dest_place, street: r.dest_street, zip: r.dest_zip, city: r.dest_city },
     price: r.price_cents, km: r.km_m, upr: r.usual_price_cents, ukm: r.usual_km_m, status: r.status, changed: !!r.changed, added: !!r.added, skip: !!r.skip, retour: r.retour !== false };
 };
-AGR.virtItem = function (p, is) {    /* carte prévue calculée : rien n'est enregistré */
+AGR.virtItem = function (p, is, rides) {    /* carte prévue calculée : rien n'est enregistré */
   var up = p.usual_price_cents == null ? null : p.usual_price_cents, uk = p.usual_km_m == null ? null : p.usual_km_m;
-  var dd = AGR.effectiveDest(p, is);
+  var dd = AGR.effectiveDest(p, is), pr = AGR.priceFor(rides, p, is, dd);
   return { key: 'v|' + p.id, virt: true, date: is, p: p, r: null, pid: p.id, time: AGR.timeFor(p), dest: { place: dd.place, street: dd.street, zip: dd.zip, city: dd.city },
-    price: up, km: uk, upr: up, ukm: uk, status: null, changed: false, added: false, skip: false, retour: true };
+    price: pr.price_cents, km: pr.km_m, upr: up, ukm: uk, status: null, changed: false, added: false, skip: false, retour: true };
 };
 /* la carte d'une personne pour un jour (course enregistrée, même cachée, ou carte prévue), ou null */
 AGR.itemFor = function (people, rides, pid, is) {
   var p = byId(people)[pid]; if (!p) return null;
   var r = AGR.rideOf(rides, pid, is); if (r) return AGR.rideItem(p, r, is);
-  return AGR.isScheduled(p, is) ? AGR.virtItem(p, is) : null;
+  return AGR.isScheduled(p, is) ? AGR.virtItem(p, is, rides) : null;
 };
 
 /* Les cartes d'un jour : courses enregistrées + cartes prévues calculées, triées par heure.
@@ -102,7 +125,7 @@ AGR.items = function (people, rides, is, todayIso) {
   });
   people.forEach(function (p) {
     if (!AGR.isScheduled(p, is) || AGR.rideOf(rides, p.id, is)) return;
-    out.push(AGR.virtItem(p, is));
+    out.push(AGR.virtItem(p, is, rides));
   });
   return out.map(function (it, i) { return { it: it, i: i, k: it.time ? it.time : '99:99', n: norm(it.p.last_name + ' ' + it.p.first_name) }; })
     .sort(function (a, b) { return a.k < b.k ? -1 : (a.k > b.k ? 1 : (a.n < b.n ? -1 : (a.n > b.n ? 1 : a.i - b.i))); })

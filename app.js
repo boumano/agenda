@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.11'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.12'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -643,7 +643,7 @@ function nowIso() { return new Date(Date.now()).toISOString(); }
 function ensureRide(it, is) {
   if (it.r) return Promise.resolve(it.r);
   var again = AGR.rideOf(rides, it.p.id, is); if (again) return Promise.resolve(again);
-  var r = AGR.newRide(it.p, is); rides.push(r);
+  var r = AGR.newRide(it.p, is, { rides: rides }); rides.push(r);
   return AG.putRide(r).then(function () { return r; }, function (e) { rides.splice(rides.indexOf(r), 1); throw e; });
 }
 function saveRide(r) { r.updated_at = nowIso(); return AG.putRide(r); }
@@ -984,7 +984,7 @@ function sheetSave() {
   if (t.err) { er.textContent = 'Heure invalide : écris par exemple 13:00, ou laisse vide.'; er.hidden = false; document.getElementById('ds-heure').focus(); return; }
   var dest = { place: g('ds-lieu'), street: g('ds-rue'), zip: g('ds-cp'), city: g('ds-ville') }, add = dsh.add;
   var it = itemFor(p, is), run;
-  if (add) { var nr = AGR.newRide(p, is, { time: t.v, dest: dest, added: true, changed: false }); rides.push(nr); run = AG.putRide(nr).then(function () { return nr; }, function (e) { rides.splice(rides.indexOf(nr), 1); throw e; }); }
+  if (add) { var nr = AGR.newRide(p, is, { time: t.v, dest: dest, added: true, changed: false, rides: rides }); rides.push(nr); run = AG.putRide(nr).then(function () { return nr; }, function (e) { rides.splice(rides.indexOf(nr), 1); throw e; }); }
   else run = ensureRide(it, is).then(function (ride) {
     ride.time = t.v; ride.dest_place = dest.place; ride.dest_street = dest.street; ride.dest_zip = dest.zip; ride.dest_city = dest.city;
     ride.changed = true; ride.skip = false; if (ride.status === 'not_done') ride.status = null;
