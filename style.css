@@ -1,4 +1,4 @@
-:root{--ag-version:"0.9.14"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+:root{--ag-version:"0.9.15"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
@@ -305,9 +305,10 @@ mark{background:transparent;color:var(--accent);font-weight:700;text-decoration:
 .calgrid .cell:disabled{background:none;border-color:transparent;color:var(--text2);cursor:default}
 .money{display:grid;grid-template-columns:3fr 2fr;gap:8px;margin-top:16px}
 .money{grid-template-columns:1fr 44px 1fr}
+.money>.field{justify-content:flex-end}
 .cashcol{align-self:end;height:48px;display:flex;align-items:center;justify-content:center}
 .cashdot{width:44px;height:44px;padding:0;border:0;background:none;cursor:pointer;display:grid;place-items:center}
-.cashdot::before{content:"";display:block;width:12px;height:12px;box-sizing:border-box;border:2px solid var(--text-secondary);border-radius:50%}
+.cashdot::before{content:"";display:block;width:12px;height:12px;box-sizing:border-box;border:2px solid var(--text2);border-radius:50%}
 .cashdot.on::before{background:#FF1A1A;border-color:#FF1A1A}
 .cashmark{display:inline-block;width:10px;height:10px;margin-left:6px;border-radius:50%;background:#FF1A1A;vertical-align:middle;flex:none}
 #daysheet .money{margin-top:0}
