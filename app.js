@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.12'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.13'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -714,9 +714,9 @@ function flashCopied(btn, good) {
 }
 /* montant et km du jour : valeur copiée de la fiche à la création, repère « habituel » tant qu'on n'y touche pas */
 function moneyHTML(it, pf) {
-  var hp = it.upr != null && it.price === it.upr, hk = it.ukm != null && it.km === it.ukm;
+  var hp = it.upr != null && it.price === it.upr, hk = it.ukm != null && it.km === it.ukm, cash = !!(it.r && it.r.cash);
   return '<div class="money"><div class="field"><label for="' + pf + 'montant">Montant du jour (€)' + (hp ? '<span class="hab" id="' + pf + 'hab-p">habituel</span>' : '') + '</label><input class="input" id="' + pf + 'montant" inputmode="decimal" value="' + esc(fmtPrice(it.price)) + '" placeholder="inconnu" autocomplete="off"></div>' +
-    '<div class="field"><label for="' + pf + 'km">Kilomètres' + (hk ? '<span class="hab" id="' + pf + 'hab-k">habituel</span>' : '') + '</label><input class="input" id="' + pf + 'km" inputmode="decimal" value="' + esc(fmtKm(it.km)) + '" placeholder="inconnu" autocomplete="off"></div>' +
+    '<div class="field"><div class="klab"><label for="' + pf + 'km">Kilomètres' + (hk ? '<span class="hab" id="' + pf + 'hab-k">habituel</span>' : '') + '</label><button type="button" class="cashdot' + (cash ? ' on' : '') + '" id="' + pf + 'cash" data-a="cash" data-pf="' + pf + '" aria-pressed="' + (cash ? 'true' : 'false') + '" aria-label="Payé à la main"></button></div><input class="input" id="' + pf + 'km" inputmode="decimal" value="' + esc(fmtKm(it.km)) + '" placeholder="inconnu" autocomplete="off"></div>' +
     '<div class="warnbox" id="' + pf + 'err" role="alert" hidden style="grid-column:1 / -1"></div></div>';
 }
 function setTag(pf, kind, on) {
@@ -724,6 +724,21 @@ function setTag(pf, kind, on) {
   if (on && !el) { var lab = document.querySelector('label[for="' + pf + kind + '"]'); if (lab) { var s = document.createElement('span'); s.className = 'hab'; s.id = id; s.textContent = 'habituel'; lab.appendChild(s); } }
   else if (!on && el) el.remove();
 }
+/* point « payé à la main » : une course payée en liquide en main propre. Ne change ni le montant ni le km. */
+function setCashDot(el, on) { if (!el) return; el.classList.toggle('on', !!on); el.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+function cashMarkHTML(r) { return r && r.cash ? '<i class="cashmark" role="img" aria-label="Payé à la main"></i>' : ''; }
+function toggleCash(pf) {
+  var is, it;
+  if (pf === 'm-') { is = iso(day); it = findItem(openKey, is); } else { if (!dsh) return; is = dsh.iso; var p0 = personById(dsh.pid); it = p0 && itemFor(p0, is); }
+  if (!it) return;
+  ensureRide(it, is).then(function (ride) {
+    var oldKey = it.key;
+    ride.cash = !ride.cash;
+    if (it.virt && pf === 'm-') { openKey = ride.id; $$('#s-aujourdhui [data-key="' + oldKey + '"]').forEach(function (el) { el.dataset.key = ride.id; }); }
+    return saveRide(ride).then(function () { setCashDot(document.getElementById(pf + 'cash'), !!ride.cash); });
+  }, function () { toast('Enregistrement impossible : réessaie'); });
+}
+
 /* un champ « montant » ou « km » vient d'être validé (on quitte le champ ou « Entrée ») */
 function saveMoney(pf, kind) {
   var is, it;
@@ -1194,7 +1209,7 @@ function bilanJourHTML(rs, y, m) {
       d.items.map(function (it) {
         var st = it.status === 'done' ? 't' : (it.status === 'not_done' ? 'p' : 'n'), word = st === 't' ? 'oui' : (st === 'p' ? 'non' : (d.iso === T ? 'à faire' : 'pas noté'));
         var opj = it.r ? AGR.otherPlace(jjPinfo(it.p), it.r) : null;
-        return '<span class="jjp ' + st + '"><span class="name">' + nameHTML(it.p) + (opj ? '<i class="pl c' + opj.color + ' jjpl" aria-label="Lieu hors habituel ' + esc(opj.letter) + '">' + opj.letter + '</i>' : '') + '</span><span class="jjr"><span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span></span>';
+        return '<span class="jjp ' + st + '"><span class="name">' + nameHTML(it.p) + (opj ? '<i class="pl c' + opj.color + ' jjpl" aria-label="Lieu hors habituel ' + esc(opj.letter) + '">' + opj.letter + '</i>' : '') + cashMarkHTML(it.r) + '</span><span class="jjr"><span class="jjw">' + word + '</span>' + (st === 't' ? I('check') : (st === 'p' ? I('x') : '<i class="jjring" aria-hidden="true"></i>')) + '</span></span>';
       }).join('') + rowsJ + '</span></button>';
   });
   return h + '</div>';
@@ -1255,7 +1270,7 @@ function bilanSemHTML(rs, wk, y, m) {
         var amt = it.price == null ? 'prix inconnu' : (bil.reveal ? fmtEuros(it.price) : '•••• €');
         return '<div class="wk-ride">' + (op ? '<i class="pl c' + op.color + '" aria-hidden="true">' + op.letter + '</i>' : '<span class="wk-nopl" aria-hidden="true"></span>') +
           '<div class="txt"><div class="t1">' + esc((it.time || 'heure inconnue') + ' · ' + (AGR.placeLabel(it.dest) || 'lieu inconnu')) + (op ? ' <span class="off">· hors habituel</span>' : '') + '</div>' +
-          '<div class="t2">' + nameHTML(it.p) + ' · ' + esc(amt) + '</div>' + retourNoteHTML(it.r) + '</div></div>';
+          '<div class="t2">' + nameHTML(it.p) + cashMarkHTML(it.r) + ' · ' + esc(amt) + '</div>' + retourNoteHTML(it.r) + '</div></div>';
       }).join('') : '') + jrows + (items.length || jday.length ? '' : '<p class="wk-none">Aucune course ce jour-là.</p>') + '</div>';
     }
   }
@@ -2066,6 +2081,7 @@ document.addEventListener('click', function (e) {
     case 'bweek': setWeek(addDaysISO(wkStart(), +b.dataset.d)); break;
     case 'bweekday': bil.open[b.dataset.iso] = !bil.open[b.dataset.iso]; renderBilan(); break;
     case 'reveal': bil.reveal = !bil.reveal; renderBilan(); break;
+    case 'cash': toggleCash(b.dataset.pf); break;
     case 'bday': day = parseISO(b.dataset.iso); openKey = null; go('aujourdhui'); break;       /* ouvre ce jour dans Aujourd'hui */
     case 'confirmcancel': closeConfirm(); break;
     case 'confirmok': confirmOk(); break;

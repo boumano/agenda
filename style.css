@@ -1,4 +1,4 @@
-:root{--ag-version:"0.9.12"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+:root{--ag-version:"0.9.13"} /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : styles repris de la maquette (palette, bandeau, barre du bas, écran neutre, boutons, fiche, calendrier).
    Aucune donnée, aucun nom. Toutes les couleurs sont définies une seule fois, ci-dessous. */
 /* ============================================================
@@ -304,6 +304,12 @@ mark{background:transparent;color:var(--accent);font-weight:700;text-decoration:
 .calgrid .cell.sel{background:var(--pill);border:2px solid var(--accent);color:var(--accent);font-weight:700}
 .calgrid .cell:disabled{background:none;border-color:transparent;color:var(--text2);cursor:default}
 .money{display:grid;grid-template-columns:3fr 2fr;gap:8px;margin-top:16px}
+.klab{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.klab .cashdot{margin-right:-10px}
+.cashdot{width:44px;height:44px;flex:none;padding:0;border:0;background:none;cursor:pointer;display:grid;place-items:center}
+.cashdot::before{content:"";display:block;width:30px;height:30px;box-sizing:border-box;border:2.5px solid var(--text2);border-radius:50%}
+.cashdot.on::before{background:var(--red);border-color:var(--red)}
+.cashmark{display:inline-block;width:10px;height:10px;margin-left:6px;border-radius:50%;background:var(--red);vertical-align:middle;flex:none}
 #daysheet .money{margin-top:0}
 .hab[hidden]{display:none}
 .hab{display:inline-block;margin-left:6px;padding:0 8px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:400;line-height:18px;color:var(--text2)}
