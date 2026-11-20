@@ -1,4 +1,4 @@
-self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.13'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
+self.AG_STAMPS=self.AG_STAMPS||{};self.AG_STAMPS['app.js']='0.9.14'; /* numéro écrit par verifications/sync_version.py : ne pas modifier à la main */
 /* Agenda : écrans et comportements. Étape 2 : personnes et fiche. Aucune donnée dans ce fichier, aucune bibliothèque, aucune adresse internet.
    Les données passent par db.js (AG). Présentation, textes et règles repris de la maquette. */
 (function () {
@@ -716,7 +716,8 @@ function flashCopied(btn, good) {
 function moneyHTML(it, pf) {
   var hp = it.upr != null && it.price === it.upr, hk = it.ukm != null && it.km === it.ukm, cash = !!(it.r && it.r.cash);
   return '<div class="money"><div class="field"><label for="' + pf + 'montant">Montant du jour (€)' + (hp ? '<span class="hab" id="' + pf + 'hab-p">habituel</span>' : '') + '</label><input class="input" id="' + pf + 'montant" inputmode="decimal" value="' + esc(fmtPrice(it.price)) + '" placeholder="inconnu" autocomplete="off"></div>' +
-    '<div class="field"><div class="klab"><label for="' + pf + 'km">Kilomètres' + (hk ? '<span class="hab" id="' + pf + 'hab-k">habituel</span>' : '') + '</label><button type="button" class="cashdot' + (cash ? ' on' : '') + '" id="' + pf + 'cash" data-a="cash" data-pf="' + pf + '" aria-pressed="' + (cash ? 'true' : 'false') + '" aria-label="Payé à la main"></button></div><input class="input" id="' + pf + 'km" inputmode="decimal" value="' + esc(fmtKm(it.km)) + '" placeholder="inconnu" autocomplete="off"></div>' +
+    '<div class="cashcol"><button type="button" class="cashdot' + (cash ? ' on' : '') + '" id="' + pf + 'cash" data-a="cash" data-pf="' + pf + '" aria-pressed="' + (cash ? 'true' : 'false') + '" aria-label="Payé à la main"></button></div>' +
+    '<div class="field"><label for="' + pf + 'km">Kilomètres' + (hk ? '<span class="hab" id="' + pf + 'hab-k">habituel</span>' : '') + '</label><input class="input" id="' + pf + 'km" inputmode="decimal" value="' + esc(fmtKm(it.km)) + '" placeholder="inconnu" autocomplete="off"></div>' +
     '<div class="warnbox" id="' + pf + 'err" role="alert" hidden style="grid-column:1 / -1"></div></div>';
 }
 function setTag(pf, kind, on) {
@@ -790,7 +791,7 @@ function openCardHTML(it) {
     '<div class="rdv' + (it.time ? '' : ' none') + '">' + rdvtxt + (it.changed ? '<span class="chg">changé</span>' : '') + '</div>' +
     meta +
     '<div class="states"><div class="pair">' + b.ok + b.ko + '</div><span class="lab">' + stateWord(v) + '</span></div>' +
-    block(it, 'pick') + block(it, 'dest') + moneyHTML(it, 'm-') + retourHTML(it, 'aretour') +
+    block(it, 'pick') + block(it, 'dest') + moneyHTML(it, 'm-') +
     '<div class="cardact"><button class="btn quiet full" data-a="dschg" data-key="' + esc(it.key) + '">Changer ce jour</button>' +
     (it.added && it.r ? '<button class="btn line full" data-a="dsdel" data-key="' + esc(it.key) + '">Supprimer cette course</button>' : '') + '</div>' +
     '<button class="foldbtn" data-a="afold" data-key="' + esc(it.key) + '" aria-expanded="true" aria-label="Refermer la carte">' + I('up') + '</button></article>';
